@@ -20,6 +20,7 @@ build/
 node_modules/
 dist/
 logs/
+.pytest_cache/
 
 # IDEs and editors
 .idea/

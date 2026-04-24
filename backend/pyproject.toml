@@ -3,9 +3,20 @@ name = "pzio"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.128.0",
-    "uvicorn>=0.40.0",
+    "fastapi>=0.128.0",   # REST API framework
+    "uvicorn>=0.40.0",    # ASGI server for running FastAPI
+    "sqlalchemy>=2.0.44", # ORM for database interactions
+    "pytest>=9.0.2",      # Testing framework
+    "httpx>=0.28.1",      # HTTP client for testing FastAPI endpoints
 ]
 
 [tool.setuptools]
 packages = ["pzio"]
+
+[tool.black]
+line-length = 120
+
+[tool.pytest]
+python_files = ["*.py"]
+testpaths = ["pzio/tests"]
+pythonpath = ["."]

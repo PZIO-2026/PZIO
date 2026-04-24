@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.2.4",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -30,5 +32,10 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10"
+  },
+  "prettier": {
+    "printWidth": 120,
+    "tabWidth": 2,
+    "quoteProps": "consistent"
   }
 }
