@@ -1,107 +1,252 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+"""
+FastAPI router for the `projects` module.
+Location: backend/pzio/modules/projects/router.py
+
+Responsibilities:
+  - Declare routes with correct HTTP methods, paths and status codes.
+  - Inject dependencies (DB session, current user).
+  - Delegate ALL business logic to services.py.
+  - Return typed response models.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
 
-from pzio.db import get_db
-from pzio.modules.projects import schemas, service
-from pzio.modules.projects.deps import get_current_user_mock
+from .dependencies import AuthUser, DBSession
+from .schemas import (
+    BurndownOut,
+    MemberListParams,
+    Page,
+    ProjectCreate,
+    ProjectDetailOut,
+    ProjectListParams,
+    ProjectMemberCreate,
+    ProjectMemberOut,
+    ProjectOut,
+    ProjectUpdate,
+    SprintCreate,
+    SprintOut,
+    SprintUpdate,
+)
+from . import services
 
-router = APIRouter(tags=["Projects"])
+router = APIRouter(tags=["projects"])
 
-# ==========================================
-# PROJEKTY (PROJECTS)
-# ==========================================
 
-@router.post("/api/projects", status_code=status.HTTP_201_CREATED, response_model=schemas.ProjectResponse)
+# ===========================================================================
+# Projects
+# ===========================================================================
+
+
+@router.post(
+    "/api/projects",
+    response_model=ProjectOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new project",
+)
 def create_project(
-    payload: schemas.ProjectCreate, 
-    db: Session = Depends(get_db),
-    user_id: UUID = Depends(get_current_user_mock) # Zabezpieczenie endpointu!
-):
-    project = service.create_project(db=db, payload=payload)
-    # TODO: Pamiętajcie, że twórca projektu powinien automatycznie zostać do niego przypisany jako członek (ProjectMember)!
-    return project
+    payload: ProjectCreate,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> ProjectOut:
+    return services.create_project(db, payload)
 
-@router.get("/api/projects", response_model=schemas.PaginatedProjects)
+
+@router.get(
+    "/api/projects",
+    response_model=Page[ProjectOut],
+    status_code=status.HTTP_200_OK,
+    summary="List projects with pagination and filters",
+)
 def list_projects(
-    status: Optional[str] = None,
-    search: Optional[str] = None,
-    sortBy: Optional[str] = None,
-    sortDirection: Optional[str] = "asc",
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
-):
-    # TODO: Filtrowanie i paginacja projektów
-    pass
+    db: DBSession,
+    _current_user: AuthUser,
+    status_filter: str | None = Query(default=None, alias="status"),
+    search: str | None = Query(default=None),
+    sortBy: str = Query(default="created_at"),
+    sortDirection: str = Query(default="desc", pattern="^(asc|desc)$"),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+) -> Page[ProjectOut]:
+    params = ProjectListParams(
+        status=status_filter,
+        search=search,
+        sortBy=sortBy,
+        sortDirection=sortDirection,
+        page=page,
+        size=size,
+    )
+    return services.list_projects(db, params)
 
-@router.get("/api/projects/{id}", response_model=schemas.ProjectResponse)
-def get_project_details(id: UUID, db: Session = Depends(get_db)):
-    # TODO: Pobranie projektu wraz ze statystykami
-    pass
 
-@router.patch("/api/projects/{id}", response_model=schemas.ProjectResponse)
-def update_project(id: UUID, payload: schemas.ProjectUpdate, db: Session = Depends(get_db)):
-    # TODO: Aktualizacja wybranych pól
-    pass
+@router.get(
+    "/api/projects/{id}",
+    response_model=ProjectDetailOut,
+    status_code=status.HTTP_200_OK,
+    summary="Get a single project with member and sprint statistics",
+)
+def get_project(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> ProjectDetailOut:
+    return services.get_project(db, id)
 
-@router.delete("/api/projects/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(id: UUID, db: Session = Depends(get_db)):
-    # TODO: Usunięcie/archiwizacja projektu
-    pass
 
-# ==========================================
-# ZESPÓŁ (MEMBERS)
-# ==========================================
+@router.patch(
+    "/api/projects/{id}",
+    response_model=ProjectOut,
+    status_code=status.HTTP_200_OK,
+    summary="Partially update a project (only supplied fields are changed)",
+)
+def update_project(
+    id: str,
+    payload: ProjectUpdate,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> ProjectOut:
+    return services.update_project(db, id, payload)
 
-@router.post("/api/projects/{id}/members", status_code=status.HTTP_201_CREATED, response_model=schemas.ProjectMemberResponse)
-def add_project_member(id: UUID, payload: schemas.ProjectMemberAdd, db: Session = Depends(get_db)):
-    # TODO: Dodanie rekordu ProjectMember
-    pass
 
-@router.get("/api/projects/{id}/members", response_model=List[schemas.ProjectMemberResponse])
-def list_project_members(
-    id: UUID,
-    role: Optional[str] = None,
-    search: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db)
-):
-    # TODO: Pobranie listy przypisanych osób
-    pass
+@router.delete(
+    "/api/projects/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Archive (soft-delete) a project",
+)
+def delete_project(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> None:
+    services.delete_project(db, id)
 
-@router.delete("/api/projects/{id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_project_member(id: UUID, user_id: UUID, db: Session = Depends(get_db)):
-    # TODO: Usunięcie powiązania (ProjectMember)
-    pass
 
-# ==========================================
-# SPRINTY (SPRINTS)
-# ==========================================
+# ===========================================================================
+# Project Members
+# ===========================================================================
 
-@router.post("/api/projects/{id}/sprints", status_code=status.HTTP_201_CREATED, response_model=schemas.SprintResponse)
-def create_sprint(id: UUID, payload: schemas.SprintCreate, db: Session = Depends(get_db)):
-    # TODO: Tworzenie sprintu
-    pass
 
-@router.get("/api/projects/{id}/sprints", response_model=List[schemas.SprintResponse])
-def list_sprints(id: UUID, db: Session = Depends(get_db)):
-    # TODO: Zwraca sprinty danego projektu
-    pass
+@router.post(
+    "/api/projects/{id}/members",
+    response_model=ProjectMemberOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a user to a project",
+)
+def add_member(
+    id: str,
+    payload: ProjectMemberCreate,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> ProjectMemberOut:
+    return services.add_member(db, id, payload)
 
-@router.patch("/api/sprints/{id}", response_model=schemas.SprintResponse)
-def update_sprint(id: UUID, payload: schemas.SprintUpdate, db: Session = Depends(get_db)):
-    # TODO: Aktualizacja/Start sprintu
-    pass
 
-@router.delete("/api/sprints/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sprint(id: UUID, db: Session = Depends(get_db)):
-    # TODO: Usunięcie sprintu
-    pass
+@router.get(
+    "/api/projects/{id}/members",
+    response_model=Page[ProjectMemberOut],
+    status_code=status.HTTP_200_OK,
+    summary="List project members with optional role/search filtering",
+)
+def list_members(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+    role: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+) -> Page[ProjectMemberOut]:
+    params = MemberListParams(role=role, search=search, page=page, size=size)
+    return services.list_members(db, id, params)
 
-@router.get("/api/sprints/{id}/burndown", response_model=schemas.BurndownResponse)
-def get_sprint_burndown(id: UUID, db: Session = Depends(get_db)):
-    # TODO: Zaawansowana agregacja z bazy (wymaga logiki Modułu Zadań)
-    pass
+
+@router.delete(
+    "/api/projects/{id}/members/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a user from a project",
+)
+def remove_member(
+    id: str,
+    user_id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> None:
+    services.remove_member(db, id, user_id)
+
+
+# ===========================================================================
+# Sprints
+# ===========================================================================
+
+
+@router.post(
+    "/api/projects/{id}/sprints",
+    response_model=SprintOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a sprint in a project (status defaults to 'planned')",
+)
+def create_sprint(
+    id: str,
+    payload: SprintCreate,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> SprintOut:
+    return services.create_sprint(db, id, payload)
+
+
+@router.get(
+    "/api/projects/{id}/sprints",
+    response_model=list[SprintOut],
+    status_code=status.HTTP_200_OK,
+    summary="List all sprints for a project ordered by start date",
+)
+def list_sprints(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> list[SprintOut]:
+    return services.list_sprints(db, id)
+
+
+@router.patch(
+    "/api/sprints/{id}",
+    response_model=SprintOut,
+    status_code=status.HTTP_200_OK,
+    summary="Partially update a sprint",
+)
+def update_sprint(
+    id: str,
+    payload: SprintUpdate,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> SprintOut:
+    return services.update_sprint(db, id, payload)
+
+
+@router.delete(
+    "/api/sprints/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a sprint",
+)
+def delete_sprint(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> None:
+    services.delete_sprint(db, id)
+
+
+@router.get(
+    "/api/sprints/{id}/burndown",
+    response_model=BurndownOut,
+    status_code=status.HTTP_200_OK,
+    summary="Get the burndown chart data for a sprint",
+)
+def get_burndown(
+    id: str,
+    db: DBSession,
+    _current_user: AuthUser,
+) -> BurndownOut:
+    return services.get_burndown(db, id)
