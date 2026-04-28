@@ -30,6 +30,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column("password_hash", String(255), nullable=False)
     first_name: Mapped[str] = mapped_column("first_name", String(100), nullable=False)
     last_name: Mapped[str] = mapped_column("last_name", String(100), nullable=False)
+    
+    avatar: Mapped[str | None] = mapped_column("avatar", String(255), nullable=True, default=None)
+    
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, native_enum=False, length=20),
         nullable=False,
