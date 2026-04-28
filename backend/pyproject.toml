@@ -19,5 +19,4 @@ line-length = 120
 
 [tool.pytest.ini_options]
 testpaths = ["pzio/tests", "pzio/modules"]
-python_files = ["test_*.py"]
 pythonpath = ["."]
