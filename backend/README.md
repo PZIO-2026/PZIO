@@ -21,6 +21,8 @@ curl http://localhost:8000/health
 # {"status":"ok"}
 ```
 
+`/health` is an operational liveness probe (used by Docker, Kubernetes, load balancers and similar tooling). It sits outside the SAD API surface on purpose — the SAD describes the business API, while `/health` is plain ops infrastructure.
+
 ## Running tests
 
 From `backend/`:
