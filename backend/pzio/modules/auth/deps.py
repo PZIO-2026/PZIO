@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from pzio.db import get_db
-from pzio.modules.auth.models import User
+from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import InvalidTokenError, decode_access_token
 
 _bearer_scheme = HTTPBearer(auto_error=False)
@@ -37,3 +37,13 @@ def get_current_user(
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User no longer active")
     return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """FastAPI dependency that enforces the Administrator role."""
+    if current_user.role != UserRole.ADMINISTRATOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Insufficient privileges"
+        )
+    return current_user
