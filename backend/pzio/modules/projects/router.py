@@ -4,7 +4,8 @@ from uuid import UUID
 from typing import List, Optional
 
 from pzio.db import get_db
-from pzio.modules.projects import schemas
+from pzio.modules.projects import schemas, service
+from pzio.modules.projects.deps import get_current_user_mock
 
 router = APIRouter(tags=["Projects"])
 
@@ -13,9 +14,14 @@ router = APIRouter(tags=["Projects"])
 # ==========================================
 
 @router.post("/api/projects", status_code=status.HTTP_201_CREATED, response_model=schemas.ProjectResponse)
-def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    # TODO: Logika tworzenia projektu
-    pass
+def create_project(
+    payload: schemas.ProjectCreate, 
+    db: Session = Depends(get_db),
+    user_id: UUID = Depends(get_current_user_mock) # Zabezpieczenie endpointu!
+):
+    project = service.create_project(db=db, payload=payload)
+    # TODO: Pamiętajcie, że twórca projektu powinien automatycznie zostać do niego przypisany jako członek (ProjectMember)!
+    return project
 
 @router.get("/api/projects", response_model=schemas.PaginatedProjects)
 def list_projects(
