@@ -16,12 +16,13 @@ from sqlalchemy import (
     String,
     Text,
     ARRAY,
+    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 # Assumes a shared Base is declared in e.g. backend/pzio/database.py
-from pzio.database import Base
+from pzio.db import Base
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ class SprintStatus(str, enum.Enum):
 
 class Project(Base):
     __tablename__ = "projects"
+    __allow_unmapped__ = True 
 
     id: str = Column(
         UUID(as_uuid=False),
@@ -85,12 +87,13 @@ class Project(Base):
 # ---------------------------------------------------------------------------
 
 class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __allow_unmapped__ = True
+
     """
     Join table between Project and a user (referenced only by userId string).
     `roles` is stored as a PostgreSQL ARRAY of text values.
     """
-
-    __tablename__ = "project_members"
 
     id: str = Column(
         UUID(as_uuid=False),
@@ -104,7 +107,11 @@ class ProjectMember(Base):
         index=True,
     )
     user_id: str = Column(String(255), nullable=False, index=True)
-    roles: list[str] = Column(ARRAY(String), nullable=False, default=list)
+    roles: list[str] = Column(
+        ARRAY(String).with_variant(JSON, "sqlite"), 
+        nullable=False, 
+        default=list
+    )
     joined_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -121,6 +128,7 @@ class ProjectMember(Base):
 
 class Sprint(Base):
     __tablename__ = "sprints"
+    __allow_unmapped__ = True 
 
     id: str = Column(
         UUID(as_uuid=False),

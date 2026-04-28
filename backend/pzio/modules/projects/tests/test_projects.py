@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 # Importy z Twojej aplikacji
 from pzio.modules.projects.router import router
 from pzio.modules.projects.dependencies import get_db, get_current_user, CurrentUser
-from pzio.database import Base  # Miejsce, gdzie zdefiniowane jest Base
+from pzio.db import Base  # Miejsce, gdzie zdefiniowane jest Base
 
 # ===========================================================================
 # Konfiguracja środowiska testowego
