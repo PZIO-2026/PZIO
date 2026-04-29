@@ -332,6 +332,21 @@ def test_worklogs():
         db.close()
 
 
+def test_create_worklog_task_not_found():
+    response = client.post(
+        "/api/tasks/999999/worklogs",
+        json={"hoursSpent": 1.0, "note": "missing task"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Task not found"
+
+
+def test_get_worklogs_task_not_found():
+    response = client.get("/api/tasks/999999/worklogs")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Task not found"
+
+
 def test_protected_endpoints_require_auth():
     create_resp = client.post(
         "/api/projects/1/tasks",

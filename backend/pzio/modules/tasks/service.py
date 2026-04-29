@@ -116,7 +116,10 @@ def create_time_log(
     task_id: int,
     log_data: schemas.TimeLogCreate,
     user_id: int,
-) -> models.TimeLog:
+) -> models.TimeLog | None:
+    if not get_work_item(db, task_id):
+        return None
+
     db_log = models.TimeLog(
         **log_data.model_dump(), work_item_id=task_id, user_id=user_id
     )
@@ -126,6 +129,9 @@ def create_time_log(
     return db_log
 
 
-def get_time_logs(db: Session, task_id: int) -> list[models.TimeLog]:
+def get_time_logs(db: Session, task_id: int) -> list[models.TimeLog] | None:
+    if not get_work_item(db, task_id):
+        return None
+
     statement = select(models.TimeLog).where(models.TimeLog.work_item_id == task_id)
     return list(db.scalars(statement).all())

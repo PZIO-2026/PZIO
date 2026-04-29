@@ -114,7 +114,10 @@ def create_worklog(
     user_id: CurrentUserId,
 ):
     """Rejestrowanie czasu pracy (Worklog)."""
-    return service.create_time_log(db, task_id=id, log_data=worklog, user_id=user_id)
+    created_log = service.create_time_log(db, task_id=id, log_data=worklog, user_id=user_id)
+    if not created_log:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return created_log
 
 
 @router.get("/api/tasks/{id}/worklogs", response_model=list[schemas.TimeLogResponse])
@@ -123,4 +126,7 @@ def get_worklogs(
     db: DbSession,
 ):
     """Pobranie historii logów czasu pracy."""
-    return service.get_time_logs(db, task_id=id)
+    logs = service.get_time_logs(db, task_id=id)
+    if logs is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return logs
