@@ -3,31 +3,42 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from testcontainers.postgres import PostgresContainer
 
 from pzio.db import Base, get_db
 from pzio.main import app
 
 
+# Tests use a real PostgreSQL instance (SAD §7.4) running in a throw-away
+# container. The container is started once per test session and reused for all
+# tests; per-test isolation is achieved by recreating the schema between tests.
+@pytest.fixture(scope="session")
+def postgres_engine() -> Generator[Engine, None, None]:
+    with PostgresContainer("postgres:16-alpine", driver="psycopg") as postgres:
+        engine = create_engine(postgres.get_connection_url(), future=True)
+        try:
+            yield engine
+        finally:
+            engine.dispose()
+
+
 @pytest.fixture
-def db_session() -> Generator[Session, None, None]:
-    # In-memory SQLite shared across the connection pool so all sessions opened during
-    # one test see the same data. StaticPool keeps a single underlying connection.
-    test_engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+def db_session(postgres_engine: Engine) -> Generator[Session, None, None]:
+    Base.metadata.create_all(bind=postgres_engine)
+    TestingSession = sessionmaker(
+        autocommit=False, autoflush=False, bind=postgres_engine, expire_on_commit=False
     )
-    Base.metadata.create_all(bind=test_engine)
-    TestingSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine, expire_on_commit=False)
     session = TestingSession()
     try:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=test_engine)
-        test_engine.dispose()
+        # Wipe the schema between tests — cheaper than a fresh container, fully
+        # isolates writes (sequences reset, FKs cascade) without us tracking
+        # which rows each test touched.
+        Base.metadata.drop_all(bind=postgres_engine)
 
 
 @pytest.fixture
