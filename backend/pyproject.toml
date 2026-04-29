@@ -11,7 +11,9 @@ dependencies = [
     "bcrypt>=4.2.0",             # Password hashing (NFR04)
     "pyjwt>=2.10.0",             # JWT issuing / verification
     "pytest>=9.0.2",             # Testing framework
+    "pytest-cov>=7.1.0",         # Code coverage plugin for pytest
     "httpx>=0.28.1",             # HTTP client for testing FastAPI endpoints
+    "python-multipart>=0.0.22",  # For handling multipart/form-data (file uploads)
 ]
 
 [tool.setuptools.packages.find]
