@@ -31,7 +31,7 @@ From `backend/`:
 pytest
 ```
 
-Tests use an in-memory SQLite engine via the fixtures in `pzio/tests/conftest.py` — no external services required.
+Tests use an in-memory SQLite engine via the fixtures in `pzio/conftest.py` — no external services required. The conftest sits at the package root so the same `client` and `db_session` fixtures are visible to module-level tests under `pzio/modules/<name>/tests/`.
 
 ## API documentation
 
