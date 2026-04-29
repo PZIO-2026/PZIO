@@ -99,29 +99,108 @@ def test_create_task():
 
 def test_get_tasks():
     """Test pobierania listy zadań w projekcie z filtrowaniem."""
-    # Tworzymy dwa testowe zadania
-    _ = client.post(
+    # Tworzymy zadania o różnych kombinacjach pól filtrowania
+    create_response_1 = client.post(
         "/api/projects/1/tasks",
-        json={"title": "Task 1", "type": "Bug", "priority": "Low"},
+        json={
+            "title": "Task 1",
+            "type": "Bug",
+            "priority": "Low",
+            "status": "Todo",
+            "assigneeId": 10,
+            "sprintId": 100,
+        },
     )
-    _ = client.post(
+    assert create_response_1.status_code == 201
+
+    create_response_2 = client.post(
         "/api/projects/1/tasks",
-        json={"title": "Task 2", "type": "Task", "priority": "High"},
+        json={
+            "title": "Task 2",
+            "type": "Task",
+            "priority": "High",
+            "status": "In Progress",
+            "assigneeId": 20,
+            "sprintId": 200,
+        },
     )
+    assert create_response_2.status_code == 201
+
+    create_response_3 = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Task 3",
+            "type": "Bug",
+            "priority": "Medium",
+            "status": "Todo",
+            "assigneeId": 10,
+            "sprintId": 200,
+        },
+    )
+    assert create_response_3.status_code == 201
 
     # Pobieramy wszystko z projektu 1
     response = client.get("/api/projects/1/tasks")
     assert response.status_code == 200
     tasks = cast(list[dict[str, object]], response.json())
-    assert len(tasks) == 2
+    assert len(tasks) == 3
 
     # Pobieramy z filtrowaniem po typie
     response_filtered = client.get("/api/projects/1/tasks?type=Bug")
     assert response_filtered.status_code == 200
     filtered_tasks = cast(list[dict[str, object]], response_filtered.json())
-    assert len(filtered_tasks) == 1
-    first_task = filtered_tasks[0]
-    assert first_task["title"] == "Task 1"
+    assert len(filtered_tasks) == 2
+    assert {cast(str, task["title"]) for task in filtered_tasks} == {"Task 1", "Task 3"}
+
+    # Pobieramy z filtrowaniem po statusie
+    response_status_filtered = client.get("/api/projects/1/tasks?status=Todo")
+    assert response_status_filtered.status_code == 200
+    status_filtered_tasks = cast(list[dict[str, object]], response_status_filtered.json())
+    assert len(status_filtered_tasks) == 2
+    assert {cast(str, task["title"]) for task in status_filtered_tasks} == {"Task 1", "Task 3"}
+
+    # Pobieramy z filtrowaniem po assigneeId
+    response_assignee_filtered = client.get("/api/projects/1/tasks?assigneeId=20")
+    assert response_assignee_filtered.status_code == 200
+    assignee_filtered_tasks = cast(
+        list[dict[str, object]], response_assignee_filtered.json()
+    )
+    assert len(assignee_filtered_tasks) == 1
+    assert assignee_filtered_tasks[0]["title"] == "Task 2"
+
+    # Pobieramy z filtrowaniem po sprintId
+    response_sprint_filtered = client.get("/api/projects/1/tasks?sprintId=200")
+    assert response_sprint_filtered.status_code == 200
+    sprint_filtered_tasks = cast(
+        list[dict[str, object]], response_sprint_filtered.json()
+    )
+    assert len(sprint_filtered_tasks) == 2
+    assert {cast(str, task["title"]) for task in sprint_filtered_tasks} == {
+        "Task 2",
+        "Task 3",
+    }
+
+    # Pobieramy z kombinacją filtrów
+    response_combined_filtered = client.get(
+        "/api/projects/1/tasks?status=Todo&assigneeId=10"
+    )
+    assert response_combined_filtered.status_code == 200
+    combined_filtered_tasks = cast(
+        list[dict[str, object]], response_combined_filtered.json()
+    )
+    assert len(combined_filtered_tasks) == 2
+    assert {cast(str, task["title"]) for task in combined_filtered_tasks} == {
+        "Task 1",
+        "Task 3",
+    }
+
+    response_all_filters = client.get(
+        "/api/projects/1/tasks?type=Bug&status=Todo&assigneeId=10&sprintId=100"
+    )
+    assert response_all_filters.status_code == 200
+    all_filters_tasks = cast(list[dict[str, object]], response_all_filters.json())
+    assert len(all_filters_tasks) == 1
+    assert all_filters_tasks[0]["title"] == "Task 1"
 
 
 def test_get_task_by_id():
