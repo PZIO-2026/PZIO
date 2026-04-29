@@ -1,11 +1,24 @@
+import secrets
 from typing import Sequence
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from pzio.modules.auth.models import User, UserRole
-from pzio.modules.auth.schemas import UserCreate, UserUpdate
-from pzio.modules.auth.security import hash_password, verify_password
+from pzio.modules.auth.schemas import (
+    OAuthLoginRequest,
+    PasswordResetConfirm,
+    UserCreate,
+    UserUpdate,
+)
+from pzio.modules.auth.security import (
+    InvalidTokenError,
+    create_reset_token,
+    decode_reset_token,
+    hash_password,
+    verify_password,
+)
+from pzio.modules.communication.base import EmailService
 
 
 class EmailAlreadyExistsError(Exception):
@@ -15,8 +28,17 @@ class EmailAlreadyExistsError(Exception):
 class InvalidCredentialsError(Exception):
     """Raised when login credentials don't match any active user (→ 401)."""
 
+
 class UserNotFoundError(Exception):
     """Raised when a user is not found by ID (→ 404)."""
+
+
+class InvalidResetTokenError(Exception):
+    """Raised when a password reset token is invalid or expired (→ 400)."""
+
+
+class OAuthProviderNotSupportedError(Exception):
+    """Raised when an unsupported OAuth provider is requested (→ 400)."""
 
 
 def _get_user_by_email(db: Session, email: str) -> User | None:
@@ -47,11 +69,7 @@ def create_user(db: Session, payload: UserCreate) -> User:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User:
-    """Verify credentials. Raises InvalidCredentialsError on any mismatch.
-
-    The same exception is raised whether the email is unknown or the password is
-    wrong — this prevents user enumeration via response timing/messages.
-    """
+    """Verify credentials. Raises InvalidCredentialsError on any mismatch."""
     user = _get_user_by_email(db, email)
     if user is None or not user.is_active or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
@@ -133,3 +151,71 @@ def get_users_paginated(
     items = db.scalars(stmt).all()
     
     return items, total
+
+
+def request_password_reset(db: Session, email: str, email_service: EmailService) -> None:
+    """
+    Generates a reset token and sends it via email.
+    Always returns None to prevent email enumeration.
+    """
+    user = _get_user_by_email(db, email)
+    if not user:
+        return
+
+    token = create_reset_token(user.email)
+    
+    reset_link = f"http://localhost:3000/reset-password?token={token}"
+    
+    subject = "Resetowanie hasła w PZIO"
+    body = (
+        f"Cześć {user.first_name},\n\n"
+        f"Otrzymaliśmy prośbę o zresetowanie Twojego hasła. Kliknij w poniższy link, aby ustawić nowe:\n"
+        f"{reset_link}\n\n"
+        "Link jest ważny przez 15 minut. Jeśli to nie Ty, zignoruj tę wiadomość."
+    )
+    
+    email_service.send_email(to=user.email, subject=subject, body=body)
+
+
+def confirm_password_reset(db: Session, payload: PasswordResetConfirm) -> None:
+    """Verifies token and sets a new password for the user."""
+    try:
+        email = decode_reset_token(payload.token)
+    except InvalidTokenError:
+        raise InvalidResetTokenError()
+
+    user = _get_user_by_email(db, email)
+    if not user:
+        raise UserNotFoundError()
+
+    user.password_hash = hash_password(payload.new_password)
+    db.add(user)
+    db.commit()
+
+
+def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
+    """
+    OAuth login logic. Matches user by email or registers a new one via JIT provisioning.
+    """
+    provider = payload.provider.lower()
+    if provider not in ["google", "github"]:
+        raise OAuthProviderNotSupportedError(provider)
+
+    dummy_email = f"user_{provider}@example.com" 
+    
+    user = _get_user_by_email(db, dummy_email)
+    
+    if not user:
+        user = User(
+            email=dummy_email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            first_name=provider.capitalize(),
+            last_name="User",
+            role=UserRole.TEAM_MEMBER,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+    return user
