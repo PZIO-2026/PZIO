@@ -1,10 +1,24 @@
-import viteLogo from "../assets/vite.svg";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+
+import AuthProvider from "../modules/auth/AuthProvider";
+import LoginPage from "../modules/auth/pages/LoginPage";
+import RegisterPage from "../modules/auth/pages/RegisterPage";
+import HomePage from "../pages/HomePage";
+import ProtectedRoute from "../routes/ProtectedRoute";
 
 export default function App() {
   return (
-    <div className="flex h-screen w-screen items-center justify-center gap-4">
-      <img src={viteLogo} className="vite" alt="Vite logo" />
-      <h1 className="text-4xl font-bold">Hello world</h1>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<HomePage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
