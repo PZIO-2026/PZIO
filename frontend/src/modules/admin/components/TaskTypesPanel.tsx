@@ -58,7 +58,7 @@ export default function TaskTypesPanel() {
     try {
       const created = await createTaskType({ name: values.name });
       setTaskTypes((current) => [...current, created]);
-      reset({ name: "" });
+      reset();
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(

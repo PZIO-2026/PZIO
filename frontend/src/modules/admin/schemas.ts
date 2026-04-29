@@ -3,7 +3,6 @@ import { z } from "zod";
 export const createTaskTypeSchema = z.object({
   name: z
     .string()
-    .trim()
     .min(1, "Nazwa typu jest wymagana")
     .max(100, "Nazwa typu nie może przekraczać 100 znaków"),
 });
