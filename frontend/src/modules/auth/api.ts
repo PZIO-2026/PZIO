@@ -15,3 +15,7 @@ export function login(input: LoginInput): Promise<TokenResponse> {
     body: input,
   });
 }
+
+export function getMe(): Promise<User> {
+  return apiFetch<User>("/api/users/me");
+}

@@ -1,16 +1,15 @@
 import { createContext } from "react";
 
-import type { UserRole } from "./types";
+import type { User } from "./types";
 
 export interface AuthState {
   token: string | null;
-  email: string | null;
-  userId: number | null;
-  role: UserRole | null;
+  user: User | null;
+  isLoadingUser: boolean;
 }
 
 export interface AuthContextValue extends AuthState {
-  login: (token: string, email: string) => void;
+  login: (token: string) => void;
   logout: () => void;
 }
 
