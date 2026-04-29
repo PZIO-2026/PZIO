@@ -102,12 +102,14 @@ def update_profile(
 def list_users(
     search: str | None = Query(None, description="Search by email, first name, or last name"),
     is_active: bool | None = Query(None, alias="isActive", description="Filter by active status"),
+    sort_by: str | None = Query(None, alias="sortBy", description="Field to sort by"),
+    sort_direction: str | None = Query("desc", alias="sortDirection", description="Sort direction (asc or desc)"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(50, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ) -> PaginatedUserResponse:
-    items, total = service.get_users_paginated(db, search, is_active, page, size)
+    items, total = service.get_users_paginated(db, search, is_active, sort_by, sort_direction, page, size)
     
     return PaginatedUserResponse(
         items=[UserRead.model_validate(item) for item in items],

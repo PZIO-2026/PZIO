@@ -88,10 +88,12 @@ def get_users_paginated(
     db: Session, 
     search: str | None = None, 
     is_active: bool | None = None, 
+    sort_by: str | None = None,
+    sort_direction: str | None = "desc",
     page: int = 1, 
     size: int = 50
 ) -> tuple[Sequence[User], int]:
-    """Get a paginated list of users with optional filtering."""
+    """Get a paginated list of users with optional filtering and sorting."""
     stmt = select(User)
     
     if search:
@@ -110,7 +112,24 @@ def get_users_paginated(
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(total_stmt) or 0
     
-    stmt = stmt.order_by(User.user_id.desc()).offset((page - 1) * size).limit(size)
+    if sort_by:
+        sort_columns = {
+            "email": User.email,
+            "firstName": User.first_name,
+            "lastName": User.last_name,
+            "isActive": User.is_active,
+            "userId": User.user_id
+        }
+        column = sort_columns.get(sort_by, User.user_id)
+        
+        if sort_direction and sort_direction.lower() == "asc":
+            stmt = stmt.order_by(column.asc())
+        else:
+            stmt = stmt.order_by(column.desc())
+    else:
+        stmt = stmt.order_by(User.user_id.desc())
+    
+    stmt = stmt.offset((page - 1) * size).limit(size)
     items = db.scalars(stmt).all()
     
     return items, total
