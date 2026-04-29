@@ -18,7 +18,7 @@ class WorkItemBase(BaseModel):
 
 
 class WorkItemCreate(WorkItemBase):
-    pass
+    status: str = "ToDo"
 
 
 class WorkItemUpdate(BaseModel):

@@ -1,9 +1,13 @@
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from pzio.modules.tasks import models, schemas
+
+
+def _normalize_status_value(value: str) -> str:
+    return "".join(value.lower().split())
 
 
 def create_work_item(
@@ -30,7 +34,11 @@ def get_work_items(
 ) -> list[models.WorkItem]:
     statement = select(models.WorkItem).where(models.WorkItem.project_id == project_id)
     if status is not None:
-        statement = statement.where(models.WorkItem.status == status)
+        normalized_status = _normalize_status_value(status)
+        statement = statement.where(
+            func.replace(func.lower(models.WorkItem.status), " ", "")
+            == normalized_status
+        )
     if assignee_id is not None:
         statement = statement.where(models.WorkItem.assignee_id == assignee_id)
     if sprint_id is not None:
