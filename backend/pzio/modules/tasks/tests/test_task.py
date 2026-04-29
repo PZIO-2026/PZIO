@@ -9,7 +9,7 @@ from pzio.main import app
 from pzio.modules.auth.deps import get_current_user
 from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import hash_password
-import pzio.modules.tasks.models as models
+from pzio.modules.tasks import models
 
 
 @pytest.fixture(autouse=True)

@@ -9,7 +9,6 @@ from ...db import Base
 
 class WorkItem(Base):
     __tablename__: str = "work_items"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     project_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
@@ -19,7 +18,7 @@ class WorkItem(Base):
     priority: Mapped[str] = mapped_column(String, nullable=False)
     story_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parent_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("work_items.id", ondelete="SET NULL"), nullable=True
+        Integer, ForeignKey("work_items.id"), nullable=True
     )
     assignee_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -35,7 +34,6 @@ class WorkItem(Base):
 
 class TimeLog(Base):
     __tablename__: str = "time_logs"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     work_item_id: Mapped[int] = mapped_column(
@@ -54,7 +52,6 @@ class TimeLog(Base):
 
 class ActivityLog(Base):
     __tablename__: str = "activity_logs"
-    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     work_item_id: Mapped[int] = mapped_column(
