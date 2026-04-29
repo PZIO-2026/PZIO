@@ -27,6 +27,11 @@ export default function AppLayout() {
               <NavLink to="/profile" className={navLinkClass}>
                 Profil
               </NavLink>
+              {user.role === "Administrator" && (
+                <NavLink to="/admin" className={navLinkClass}>
+                  Panel administracyjny
+                </NavLink>
+              )}
             </div>
           </div>
 
