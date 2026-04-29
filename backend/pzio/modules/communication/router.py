@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 
 from pzio.db import get_db
 from pzio.modules.auth.models import User
+from pzio.modules.communication.base import EmailService
 from pzio.modules.communication import service
-from pzio.modules.communication.deps import get_current_user
+from pzio.modules.communication.deps import get_current_user, provide_email_service
 from pzio.modules.communication.schemas import (
     AttachmentRead,
     CommentCreate,
@@ -14,6 +15,19 @@ from pzio.modules.communication.schemas import (
 )
 
 router = APIRouter(tags=["Communication"])
+
+
+def _build_comment_notification_message(task_id: int, author: User, content: str) -> tuple[str, str]:
+    subject = f"New comment on task #{task_id}"
+    author_display = f"{author.first_name} {author.last_name}".strip()
+    body = (
+        "A new task comment was added.\n\n"
+        f"Task ID: {task_id}\n"
+        f"Commented by: {author_display} <{author.email}>\n\n"
+        "Comment content:\n"
+        f"{content}\n"
+    )
+    return subject, body
 
 
 @router.post(
@@ -35,9 +49,14 @@ def add_comment(
     payload: CommentCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    email_service: EmailService = Depends(provide_email_service),
 ) -> CommentRead:
     comment = service.create_comment(db, task_id, current_user.user_id, payload)
-    # TODO: SMTP
+    subject, body = _build_comment_notification_message(task_id, current_user, payload.content)
+    # Observers are not modeled yet, so as a temporary integration point we send
+    # the notification to the current user and keep the payload shape ready.
+    email_service.send_email(to=current_user.email, subject=subject, body=body)
+    
     return CommentRead.model_validate(comment)
 
 
