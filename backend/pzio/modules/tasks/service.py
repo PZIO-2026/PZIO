@@ -28,13 +28,13 @@ def get_work_items(
     task_type: str | None = None,
 ) -> list[models.WorkItem]:
     query = db.query(models.WorkItem).filter(models.WorkItem.project_id == project_id)
-    if status:
+    if status is not None:
         query = query.filter(models.WorkItem.status == status)
-    if assignee_id:
+    if assignee_id is not None:
         query = query.filter(models.WorkItem.assignee_id == assignee_id)
-    if sprint_id:
+    if sprint_id is not None:
         query = query.filter(models.WorkItem.sprint_id == sprint_id)
-    if task_type:
+    if task_type is not None:
         query = query.filter(models.WorkItem.type == task_type)
     return query.all()
 
