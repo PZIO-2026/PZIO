@@ -3,7 +3,7 @@ from typing import cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.pzio.modules.tasks import models, schemas
+from pzio.modules.tasks import models, schemas
 
 
 def create_work_item(
