@@ -11,6 +11,7 @@ export interface AuthState {
 export interface AuthContextValue extends AuthState {
   login: (token: string) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AuthProvider from "../modules/auth/AuthProvider";
 import LoginPage from "../modules/auth/pages/LoginPage";
+import ProfilePage from "../modules/auth/pages/ProfilePage";
 import RegisterPage from "../modules/auth/pages/RegisterPage";
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
@@ -17,6 +18,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

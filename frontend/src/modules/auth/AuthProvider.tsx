@@ -64,7 +64,13 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  function updateUser(updatedUser: User) {
+    setUser(updatedUser);
+  }
+
   return (
-    <AuthContext value={{ token, user, isLoadingUser, login, logout }}>{children}</AuthContext>
+    <AuthContext value={{ token, user, isLoadingUser, login, logout, updateUser }}>
+      {children}
+    </AuthContext>
   );
 }
