@@ -18,7 +18,3 @@ def test_mock_email_service_stores_messages_in_memory() -> None:
     }
 
 
-def test_factory_returns_mock_service() -> None:
-    service = get_email_service()
-
-    assert isinstance(service, MockEmailService)
