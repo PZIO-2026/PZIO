@@ -10,7 +10,10 @@ from sqlalchemy.pool import StaticPool
 # Importy z aplikacji (zakładam standardową strukturę inicjalizacji FastAPI w pzio.main)
 from ....db import Base, get_db
 from ....main import app
-from ..router import get_current_user_id
+from ...auth.deps import get_current_user
+from ...auth.models import User, UserRole
+from ...auth.security import hash_password
+from .. import models
 
 # 1. Konfiguracja testowej bazy danych (In-Memory SQLite)
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -34,8 +37,25 @@ def override_get_db():
             db.close()
 
 
-def override_get_current_user_id() -> int:
-    return 99  # ID testowego użytkownika
+def override_get_current_user() -> User:
+    db = TestingSessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "tasks-test-user@example.com").first()
+        if user is None:
+            user = User(
+                email="tasks-test-user@example.com",
+                password_hash=hash_password("irrelevant"),
+                first_name="Tasks",
+                last_name="Tester",
+                role=UserRole.TEAM_MEMBER,
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    finally:
+        db.close()
 
 
 client = TestClient(app)
@@ -46,7 +66,7 @@ client = TestClient(app)
 def setup_database():
     original_overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user_id] = override_get_current_user_id
+    app.dependency_overrides[get_current_user] = override_get_current_user
     Base.metadata.create_all(bind=engine)
     try:
         yield
@@ -164,6 +184,13 @@ def test_update_task_status():
 
     assert response.status_code == 200
     assert response.json()["status"] == "InProgress"
+    db = TestingSessionLocal()
+    try:
+        log = db.query(models.ActivityLog).filter(models.ActivityLog.work_item_id == task_id).first()
+        assert log is not None
+        assert log.user_id > 0
+    finally:
+        db.close()
 
 
 def test_delete_task():
@@ -217,3 +244,33 @@ def test_worklogs():
     assert len(logs) == 1
     first_log = logs[0]
     assert first_log["hoursSpent"] == 2.5
+    db = TestingSessionLocal()
+    try:
+        created_log = db.query(models.TimeLog).filter(models.TimeLog.work_item_id == task_id).first()
+        assert created_log is not None
+        assert created_log.user_id > 0
+    finally:
+        db.close()
+
+
+def test_protected_endpoints_require_auth():
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Auth check", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    app.dependency_overrides.pop(get_current_user, None)
+    try:
+        status_response = client.patch(f"/api/tasks/{task_id}/status", json={"status": "Done"})
+        assert status_response.status_code == 401
+        worklog_response = client.post(
+            f"/api/tasks/{task_id}/worklogs",
+            json={"hoursSpent": 1.0, "note": "unauthorized"},
+        )
+        assert worklog_response.status_code == 401
+    finally:
+        app.dependency_overrides[get_current_user] = override_get_current_user

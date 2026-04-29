@@ -4,14 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ...db import get_db
+from ..auth.deps import get_current_user
+from ..auth.models import User
 from . import schemas, service
 
 router = APIRouter(tags=["Tasks"])
 
 
-# Mock dependency modułu Auth (do podmienienia przez zespół Auth)
-def get_current_user_id() -> int:
-    return 1
+def get_current_user_id(current_user: User = Depends(get_current_user)) -> int:
+    """Extract numeric actor identity from JWT-resolved auth user."""
+    return current_user.user_id
 
 
 DbSession = Annotated[Session, Depends(get_db)]
