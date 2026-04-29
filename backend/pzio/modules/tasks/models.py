@@ -18,7 +18,7 @@ class WorkItem(Base):
     priority: Mapped[str] = mapped_column(String, nullable=False)
     story_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parent_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("work_items.id"), nullable=True
+        Integer, ForeignKey("work_items.id", ondelete="SET NULL"), nullable=True
     )
     assignee_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sprint_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
