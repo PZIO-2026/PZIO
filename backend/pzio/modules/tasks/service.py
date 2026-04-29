@@ -1,8 +1,9 @@
 from typing import cast
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from backend.pzio.modules.tasks import models, schemas
 
 
 def create_work_item(
@@ -27,23 +28,24 @@ def get_work_items(
     sprint_id: int | None = None,
     task_type: str | None = None,
 ) -> list[models.WorkItem]:
-    query = db.query(models.WorkItem).filter(models.WorkItem.project_id == project_id)
+    statement = select(models.WorkItem).where(models.WorkItem.project_id == project_id)
     if status is not None:
-        query = query.filter(models.WorkItem.status == status)
+        statement = statement.where(models.WorkItem.status == status)
     if assignee_id is not None:
-        query = query.filter(models.WorkItem.assignee_id == assignee_id)
+        statement = statement.where(models.WorkItem.assignee_id == assignee_id)
     if sprint_id is not None:
-        query = query.filter(models.WorkItem.sprint_id == sprint_id)
+        statement = statement.where(models.WorkItem.sprint_id == sprint_id)
     if task_type is not None:
-        query = query.filter(models.WorkItem.type == task_type)
-    return query.all()
+        statement = statement.where(models.WorkItem.type == task_type)
+    return list(db.scalars(statement).all())
 
 
 def get_work_item(
     db: Session,
     task_id: int,
 ) -> models.WorkItem | None:
-    return db.query(models.WorkItem).filter(models.WorkItem.id == task_id).first()
+    statement = select(models.WorkItem).where(models.WorkItem.id == task_id)
+    return db.execute(statement).scalar_one_or_none()
 
 
 def update_work_item(
@@ -117,4 +119,5 @@ def create_time_log(
 
 
 def get_time_logs(db: Session, task_id: int) -> list[models.TimeLog]:
-    return db.query(models.TimeLog).filter(models.TimeLog.work_item_id == task_id).all()
+    statement = select(models.TimeLog).where(models.TimeLog.work_item_id == task_id)
+    return list(db.scalars(statement).all())
