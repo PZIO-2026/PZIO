@@ -44,7 +44,7 @@ class Backup(Base):
 class ActivityLog(Base):
     """Audit log entry — single recorded change of a task (SAD §3.5, FR24)."""
 
-    __tablename__ = "activity_logs"
+    __tablename__ = "audit_logs"
 
     activity_log_id: Mapped[int] = mapped_column(
         "activity_log_id", Integer, primary_key=True, autoincrement=True
