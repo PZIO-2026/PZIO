@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
+    # Directory where forced database backups (SAD §4.5 — POST /api/admin/backups) are stored.
+    backup_dir: str = "./backups"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
