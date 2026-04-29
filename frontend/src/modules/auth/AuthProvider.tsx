@@ -1,56 +1,76 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { AUTH_EXPIRED_EVENT } from "../../api/client";
+import { getMe } from "./api";
 import { AuthContext } from "./context";
-import type { AuthState } from "./context";
-import { clearSession, getStoredEmail, getStoredToken, persistSession } from "./storage";
-import type { JwtClaims } from "./types";
-
-const EMPTY_STATE: AuthState = { token: null, email: null, userId: null, role: null };
-
-function decodeClaims(token: string): JwtClaims | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  try {
-    return JSON.parse(atob(parts[1])) as JwtClaims;
-  } catch {
-    return null;
-  }
-}
-
-function buildState(token: string, email: string): AuthState {
-  const claims = decodeClaims(token);
-  if (claims === null) return EMPTY_STATE;
-  if (Date.now() >= claims.exp * 1000) return EMPTY_STATE;
-  const userId = Number.parseInt(claims.sub, 10);
-  if (Number.isNaN(userId)) return EMPTY_STATE;
-  return { token, email, userId, role: claims.role };
-}
-
-function loadInitialState(): AuthState {
-  const token = getStoredToken();
-  const email = getStoredEmail();
-  if (token === null || email === null) return EMPTY_STATE;
-  const state = buildState(token, email);
-  // Token expired or malformed — wipe storage so we don't retry on next reload.
-  if (state.token === null) clearSession();
-  return state;
-}
+import { clearStoredToken, getStoredToken, setStoredToken } from "./storage";
+import type { User } from "./types";
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>(loadInitialState);
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const [user, setUser] = useState<User | null>(null);
 
-  function login(token: string, email: string) {
-    const next = buildState(token, email);
-    if (next.token === null) return;
-    persistSession(token, email);
-    setState(next);
+  // We're loading the profile whenever we have a token but haven't resolved a
+  // user yet. Failed fetches clear the token, so this naturally goes back to
+  // false instead of getting stuck.
+  const isLoadingUser = token !== null && user === null;
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      clearStoredToken();
+      setToken(null);
+      setUser(null);
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (token === null || user !== null) return;
+
+    let cancelled = false;
+
+    getMe()
+      .then((fetchedUser) => {
+        if (cancelled) return;
+        setUser(fetchedUser);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Token rejected (expired, revoked, server unreachable) — drop the
+        // session so ProtectedRoute bounces the user back to /login.
+        clearStoredToken();
+        setToken(null);
+        setUser(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user]);
+
+  function login(newToken: string) {
+    setStoredToken(newToken);
+    setUser(null);
+    setToken(newToken);
   }
 
   function logout() {
-    clearSession();
-    setState(EMPTY_STATE);
+    clearStoredToken();
+    setToken(null);
+    setUser(null);
   }
 
-  return <AuthContext value={{ ...state, login, logout }}>{children}</AuthContext>;
+  function updateUser(updatedUser: User) {
+    setUser(updatedUser);
+  }
+
+  return (
+    <AuthContext value={{ token, user, isLoadingUser, login, logout, updateUser }}>
+      {children}
+    </AuthContext>
+  );
 }

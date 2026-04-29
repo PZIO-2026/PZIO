@@ -43,7 +43,7 @@ export default function LoginForm() {
     setSubmitError(null);
     try {
       const response = await loginApi(values);
-      auth.login(response.accessToken, values.email);
+      auth.login(response.accessToken);
       navigate(readRedirectTarget(location.state), { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

@@ -2,6 +2,10 @@ import { getStoredToken } from "../modules/auth/storage";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+// Dispatched when a protected request comes back 401 so the AuthProvider can
+// clear the session without this low-level module reaching into React state.
+export const AUTH_EXPIRED_EVENT = "pzio:auth-expired";
+
 export class ApiError extends Error {
   status: number;
   detail: string;
@@ -35,6 +39,13 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   });
 
   if (!response.ok) {
+    // Public auth endpoints (login, register, oauth, password reset) return 401
+    // for bad credentials, not for an expired session — don't drop the session
+    // just because the user mistyped their password.
+    if (response.status === 401 && !path.startsWith("/api/auth/")) {
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
+
     let detail = response.statusText;
     try {
       const errorBody = (await response.json()) as { detail?: unknown };

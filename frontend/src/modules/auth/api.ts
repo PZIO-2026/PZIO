@@ -15,3 +15,20 @@ export function login(input: LoginInput): Promise<TokenResponse> {
     body: input,
   });
 }
+
+export function getMe(): Promise<User> {
+  return apiFetch<User>("/api/users/me");
+}
+
+export interface UpdateMeInput {
+  firstName: string;
+  lastName: string;
+  avatar: string | null;
+}
+
+export function updateMe(input: UpdateMeInput): Promise<User> {
+  return apiFetch<User>("/api/users/me", {
+    method: "PATCH",
+    body: input,
+  });
+}
