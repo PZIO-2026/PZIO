@@ -27,14 +27,14 @@ class BackupRead(BaseModel):
     """Response for `POST /api/admin/backups` (SAD §4.5).
 
     PDF specifies the response shape as `{backupId, timestamp, status}` —
-    `timestamp` maps onto the model's `created_at`.
+    `timestamp` is read from the ORM column `created_at` via `validation_alias`.
     """
 
     backup_id: int = Field(serialization_alias="backupId")
-    timestamp: datetime
+    timestamp: datetime = Field(validation_alias="created_at")
     status: str
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class ActivityLogRead(BaseModel):

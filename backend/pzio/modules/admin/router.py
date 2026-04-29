@@ -95,11 +95,7 @@ def force_backup(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Backup failed: {exc}",
         )
-    return BackupRead(
-        backup_id=record.backup_id,
-        timestamp=record.created_at,
-        status=record.status,
-    )
+    return BackupRead.model_validate(record)
 
 
 @router.get(
