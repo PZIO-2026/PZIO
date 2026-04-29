@@ -227,13 +227,25 @@ def test_update_task_status(client: TestClient, db_session: Session):
 
     assert response.status_code == 200
     assert response.json()["status"] == "InProgress"
-    log = (
+    logs = (
         db_session.query(models.ActivityLog)
         .filter(models.ActivityLog.work_item_id == task_id)
+        .all()
+    )
+    assert len(logs) == 1
+
+    user = (
+        db_session.query(User)
+        .filter(User.email == "tasks-test-user@example.com")
         .first()
     )
-    assert log is not None
-    assert log.user_id > 0
+    assert user is not None
+
+    log = logs[0]
+    assert log.action == "STATUS_CHANGE"
+    assert log.old_status == "ToDo"
+    assert log.new_status == "InProgress"
+    assert log.user_id == user.user_id
 
 
 def test_delete_task(client: TestClient):
