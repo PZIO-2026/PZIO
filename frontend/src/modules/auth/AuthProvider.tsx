@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
+import { AUTH_EXPIRED_EVENT } from "../../api/client";
 import { getMe } from "./api";
 import { AuthContext } from "./context";
 import { clearStoredToken, getStoredToken, setStoredToken } from "./storage";
@@ -14,6 +15,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   // user yet. Failed fetches clear the token, so this naturally goes back to
   // false instead of getting stuck.
   const isLoadingUser = token !== null && user === null;
+
+  useEffect(() => {
+    function handleAuthExpired() {
+      clearStoredToken();
+      setToken(null);
+      setUser(null);
+    }
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, []);
 
   useEffect(() => {
     if (token === null || user !== null) return;
