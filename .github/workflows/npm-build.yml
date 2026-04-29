@@ -1,0 +1,39 @@
+name: npm-build
+
+on:
+    push:
+    pull_request:
+        branches: [master]
+
+jobs:
+    build-frontend:
+        name: Build frontend
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: "npm"
+                  cache-dependency-path: frontend/package-lock.json
+
+            - name: Install frontend dependencies
+              working-directory: frontend
+              run: |
+                  npm ci
+
+            - name: Build frontend and publish summary
+              working-directory: frontend
+              run: |
+                  set +e
+                  set -o pipefail
+                  NO_COLOR=1 npm run build 2>&1 | tee frontend_build_output.txt
+                  rc=$?
+                  echo '## Frontend Build Output' >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+                  cat frontend_build_output.txt >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
+                  exit $rc

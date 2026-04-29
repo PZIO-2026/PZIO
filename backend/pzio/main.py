@@ -25,11 +25,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 openapi_tags = [
     {"name": "Health", "description": "Liveness and readiness probes for ops/integration."},
-    {"name": "Auth", "description": "Identity & Authorization — registration, login, OAuth, password reset, profile, admin user management. SAD §4.1."},
-    {"name": "Projects", "description": "Project lifecycle, project membership, sprint planning. SAD §4.2."},
-    {"name": "Tasks", "description": "Backlog work items, Kanban status changes, worklog entries. SAD §4.3."},
-    {"name": "Communication", "description": "Comments, attachments, e-mail notifications via SMTP. SAD §4.4."},
-    {"name": "Admin", "description": "System dictionaries, database backups, audit log access. SAD §4.5."},
+    {"name": "Auth", "description": "Identity & Authorization — registration, login, OAuth, password reset, profile, admin user management."},
+    {"name": "Projects", "description": "Project lifecycle, project membership, sprint planning."},
+    {"name": "Tasks", "description": "Backlog work items, Kanban status changes, worklog entries."},
+    {"name": "Communication", "description": "Comments, attachments, e-mail notifications via SMTP."},
+    {"name": "Admin", "description": "System dictionaries, database backups, audit log access."},
 ]
 
 app = FastAPI(

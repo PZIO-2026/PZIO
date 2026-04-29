@@ -1,8 +1,10 @@
-from sqlalchemy import select
+from typing import Sequence
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from pzio.modules.auth.models import User, UserRole
-from pzio.modules.auth.schemas import UserCreate
+from pzio.modules.auth.schemas import UserCreate, UserUpdate
 from pzio.modules.auth.security import hash_password, verify_password
 
 
@@ -13,9 +15,16 @@ class EmailAlreadyExistsError(Exception):
 class InvalidCredentialsError(Exception):
     """Raised when login credentials don't match any active user (→ 401)."""
 
+class UserNotFoundError(Exception):
+    """Raised when a user is not found by ID (→ 404)."""
+
 
 def _get_user_by_email(db: Session, email: str) -> User | None:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+
+def get_user_by_id(db: Session, user_id: int) -> User | None:
+    return db.get(User, user_id)
 
 
 def create_user(db: Session, payload: UserCreate) -> User:
@@ -47,3 +56,80 @@ def authenticate_user(db: Session, email: str, password: str) -> User:
     if user is None or not user.is_active or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
     return user
+
+
+def update_user_profile(db: Session, user: User, payload: UserUpdate) -> User:
+    """Update the current user's profile."""
+    update_data = payload.model_dump(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_user_status(db: Session, user_id: int, is_active: bool) -> User:
+    """Activate or deactivate a user account (Admin only)."""
+    user = get_user_by_id(db, user_id)
+    if user is None:
+        raise UserNotFoundError()
+    
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_users_paginated(
+    db: Session, 
+    search: str | None = None, 
+    is_active: bool | None = None, 
+    sort_by: str | None = None,
+    sort_direction: str | None = "desc",
+    page: int = 1, 
+    size: int = 50
+) -> tuple[Sequence[User], int]:
+    """Get a paginated list of users with optional filtering and sorting."""
+    stmt = select(User)
+    
+    if search:
+        search_term = f"%{search}%"
+        stmt = stmt.where(
+            or_(
+                User.email.ilike(search_term),
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term),
+            )
+        )
+        
+    if is_active is not None:
+        stmt = stmt.where(User.is_active == is_active)
+        
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(total_stmt) or 0
+    
+    if sort_by:
+        sort_columns = {
+            "email": User.email,
+            "firstName": User.first_name,
+            "lastName": User.last_name,
+            "isActive": User.is_active,
+            "userId": User.user_id
+        }
+        column = sort_columns.get(sort_by, User.user_id)
+        
+        if sort_direction and sort_direction.lower() == "asc":
+            stmt = stmt.order_by(column.asc())
+        else:
+            stmt = stmt.order_by(column.desc())
+    else:
+        stmt = stmt.order_by(User.user_id.desc())
+    
+    stmt = stmt.offset((page - 1) * size).limit(size)
+    items = db.scalars(stmt).all()
+    
+    return items, total

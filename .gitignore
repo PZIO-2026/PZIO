@@ -27,6 +27,10 @@ logs/
 *.db-journal
 *.sqlite
 *.sqlite3
+local/
+
+# Forced DB backups (POST /api/admin/backups).
+backups/
 
 # IDEs and editors
 .idea/

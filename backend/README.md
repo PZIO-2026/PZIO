@@ -33,6 +33,12 @@ pytest
 
 Tests use an in-memory SQLite engine via the fixtures in `pzio/conftest.py` — no external services required. The conftest sits at the package root so the same `client` and `db_session` fixtures are visible to module-level tests under `pzio/modules/<name>/tests/`.
 
+You may also want to run tests with coverage reporting:
+
+```bash
+pytest --cov=pzio
+```
+
 ## API documentation
 
 FastAPI auto-generates the API docs from route definitions and Pydantic schemas:
@@ -106,5 +112,5 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 - **FastAPI** — REST framework
 - **SQLAlchemy 2.x** — ORM
 - **Pydantic** / **pydantic-settings** — request/response validation, env-driven config
-- **pytest** + **httpx** — tests
+- **pytest** + **pytest-cov** + **httpx** — tests
 - **SQLite** locally; **PostgreSQL** in production
