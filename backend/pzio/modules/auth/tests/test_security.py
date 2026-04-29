@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pytest
 
 from pzio.modules.auth.models import UserRole
