@@ -1,5 +1,5 @@
-import enum
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from pzio.db import Base
 
 
-class UserRole(str, enum.Enum):
+class UserRole(StrEnum):
     """Roles per System Analysis Document §4 (UML class diagram)."""
 
     GUEST = "Guest"
