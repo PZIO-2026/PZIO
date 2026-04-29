@@ -310,10 +310,17 @@ def remove_member(
 ) -> None:
     _get_project_or_404(db, project_id)
     _require_membership_manager(db, project_id, current_user_id)
+    
     member = _get_member_or_404(db, project_id, user_id)
+    
+    if ProjectRole.PROJECT_OWNER in member.roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot remove the project owner."
+        )
+        
     db.delete(member)
     db.commit()
-
 
 # ---------------------------------------------------------------------------
 # Sprints
