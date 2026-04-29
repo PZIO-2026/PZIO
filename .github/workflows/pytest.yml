@@ -31,7 +31,7 @@ jobs:
                   pytest backend --cov=pzio --cov-report term-missing:skip-covered | tee pytest_output.txt
                   rc=$?
                   echo '## Pytest Output' >> $GITHUB_STEP_SUMMARY
-                  echo '```awk' >> $GITHUB_STEP_SUMMARY
+                  echo '```' >> $GITHUB_STEP_SUMMARY
                   cat pytest_output.txt >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
                   exit $rc

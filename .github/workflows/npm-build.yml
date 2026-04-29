@@ -30,7 +30,7 @@ jobs:
               run: |
                   set +e
                   set -o pipefail
-                  npm run build 2>&1 | tee frontend_build_output.txt
+                  NO_COLOR=1 npm run build 2>&1 | tee frontend_build_output.txt
                   rc=$?
                   echo '## Frontend Build Output' >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
