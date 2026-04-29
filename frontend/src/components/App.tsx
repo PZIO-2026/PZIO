@@ -5,6 +5,7 @@ import LoginPage from "../modules/auth/pages/LoginPage";
 import RegisterPage from "../modules/auth/pages/RegisterPage";
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
+import AppLayout from "./AppLayout";
 
 export default function App() {
   return (
@@ -14,7 +15,9 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<HomePage />} />
+            <Route element={<AppLayout />}>
+              <Route path="/" element={<HomePage />} />
+            </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
