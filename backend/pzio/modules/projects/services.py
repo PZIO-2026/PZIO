@@ -1,7 +1,4 @@
 """
-Business logic for the `projects` module.
-Location: backend/pzio/modules/projects/services.py
-
 All database operations and domain rules live here.
 Routers call these functions and handle only HTTP concerns.
 """
@@ -16,7 +13,15 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .models import Project, ProjectMember, ProjectStatus, Sprint, SprintStatus
+from .models import (
+    MEMBERSHIP_MANAGER_ROLES,
+    Project,
+    ProjectMember,
+    ProjectRole,
+    ProjectStatus,
+    Sprint,
+    SprintStatus,
+)
 from .schemas import (
     BurndownDay,
     BurndownOut,
@@ -39,11 +44,10 @@ from .schemas import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 _SORTABLE_FIELDS: set[str] = {"created_at", "updated_at", "name", "status"}
 
 
-def _get_project_or_404(db: Session, project_id: str) -> Project:
+def _get_project_or_404(db: Session, project_id: int) -> Project:
     project = db.get(Project, project_id)
     if project is None:
         raise HTTPException(
@@ -53,7 +57,7 @@ def _get_project_or_404(db: Session, project_id: str) -> Project:
     return project
 
 
-def _get_sprint_or_404(db: Session, sprint_id: str) -> Sprint:
+def _get_sprint_or_404(db: Session, sprint_id: int) -> Sprint:
     sprint = db.get(Sprint, sprint_id)
     if sprint is None:
         raise HTTPException(
@@ -63,7 +67,7 @@ def _get_sprint_or_404(db: Session, sprint_id: str) -> Sprint:
     return sprint
 
 
-def _get_member_or_404(db: Session, project_id: str, user_id: str) -> ProjectMember:
+def _get_member_or_404(db: Session, project_id: int, user_id: int) -> ProjectMember:
     member = (
         db.query(ProjectMember)
         .filter(
@@ -80,27 +84,79 @@ def _get_member_or_404(db: Session, project_id: str, user_id: str) -> ProjectMem
     return member
 
 
+def _get_membership(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
+    """Return the ProjectMember row for user in project, or None."""
+    return (
+        db.query(ProjectMember)
+        .filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def _require_project_access(db: Session, project_id: int, user_id: int) -> ProjectMember:
+    """Raise 403 if the user is not a member of the project."""
+    membership = _get_membership(db, project_id, user_id)
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a member of this project.",
+        )
+    return membership
+
+
+def _require_membership_manager(db: Session, project_id: int, user_id: int) -> None:
+    """Raise 403 unless the user holds project_owner or scrum_master role."""
+    membership = _get_membership(db, project_id, user_id)
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a member of this project.",
+        )
+    user_roles = {ProjectRole(r) for r in membership.roles}
+    if not user_roles.intersection(MEMBERSHIP_MANAGER_ROLES):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Project Owners and Scrum Masters can manage project membership.",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Projects
 # ---------------------------------------------------------------------------
-
-
-def create_project(db: Session, payload: ProjectCreate) -> ProjectOut:
+def create_project(db: Session, payload: ProjectCreate, current_user_id: int) -> ProjectOut:
     project = Project(
         name=payload.name,
         description=payload.description,
         status=ProjectStatus.ACTIVE,
     )
     db.add(project)
+    db.flush()
+    
+    # Automatyczne dodanie twórcy
+    owner = ProjectMember(
+        project_id=project.project_id,
+        user_id=current_user_id,
+        roles=[ProjectRole.PROJECT_OWNER]
+    )
+    db.add(owner)
     db.commit()
     db.refresh(project)
+    
     return ProjectOut.model_validate(project)
 
-
-def list_projects(db: Session, params: ProjectListParams) -> Page[ProjectOut]:
-    query = db.query(Project)
-
-    # Filtering
+def list_projects(
+    db: Session, params: ProjectListParams, current_user_id: int
+) -> Page[ProjectOut]:
+    # Users can only see projects they are a member of
+    query = (
+        db.query(Project)
+        .join(ProjectMember)
+        .filter(ProjectMember.user_id == current_user_id)
+    )
+    
     if params.status is not None:
         query = query.filter(Project.status == params.status)
 
@@ -113,13 +169,9 @@ def list_projects(db: Session, params: ProjectListParams) -> Page[ProjectOut]:
             )
         )
 
-    # Sorting – only allow whitelisted column names
     sort_column = params.sortBy if params.sortBy in _SORTABLE_FIELDS else "created_at"
     col = getattr(Project, sort_column)
-    if params.sortDirection == "asc":
-        query = query.order_by(col.asc())
-    else:
-        query = query.order_by(col.desc())
+    query = query.order_by(col.asc() if params.sortDirection == "asc" else col.desc())
 
     total: int = query.count()
     offset = (params.page - 1) * params.size
@@ -133,8 +185,9 @@ def list_projects(db: Session, params: ProjectListParams) -> Page[ProjectOut]:
     )
 
 
-def get_project(db: Session, project_id: str) -> ProjectDetailOut:
+def get_project(db: Session, project_id: int, current_user_id: int) -> ProjectDetailOut:
     project = _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
 
     member_count = (
         db.query(func.count(ProjectMember.id))
@@ -143,7 +196,7 @@ def get_project(db: Session, project_id: str) -> ProjectDetailOut:
         or 0
     )
     sprint_count = (
-        db.query(func.count(Sprint.id))
+        db.query(func.count(Sprint.sprint_id))
         .filter(Sprint.project_id == project_id)
         .scalar()
         or 0
@@ -155,10 +208,12 @@ def get_project(db: Session, project_id: str) -> ProjectDetailOut:
     )
 
 
-def update_project(db: Session, project_id: str, payload: ProjectUpdate) -> ProjectOut:
+def update_project(
+    db: Session, project_id: int, payload: ProjectUpdate, current_user_id: int
+) -> ProjectOut:
     project = _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
 
-    # Only update fields that were actually sent in the request body
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
         raise HTTPException(
@@ -175,9 +230,10 @@ def update_project(db: Session, project_id: str, payload: ProjectUpdate) -> Proj
     return ProjectOut.model_validate(project)
 
 
-def delete_project(db: Session, project_id: str) -> None:
-    """Soft-delete: sets status to ARCHIVED. Hard-delete can be swapped in."""
+def delete_project(db: Session, project_id: int, current_user_id: int) -> None:
+    """Soft-delete: sets status to ARCHIVED."""
     project = _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
     project.status = ProjectStatus.ARCHIVED
     project.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -186,14 +242,12 @@ def delete_project(db: Session, project_id: str) -> None:
 # ---------------------------------------------------------------------------
 # Members
 # ---------------------------------------------------------------------------
-
-
 def add_member(
-    db: Session, project_id: str, payload: ProjectMemberCreate
+    db: Session, project_id: int, payload: ProjectMemberCreate, current_user_id: int
 ) -> ProjectMemberOut:
     _get_project_or_404(db, project_id)
+    _require_membership_manager(db, project_id, current_user_id)
 
-    # 409 – member already exists in this project
     existing = (
         db.query(ProjectMember)
         .filter(
@@ -220,19 +274,24 @@ def add_member(
 
 
 def list_members(
-    db: Session, project_id: str, params: MemberListParams
+    db: Session, project_id: int, params: MemberListParams, current_user_id: int
 ) -> Page[ProjectMemberOut]:
     _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
 
     query = db.query(ProjectMember).filter(ProjectMember.project_id == project_id)
 
     if params.role:
-        # PostgreSQL ARRAY contains operator
         query = query.filter(ProjectMember.roles.contains([params.role]))
 
     if params.search:
-        like = f"%{params.search}%"
-        query = query.filter(ProjectMember.user_id.ilike(like))
+        # Search by user_id (int) — exact match only; for name/email search
+        # join with the users table when the auth module exposes that relation.
+        try:
+            query = query.filter(ProjectMember.user_id == int(params.search))
+        except ValueError:
+            # Non-integer search term → no results for user_id column
+            query = query.filter(False)  # noqa: simplest safe no-op filter
 
     total: int = query.count()
     offset = (params.page - 1) * params.size
@@ -246,8 +305,11 @@ def list_members(
     )
 
 
-def remove_member(db: Session, project_id: str, user_id: str) -> None:
+def remove_member(
+    db: Session, project_id: int, user_id: int, current_user_id: int
+) -> None:
     _get_project_or_404(db, project_id)
+    _require_membership_manager(db, project_id, current_user_id)
     member = _get_member_or_404(db, project_id, user_id)
     db.delete(member)
     db.commit()
@@ -256,10 +318,11 @@ def remove_member(db: Session, project_id: str, user_id: str) -> None:
 # ---------------------------------------------------------------------------
 # Sprints
 # ---------------------------------------------------------------------------
-
-
-def create_sprint(db: Session, project_id: str, payload: SprintCreate) -> SprintOut:
+def create_sprint(
+    db: Session, project_id: int, payload: SprintCreate, current_user_id: int
+) -> SprintOut:
     _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
 
     if payload.endDate <= payload.startDate:
         raise HTTPException(
@@ -280,8 +343,11 @@ def create_sprint(db: Session, project_id: str, payload: SprintCreate) -> Sprint
     return SprintOut.model_validate(sprint)
 
 
-def list_sprints(db: Session, project_id: str) -> list[SprintOut]:
+def list_sprints(
+    db: Session, project_id: int, current_user_id: int
+) -> list[SprintOut]:
     _get_project_or_404(db, project_id)
+    _require_project_access(db, project_id, current_user_id)
 
     sprints = (
         db.query(Sprint)
@@ -292,8 +358,11 @@ def list_sprints(db: Session, project_id: str) -> list[SprintOut]:
     return [SprintOut.model_validate(s) for s in sprints]
 
 
-def update_sprint(db: Session, sprint_id: str, payload: SprintUpdate) -> SprintOut:
+def update_sprint(
+    db: Session, sprint_id: int, payload: SprintUpdate, current_user_id: int
+) -> SprintOut:
     sprint = _get_sprint_or_404(db, sprint_id)
+    _require_project_access(db, sprint.project_id, current_user_id)
 
     changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if not changes:
@@ -302,14 +371,12 @@ def update_sprint(db: Session, sprint_id: str, payload: SprintUpdate) -> SprintO
             detail="No fields provided for update.",
         )
 
-    # Map camelCase aliases back to ORM column names
     alias_map = {"startDate": "start_date", "endDate": "end_date"}
     normalised = {alias_map.get(k, k): v for k, v in changes.items()}
 
     for field, value in normalised.items():
         setattr(sprint, field, value)
 
-    # Validate date invariant after applying changes
     if sprint.end_date <= sprint.start_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -322,8 +389,9 @@ def update_sprint(db: Session, sprint_id: str, payload: SprintUpdate) -> SprintO
     return SprintOut.model_validate(sprint)
 
 
-def delete_sprint(db: Session, sprint_id: str) -> None:
+def delete_sprint(db: Session, sprint_id: int, current_user_id: int) -> None:
     sprint = _get_sprint_or_404(db, sprint_id)
+    _require_project_access(db, sprint.project_id, current_user_id)
     db.delete(sprint)
     db.commit()
 
@@ -331,27 +399,17 @@ def delete_sprint(db: Session, sprint_id: str) -> None:
 # ---------------------------------------------------------------------------
 # Burndown chart
 # ---------------------------------------------------------------------------
-
-
-def get_burndown(db: Session, sprint_id: str) -> BurndownOut:
+def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownOut:
     """
     Generates a daily burndown chart for a sprint.
 
-    NOTE: This implementation uses a stub for task story-points because the
-    `tasks` module is managed by a separate team. When the tasks service is
-    ready, replace `_fetch_task_points` with a real call/query.
-
-    Current logic:
-    - totalPoints = sum of story points for tasks assigned to the sprint.
-    - For each calendar day [startDate .. endDate] we sum the story points of
-      tasks NOT yet completed by end of that day (remainingPoints).
-    - Days before today that have no completion data are carried forward.
+    NOTE: Task story-points are stubbed until the `tasks` module is integrated.
+    Replace `_stub_burndown_data` with a real cross-module query/service call.
     """
     sprint = _get_sprint_or_404(db, sprint_id)
+    _require_project_access(db, sprint.project_id, current_user_id)
 
-    # --- Stub: replace with real task-point query ---
     total_points, daily_remaining = _stub_burndown_data(sprint)
-    # ------------------------------------------------
 
     days = [
         BurndownDay.model_validate({"date": d, "remainingPoints": r})
@@ -371,10 +429,10 @@ def _stub_burndown_data(
     sprint: Sprint,
 ) -> tuple[int, list[tuple[datetime, int]]]:
     """
-    Placeholder that generates a linear ideal burndown.
-    Replace the body of this function once the tasks module is integrated.
+    Placeholder: generates a linear ideal burndown.
+    Replace once the tasks module is integrated.
     """
-    total_points = 0  # No tasks yet → 0 total points
+    total_points = 0
     start = sprint.start_date
     end = sprint.end_date
 

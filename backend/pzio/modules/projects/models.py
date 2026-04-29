@@ -4,31 +4,17 @@ Location: backend/pzio/modules/projects/models.py
 """
 
 import enum
-import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    ARRAY,
-    JSON,
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, JSON
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# Assumes a shared Base is declared in e.g. backend/pzio/database.py
 from pzio.db import Base
 
 
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
 
+# ENUMS
 class ProjectStatus(str, enum.Enum):
     ACTIVE = "active"
     ARCHIVED = "archived"
@@ -40,127 +26,98 @@ class SprintStatus(str, enum.Enum):
     COMPLETED = "completed"
 
 
-# ---------------------------------------------------------------------------
-# Project
-# ---------------------------------------------------------------------------
+class ProjectRole(str, enum.Enum):
+    DEVELOPER = "developer"
+    QA = "qa"
+    SCRUM_MASTER = "scrum_master"
+    PROJECT_OWNER = "project_owner"
+    MAINTAINER = "maintainer"
 
+
+MEMBERSHIP_MANAGER_ROLES: frozenset[ProjectRole] = frozenset(
+    {ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER, ProjectRole.MAINTAINER}
+)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+# PROJECT
 class Project(Base):
     __tablename__ = "projects"
-    __allow_unmapped__ = True 
 
-    id: str = Column(
-        UUID(as_uuid=False),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4()),
-        index=True,
+    project_id: Mapped[int] = mapped_column(
+        "project_id", Integer, primary_key=True, autoincrement=True
     )
-    name: str = Column(String(255), nullable=False)
-    description: str | None = Column(Text, nullable=True)
-    status: str = Column(
-        Enum(ProjectStatus, name="project_status"),
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ProjectStatus] = mapped_column(
+        Enum(ProjectStatus, native_enum=False, length=20),
         nullable=False,
         default=ProjectStatus.ACTIVE,
     )
-    created_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
     )
-    updated_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
-    # Relationships
-    members: list["ProjectMember"] = relationship(
+    members: Mapped[list["ProjectMember"]] = relationship(
         "ProjectMember", back_populates="project", cascade="all, delete-orphan"
     )
-    sprints: list["Sprint"] = relationship(
+    sprints: Mapped[list["Sprint"]] = relationship(
         "Sprint", back_populates="project", cascade="all, delete-orphan"
     )
 
 
-# ---------------------------------------------------------------------------
-# ProjectMember
-# ---------------------------------------------------------------------------
-
+# PROJECT MEMBER
 class ProjectMember(Base):
     __tablename__ = "project_members"
-    __allow_unmapped__ = True
 
-    """
-    Join table between Project and a user (referenced only by userId string).
-    `roles` is stored as a PostgreSQL ARRAY of text values.
-    """
-
-    id: str = Column(
-        UUID(as_uuid=False),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4()),
+    id: Mapped[int] = mapped_column(
+        "id", Integer, primary_key=True, autoincrement=True
     )
-    project_id: str = Column(
-        UUID(as_uuid=False),
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user_id: str = Column(String(255), nullable=False, index=True)
-    roles: list[str] = Column(
-        ARRAY(String).with_variant(JSON, "sqlite"), 
-        nullable=False, 
-        default=list
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    joined_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+    roles: Mapped[list[str]] = mapped_column(
+        ARRAY(String(50)).with_variant(JSON, "sqlite"), nullable=False, default=list
+    )
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
     )
 
-    # Relationships
-    project: "Project" = relationship("Project", back_populates="members")
+    project: Mapped["Project"] = relationship("Project", back_populates="members")
 
 
-# ---------------------------------------------------------------------------
-# Sprint
-# ---------------------------------------------------------------------------
-
+# SPRINT
 class Sprint(Base):
     __tablename__ = "sprints"
-    __allow_unmapped__ = True 
 
-    id: str = Column(
-        UUID(as_uuid=False),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4()),
-        index=True,
+    sprint_id: Mapped[int] = mapped_column(
+        "sprint_id", Integer, primary_key=True, autoincrement=True
     )
-    project_id: str = Column(
-        UUID(as_uuid=False),
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    name: str = Column(String(255), nullable=False)
-    status: str = Column(
-        Enum(SprintStatus, name="sprint_status"),
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[SprintStatus] = mapped_column(
+        Enum(SprintStatus, native_enum=False, length=20),
         nullable=False,
         default=SprintStatus.PLANNED,
     )
-    start_date: datetime = Column(DateTime(timezone=True), nullable=False)
-    end_date: datetime = Column(DateTime(timezone=True), nullable=False)
-    created_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
     )
-    updated_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
-    # Relationships
-    project: "Project" = relationship("Project", back_populates="sprints")
+    project: Mapped["Project"] = relationship("Project", back_populates="sprints")

@@ -1,25 +1,18 @@
 """
-Shared FastAPI dependencies for the `projects` module.
-Location: backend/pzio/modules/projects/dependencies.py
+Delegates DB and auth entirely to the existing pzio infrastructure
+so the projects module stays consistent with the auth module.
 """
+
 from typing import Annotated
-from fastapi import Depends, HTTPException, status
+
+from fastapi import Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 
-# 1. Tymczasowy model AuthUser, dopóki nie powstanie pzio.auth
-class CurrentUser(BaseModel):
-    id: str
-    email: str
-    role: str = "user"
+from pzio.db import get_db
+from pzio.modules.auth.deps import get_current_user
+from pzio.modules.auth.models import User
 
-# 2. Zaślepki (stubs) dla zależności
-def get_db() -> Session:
-    raise NotImplementedError("Moduł bazy danych (pzio.db) jeszcze nie istnieje.")
-
-def get_current_user() -> CurrentUser:
-    raise NotImplementedError("Moduł autoryzacji (pzio.auth) jeszcze nie istnieje.")
-
-# 3. Wygodne aliasy dla routerów
+# Usage:
+#   def my_endpoint(db: DBSession, current_user: AuthUser) -> ...:
 DBSession = Annotated[Session, Depends(get_db)]
-AuthUser = Annotated[CurrentUser, Depends(get_current_user)]
+AuthUser = Annotated[User, Depends(get_current_user)]
