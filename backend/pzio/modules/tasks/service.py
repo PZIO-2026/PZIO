@@ -3,7 +3,7 @@ from typing import cast
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from pzio.modules.tasks import models, schemas
+from . import models, schemas
 
 
 def _normalize_status_value(value: str) -> str:
