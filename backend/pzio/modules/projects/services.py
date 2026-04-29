@@ -252,19 +252,19 @@ def add_member(
         db.query(ProjectMember)
         .filter(
             ProjectMember.project_id == project_id,
-            ProjectMember.user_id == payload.userId,
+            ProjectMember.user_id == payload.user_id,
         )
         .first()
     )
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"User '{payload.userId}' is already a member of this project.",
+            detail=f"User '{payload.user_id}' is already a member of this project.",
         )
 
     member = ProjectMember(
         project_id=project_id,
-        user_id=payload.userId,
+        user_id=payload.user_id,
         roles=payload.roles,
     )
     db.add(member)
@@ -324,7 +324,7 @@ def create_sprint(
     _get_project_or_404(db, project_id)
     _require_project_access(db, project_id, current_user_id)
 
-    if payload.endDate <= payload.startDate:
+    if payload.end_date <= payload.start_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="endDate must be after startDate.",
@@ -334,8 +334,8 @@ def create_sprint(
         project_id=project_id,
         name=payload.name,
         status=SprintStatus.PLANNED,
-        start_date=payload.startDate,
-        end_date=payload.endDate,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
     )
     db.add(sprint)
     db.commit()
@@ -371,10 +371,7 @@ def update_sprint(
             detail="No fields provided for update.",
         )
 
-    alias_map = {"startDate": "start_date", "endDate": "end_date"}
-    normalised = {alias_map.get(k, k): v for k, v in changes.items()}
-
-    for field, value in normalised.items():
+    for field, value in changes.items():
         setattr(sprint, field, value)
 
     if sprint.end_date <= sprint.start_date:
