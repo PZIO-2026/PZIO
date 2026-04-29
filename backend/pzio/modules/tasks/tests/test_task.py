@@ -3,44 +3,23 @@ from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-# Importy z aplikacji (zakładam standardową strukturę inicjalizacji FastAPI w pzio.main)
-from ....db import Base, get_db
-from ....main import app
-from ...auth.deps import get_current_user
-from ...auth.models import User, UserRole
-from ...auth.security import hash_password
-from .. import models
-
-# 1. Konfiguracja testowej bazy danych (In-Memory SQLite)
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from pzio.main import app
+from pzio.modules.auth.deps import get_current_user
+from pzio.modules.auth.models import User, UserRole
+from pzio.modules.auth.security import hash_password
+from pzio.modules.tasks import models
 
 
-# 2. Nadpisywanie zależności (Dependency Injection)
-def override_get_db():
-    db = None
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        if db is not None:
-            db.close()
-
-
-def override_get_current_user() -> User:
-    db = TestingSessionLocal()
-    try:
-        user = db.query(User).filter(User.email == "tasks-test-user@example.com").first()
+@pytest.fixture(autouse=True)
+def override_current_user(db_session: Session) -> None:
+    def _override_get_current_user() -> User:
+        user = (
+            db_session.query(User)
+            .filter(User.email == "tasks-test-user@example.com")
+            .first()
+        )
         if user is None:
             user = User(
                 email="tasks-test-user@example.com",
@@ -50,35 +29,20 @@ def override_get_current_user() -> User:
                 role=UserRole.TEAM_MEMBER,
                 is_active=True,
             )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+            db_session.add(user)
+            db_session.commit()
+            db_session.refresh(user)
         return user
-    finally:
-        db.close()
 
-
-client = TestClient(app)
-
-
-# 3. Fixture przygotowujący czystą bazę przed każdym testem
-@pytest.fixture(autouse=True)
-def setup_database():
-    original_overrides = app.dependency_overrides.copy()
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user] = override_get_current_user
-    Base.metadata.create_all(bind=engine)
-    try:
-        yield
-    finally:
-        Base.metadata.drop_all(bind=engine)
-        app.dependency_overrides = original_overrides
+    app.dependency_overrides[get_current_user] = _override_get_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 # --- TESTY ENDPOINTÓW ---
 
 
-def test_create_task():
+def test_create_task(client: TestClient):
     """Test tworzenia nowego zadania w projekcie (UC5)."""
     payload: Mapping[str, str | int] = {
         "title": "Zaimplementować logowanie",
@@ -97,7 +61,7 @@ def test_create_task():
     assert data["projectId"] == 1
 
 
-def test_get_tasks():
+def test_get_tasks(client: TestClient):
     """Test pobierania listy zadań w projekcie z filtrowaniem."""
     # Tworzymy zadania o różnych kombinacjach pól filtrowania
     create_response_1 = client.post(
@@ -203,7 +167,7 @@ def test_get_tasks():
     assert all_filters_tasks[0]["title"] == "Task 1"
 
 
-def test_get_task_by_id():
+def test_get_task_by_id(client: TestClient):
     """Test pobierania szczegółów konkretnego zadania."""
     create_resp = client.post(
         "/api/projects/1/tasks",
@@ -219,14 +183,14 @@ def test_get_task_by_id():
     assert response.json()["title"] == "Szczegółowy Task"
 
 
-def test_get_task_not_found():
+def test_get_task_not_found(client: TestClient):
     """Test obsługi błędu przy braku zadania."""
     response = client.get("/api/tasks/999")
     assert response.status_code == 404
     assert response.json()["detail"] == "Task not found"
 
 
-def test_update_task():
+def test_update_task(client: TestClient):
     """Test edycji danych zadania."""
     create_resp = client.post(
         "/api/projects/1/tasks",
@@ -247,7 +211,7 @@ def test_update_task():
     assert data["priority"] == "Medium"  # Niezmienione pole
 
 
-def test_update_task_status():
+def test_update_task_status(client: TestClient, db_session: Session):
     """Test zmiany statusu (Kanban drag & drop) - (UC7)."""
     create_resp = client.post(
         "/api/projects/1/tasks",
@@ -263,16 +227,16 @@ def test_update_task_status():
 
     assert response.status_code == 200
     assert response.json()["status"] == "InProgress"
-    db = TestingSessionLocal()
-    try:
-        log = db.query(models.ActivityLog).filter(models.ActivityLog.work_item_id == task_id).first()
-        assert log is not None
-        assert log.user_id > 0
-    finally:
-        db.close()
+    log = (
+        db_session.query(models.ActivityLog)
+        .filter(models.ActivityLog.work_item_id == task_id)
+        .first()
+    )
+    assert log is not None
+    assert log.user_id > 0
 
 
-def test_delete_task():
+def test_delete_task(client: TestClient):
     """Test usuwania zadania."""
     create_resp = client.post(
         "/api/projects/1/tasks",
@@ -292,7 +256,7 @@ def test_delete_task():
     assert get_response.status_code == 404
 
 
-def test_worklogs():
+def test_worklogs(client: TestClient, db_session: Session):
     """Test rejestrowania i pobierania logów czasu pracy."""
     # 1. Tworzymy zadanie
     create_resp = client.post(
@@ -323,16 +287,16 @@ def test_worklogs():
     assert len(logs) == 1
     first_log = logs[0]
     assert first_log["hoursSpent"] == 2.5
-    db = TestingSessionLocal()
-    try:
-        created_log = db.query(models.TimeLog).filter(models.TimeLog.work_item_id == task_id).first()
-        assert created_log is not None
-        assert created_log.user_id > 0
-    finally:
-        db.close()
+    created_log = (
+        db_session.query(models.TimeLog)
+        .filter(models.TimeLog.work_item_id == task_id)
+        .first()
+    )
+    assert created_log is not None
+    assert created_log.user_id > 0
 
 
-def test_create_worklog_task_not_found():
+def test_create_worklog_task_not_found(client: TestClient):
     response = client.post(
         "/api/tasks/999999/worklogs",
         json={"hoursSpent": 1.0, "note": "missing task"},
@@ -341,13 +305,13 @@ def test_create_worklog_task_not_found():
     assert response.json()["detail"] == "Task not found"
 
 
-def test_get_worklogs_task_not_found():
+def test_get_worklogs_task_not_found(client: TestClient):
     response = client.get("/api/tasks/999999/worklogs")
     assert response.status_code == 404
     assert response.json()["detail"] == "Task not found"
 
 
-def test_protected_endpoints_require_auth():
+def test_protected_endpoints_require_auth(client: TestClient):
     create_resp = client.post(
         "/api/projects/1/tasks",
         json={"title": "Auth check", "type": "Task", "priority": "Medium"},
@@ -367,4 +331,4 @@ def test_protected_endpoints_require_auth():
         )
         assert worklog_response.status_code == 401
     finally:
-        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides.pop(get_current_user, None)
