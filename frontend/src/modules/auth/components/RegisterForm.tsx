@@ -57,10 +57,16 @@ export default function RegisterForm() {
             id="register-first-name"
             type="text"
             autoComplete="given-name"
+            aria-invalid={errors.firstName !== undefined}
+            aria-describedby={errors.firstName ? "register-first-name-error" : undefined}
             className={inputClass}
             {...registerField("firstName")}
           />
-          {errors.firstName && <p className={errorClass}>{errors.firstName.message}</p>}
+          {errors.firstName && (
+            <p id="register-first-name-error" className={errorClass}>
+              {errors.firstName.message}
+            </p>
+          )}
         </div>
 
         <div>
@@ -71,10 +77,16 @@ export default function RegisterForm() {
             id="register-last-name"
             type="text"
             autoComplete="family-name"
+            aria-invalid={errors.lastName !== undefined}
+            aria-describedby={errors.lastName ? "register-last-name-error" : undefined}
             className={inputClass}
             {...registerField("lastName")}
           />
-          {errors.lastName && <p className={errorClass}>{errors.lastName.message}</p>}
+          {errors.lastName && (
+            <p id="register-last-name-error" className={errorClass}>
+              {errors.lastName.message}
+            </p>
+          )}
         </div>
       </div>
 
@@ -86,10 +98,16 @@ export default function RegisterForm() {
           id="register-email"
           type="email"
           autoComplete="email"
+          aria-invalid={errors.email !== undefined}
+          aria-describedby={errors.email ? "register-email-error" : undefined}
           className={inputClass}
           {...registerField("email")}
         />
-        {errors.email && <p className={errorClass}>{errors.email.message}</p>}
+        {errors.email && (
+          <p id="register-email-error" className={errorClass}>
+            {errors.email.message}
+          </p>
+        )}
       </div>
 
       <div>
@@ -100,11 +118,21 @@ export default function RegisterForm() {
           id="register-password"
           type="password"
           autoComplete="new-password"
+          aria-invalid={errors.password !== undefined}
+          aria-describedby={
+            errors.password ? "register-password-error" : "register-password-hint"
+          }
           className={inputClass}
           {...registerField("password")}
         />
-        {errors.password && <p className={errorClass}>{errors.password.message}</p>}
-        <p className="mt-1 text-xs text-gray-500">Co najmniej 8 znaków.</p>
+        {errors.password && (
+          <p id="register-password-error" className={errorClass}>
+            {errors.password.message}
+          </p>
+        )}
+        <p id="register-password-hint" className="mt-1 text-xs text-gray-500">
+          Co najmniej 8 znaków.
+        </p>
       </div>
 
       {submitError !== null && (

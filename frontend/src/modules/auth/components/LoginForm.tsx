@@ -68,10 +68,16 @@ export default function LoginForm() {
           id="login-email"
           type="email"
           autoComplete="email"
+          aria-invalid={errors.email !== undefined}
+          aria-describedby={errors.email ? "login-email-error" : undefined}
           className={inputClass}
           {...register("email")}
         />
-        {errors.email && <p className={errorClass}>{errors.email.message}</p>}
+        {errors.email && (
+          <p id="login-email-error" className={errorClass}>
+            {errors.email.message}
+          </p>
+        )}
       </div>
 
       <div>
@@ -82,10 +88,16 @@ export default function LoginForm() {
           id="login-password"
           type="password"
           autoComplete="current-password"
+          aria-invalid={errors.password !== undefined}
+          aria-describedby={errors.password ? "login-password-error" : undefined}
           className={inputClass}
           {...register("password")}
         />
-        {errors.password && <p className={errorClass}>{errors.password.message}</p>}
+        {errors.password && (
+          <p id="login-password-error" className={errorClass}>
+            {errors.password.message}
+          </p>
+        )}
       </div>
 
       {submitError !== null && (
