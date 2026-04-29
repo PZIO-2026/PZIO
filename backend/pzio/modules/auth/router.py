@@ -6,7 +6,10 @@ from pzio.modules.auth import service
 from pzio.modules.auth.models import User
 from pzio.modules.auth.schemas import (
     LoginRequest,
+    OAuthLoginRequest,
     PaginatedUserResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     TokenResponse,
     UserCreate,
     UserRead,
@@ -15,6 +18,10 @@ from pzio.modules.auth.schemas import (
 )
 from pzio.modules.auth.security import create_access_token
 from pzio.modules.auth.deps import get_current_user, require_admin
+
+# Importy z modułu komunikacji do wysyłania maili
+from pzio.modules.communication.base import EmailService
+from pzio.modules.communication.deps import provide_email_service
 
 # Endpoints in this module: see SAD §4.1 (paths /api/auth/* and /api/users/*).
 # Each route declares its full path on the decorator — no router-level prefix is set
@@ -139,3 +146,63 @@ def update_user_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     
     return UserRead.model_validate(updated_user)
+
+
+@router.post(
+    "/api/auth/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Request a password reset",
+    description="Sends a password reset link to the provided email if the account exists.",
+)
+def request_password_reset(
+    payload: PasswordResetRequest,
+    db: Session = Depends(get_db),
+    email_service: EmailService = Depends(provide_email_service),
+) -> None:
+    service.request_password_reset(db, payload.email, email_service)
+
+
+@router.post(
+    "/api/auth/reset-password/confirm",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Confirm password reset",
+    description="Sets a new password using a valid reset token.",
+    responses={
+        400: {"description": "Invalid or expired token"},
+        404: {"description": "User not found"},
+    },
+)
+def confirm_password_reset(
+    payload: PasswordResetConfirm,
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        service.confirm_password_reset(db, payload)
+    except service.InvalidResetTokenError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+    except service.UserNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+
+@router.post(
+    "/api/auth/oauth",
+    response_model=TokenResponse,
+    response_model_by_alias=True,
+    status_code=status.HTTP_200_OK,
+    summary="Log in with OAuth provider",
+    description="Authenticates a user via external provider (Google/GitHub) and returns a JWT.",
+    responses={
+        400: {"description": "Unsupported provider"},
+    },
+)
+def oauth_login(
+    payload: OAuthLoginRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    try:
+        user = service.authenticate_oauth(db, payload)
+    except service.OAuthProviderNotSupportedError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported provider: {exc}")
+
+    token, expires_in = create_access_token(user.user_id, user.role)
+    return TokenResponse(access_token=token, expires_in=expires_in)
