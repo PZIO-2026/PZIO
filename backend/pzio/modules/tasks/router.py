@@ -10,6 +10,7 @@ from . import schemas, service
 
 router = APIRouter(tags=["Tasks"])
 
+# TODO: Add project-membership authorization checks for all task operations after merging with projects feature branch.
 
 def get_current_user_id(current_user: User = Depends(get_current_user)) -> int:
     """Extract numeric actor identity from JWT-resolved auth user."""
