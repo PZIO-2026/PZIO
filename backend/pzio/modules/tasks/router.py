@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ...db import get_db
@@ -25,7 +25,12 @@ CurrentUserId = Annotated[int, Depends(get_current_user_id)]
     response_model=schemas.WorkItemResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_task(id: int, task: schemas.WorkItemCreate, db: DbSession):
+def create_task(
+    id: int,
+    task: schemas.WorkItemCreate,
+    db: DbSession,
+    _user_id: CurrentUserId,
+):
     """Utworzenie nowego zadania w backlogu."""
     return service.create_work_item(db=db, project_id=id, task=task)
 
@@ -34,19 +39,20 @@ def create_task(id: int, task: schemas.WorkItemCreate, db: DbSession):
 def get_tasks(
     id: int,
     db: DbSession,
+    _user_id: CurrentUserId,
     status: str | None = None,
-    assigneeId: int | None = None,
-    sprintId: int | None = None,
-    type: str | None = None,
+    assignee_id: int | None = Query(default=None, alias="assigneeId"),
+    sprint_id: int | None = Query(default=None, alias="sprintId"),
+    task_type: str | None = Query(default=None, alias="type"),
 ):
     """Pobranie zadań w projekcie z opcjonalnym filtrowaniem."""
     return service.get_work_items(
         db,
         project_id=id,
         status=status,
-        assignee_id=assigneeId,
-        sprint_id=sprintId,
-        task_type=type,
+        assignee_id=assignee_id,
+        sprint_id=sprint_id,
+        task_type=task_type,
     )
 
 
@@ -67,6 +73,7 @@ def update_task(
     id: int,
     task_update: schemas.WorkItemUpdate,
     db: DbSession,
+    _user_id: CurrentUserId,
 ):
     """Edycja szczegółów zadania (metoda PATCH)."""
     task = service.update_work_item(db, task_id=id, update_data=task_update)
@@ -79,6 +86,7 @@ def update_task(
 def delete_task(
     id: int,
     db: DbSession,
+    _user_id: CurrentUserId,
 ):
     """Usunięcie zadania."""
     success = service.delete_work_item(db, task_id=id)
