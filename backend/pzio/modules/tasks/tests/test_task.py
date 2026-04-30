@@ -9,6 +9,7 @@ from pzio.main import app
 from pzio.modules.auth.deps import get_current_user
 from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import hash_password
+from pzio.modules.admin.models import ActivityLog as AdminActivityLog
 from pzio.modules.tasks import models
 
 
@@ -227,11 +228,7 @@ def test_update_task_status(client: TestClient, db_session: Session):
 
     assert response.status_code == 200
     assert response.json()["status"] == "InProgress"
-    logs = (
-        db_session.query(models.ActivityLog)
-        .filter(models.ActivityLog.work_item_id == task_id)
-        .all()
-    )
+    logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
     assert len(logs) == 1
 
     user = (
@@ -243,8 +240,9 @@ def test_update_task_status(client: TestClient, db_session: Session):
 
     log = logs[0]
     assert log.action == "STATUS_CHANGE"
-    assert log.old_status == "ToDo"
-    assert log.new_status == "InProgress"
+    assert log.field_name == "status"
+    assert log.old_value == "ToDo"
+    assert log.new_value == "InProgress"
     assert log.user_id == user.user_id
 
 

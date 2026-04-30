@@ -3,6 +3,7 @@ from typing import cast
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from pzio.modules.admin import service as admin_service
 from pzio.modules.tasks import models, schemas
 
 
@@ -98,15 +99,17 @@ def update_work_item_status(
     db_item.status = new_status
 
     # Rejestrowanie logu audytowego - UC7
-    activity_log = models.ActivityLog(
-        work_item_id=task_id,
+    db.add(db_item)
+    db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
         user_id=user_id,
         action="STATUS_CHANGE",
-        old_status=old_status,
-        new_status=new_status,
+        field_name="status",
+        old_value=old_status,
+        new_value=new_status,
     )
-    db.add(activity_log)
-    db.commit()
     db.refresh(db_item)
     return db_item
 
