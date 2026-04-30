@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 from pzio.modules.communication.base import EmailService
 

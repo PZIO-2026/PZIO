@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 from pzio.modules.communication.factory import get_email_service
 from pzio.modules.communication.mock import MockEmailService
