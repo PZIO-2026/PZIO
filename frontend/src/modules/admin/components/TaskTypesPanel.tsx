@@ -24,7 +24,7 @@ export default function TaskTypesPanel() {
   const {
     register,
     handleSubmit,
-    reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CreateTaskTypeFormInput>({
     resolver: zodResolver(createTaskTypeSchema),
@@ -58,7 +58,7 @@ export default function TaskTypesPanel() {
     try {
       const created = await createTaskType({ name: values.name });
       setTaskTypes((current) => [...current, created]);
-      reset();
+      setValue("name", "");
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(
