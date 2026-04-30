@@ -40,7 +40,7 @@ class StatusUpdate(BaseModel):
 
 class WorkItemResponse(WorkItemBase):
     id: int
-    project_id: int = Field(alias="projectId")
+    project_id: int = Field(serialization_alias="projectId")
     status: str
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime | None = Field(None, alias="updatedAt")
@@ -59,7 +59,7 @@ class TimeLogCreate(BaseModel):
 
 class TimeLogResponse(TimeLogCreate):
     id: int
-    work_item_id: int = Field(alias="workItemId")
+    work_item_id: int = Field(serialization_alias="workItemId")
     created_at: datetime = Field(alias="createdAt")
 
     model_config: ClassVar[ConfigDict] = ConfigDict(
