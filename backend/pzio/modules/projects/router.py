@@ -28,7 +28,7 @@ from .schemas import (
 )
 from . import services
 
-router = APIRouter(tags=["projects"])
+router = APIRouter(tags=["Projects"])
 
 # ---------------------------------------------------------------------------
 # PROJECTS
