@@ -15,6 +15,19 @@ const inputClass =
 const labelClass = "block text-sm font-medium text-gray-700";
 const errorClass = "mt-1 text-sm text-red-600";
 
+const entryPluralRules = new Intl.PluralRules("pl");
+
+function formatEntryCount(n: number): string {
+  switch (entryPluralRules.select(n)) {
+    case "one":
+      return "wpis";
+    case "few":
+      return "wpisy";
+    default:
+      return "wpisów";
+  }
+}
+
 interface LoadedHistory {
   taskId: number;
   entries: ActivityLogEntry[];
@@ -97,7 +110,7 @@ export default function TaskHistoryViewer() {
         <div>
           <h3 className="mb-2 text-sm font-medium text-gray-700">
             Zadanie #{history.taskId} — {history.entries.length}{" "}
-            {history.entries.length === 1 ? "wpis" : "wpisów"}
+            {formatEntryCount(history.entries.length)}
           </h3>
           {history.entries.length === 0 ? (
             <p className="text-sm text-gray-500">
