@@ -422,8 +422,8 @@ def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownO
 
     return BurndownOut.model_validate(
         {
-            "sprintId": sprint_id,
-            "totalPoints": total_points,
+            "sprint_id": sprint_id,
+            "total_points": total_points,
             "days": days,
         }
     )
