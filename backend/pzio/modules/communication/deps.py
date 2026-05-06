@@ -1,10 +1,16 @@
-"""Communication-module–specific FastAPI dependencies.
+"""Communication-module FastAPI dependencies.
 
-Re-exports ``get_current_user`` from the auth module so that routes in this
-module can declare a dependency on the authenticated user without importing
-from ``pzio.modules.auth.deps`` directly (keeps coupling one-way).
+Keeps the existing authenticated-user dependency available for communication
+routes, and also exposes the email-service factory for future notification use.
 """
 
 from pzio.modules.auth.deps import get_current_user
+from pzio.modules.communication.base import EmailService
+from pzio.modules.communication.factory import get_email_service
 
-__all__ = ["get_current_user"]
+
+def provide_email_service() -> EmailService:
+    return get_email_service()
+
+
+__all__ = ["get_current_user", "provide_email_service"]

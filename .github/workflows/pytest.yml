@@ -7,8 +7,12 @@ on:
 
 jobs:
     test-backend:
-        name: Run pytest on backend
+        name: Run pytest on backend (${{ matrix.test-db }})
         runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                test-db: [sqlite, postgres]
         steps:
             - name: Checkout repository
               uses: actions/checkout@v6
@@ -25,12 +29,14 @@ jobs:
                   python -m pip install -e backend
 
             - name: Run tests and publish summary
+              env:
+                  PZIO_TEST_DB: ${{ matrix.test-db }}
               run: |
                   set +e
                   set -o pipefail
                   pytest backend --cov=pzio --cov-report term-missing:skip-covered | tee pytest_output.txt
                   rc=$?
-                  echo '## Pytest Output' >> $GITHUB_STEP_SUMMARY
+                  echo '## Pytest Output (${{ matrix.test-db }})' >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY
                   cat pytest_output.txt >> $GITHUB_STEP_SUMMARY
                   echo '```' >> $GITHUB_STEP_SUMMARY

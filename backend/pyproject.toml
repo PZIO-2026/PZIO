@@ -3,17 +3,19 @@ name = "pzio"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.128.0",          # REST API framework
-    "uvicorn>=0.40.0",           # ASGI server for running FastAPI
-    "sqlalchemy>=2.0.44",        # ORM for database interactions
-    "pydantic[email]>=2.9.0",    # Schema validation incl. email format
-    "pydantic-settings>=2.6.0",  # Typed env-driven configuration
-    "bcrypt>=4.2.0",             # Password hashing (NFR04)
-    "pyjwt>=2.10.0",             # JWT issuing / verification
-    "pytest>=9.0.2",             # Testing framework
-    "pytest-cov>=7.1.0",         # Code coverage plugin for pytest
-    "httpx>=0.28.1",             # HTTP client for testing FastAPI endpoints
-    "python-multipart>=0.0.22",  # For handling multipart/form-data (file uploads)
+    "fastapi>=0.128.0",                # REST API framework
+    "uvicorn>=0.40.0",                 # ASGI server for running FastAPI
+    "sqlalchemy>=2.0.44",              # ORM for database interactions
+    "pydantic[email]>=2.9.0",          # Schema validation incl. email format
+    "pydantic-settings>=2.6.0",        # Typed env-driven configuration
+    "bcrypt>=4.2.0",                   # Password hashing (NFR04)
+    "pyjwt>=2.10.0",                   # JWT issuing / verification
+    "psycopg[binary]>=3.2.0",          # PostgreSQL driver for SQLAlchemy (SAD §7.4)
+    "pytest>=9.0.2",                   # Testing framework
+    "pytest-cov>=7.1.0",               # Code coverage plugin for pytest
+    "httpx>=0.28.1",                   # HTTP client for testing FastAPI endpoints
+    "python-multipart>=0.0.22",        # For handling multipart/form-data (file uploads)
+    "testcontainers[postgres]>=4.10",  # Spin up Postgres for integration tests (SAD §2.2)
 ]
 
 [tool.setuptools.packages.find]
