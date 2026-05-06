@@ -95,3 +95,8 @@ class OAuthLoginRequest(BaseModel):
     oauth_token: str = Field(alias="oauthToken")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class MessageResponse(BaseModel):
+    """Generic message response."""
+    message: str
