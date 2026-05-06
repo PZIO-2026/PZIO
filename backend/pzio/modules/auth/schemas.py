@@ -74,3 +74,29 @@ class PaginatedUserResponse(BaseModel):
     total: int
     page: int
     size: int
+
+
+class PasswordResetRequest(BaseModel):
+    """Body for POST /api/auth/reset-password"""
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    """Body for POST /api/auth/reset-password/confirm"""
+    token: str
+    new_password: str = Field(alias="newPassword", min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OAuthLoginRequest(BaseModel):
+    """Body for POST /api/auth/oauth"""
+    provider: str = Field(description="np. 'google' lub 'github'")
+    oauth_token: str = Field(alias="oauthToken")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MessageResponse(BaseModel):
+    """Generic message response."""
+    message: str

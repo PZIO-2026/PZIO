@@ -46,3 +46,26 @@ def decode_access_token(token: str) -> dict[str, Any]:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except jwt.PyJWTError as exc:
         raise InvalidTokenError(str(exc)) from exc
+    
+
+def create_reset_token(email: str) -> str:
+    """Issue a short-lived JWT specifically for password resets (15 minutes)."""
+    expires_in = 15 * 60
+    now = datetime.now(timezone.utc)
+    payload: dict[str, Any] = {
+        "sub": email,
+        "type": "password_reset",
+        "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_reset_token(token: str) -> str:
+    """Verify reset token signature and type. Returns the email."""
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("type") != "password_reset":
+            raise InvalidTokenError("Invalid token type")
+        return payload["sub"]
+    except jwt.PyJWTError as exc:
+        raise InvalidTokenError(str(exc)) from exc
