@@ -19,6 +19,7 @@ from pzio.modules.auth.security import (
     verify_password,
 )
 from pzio.modules.communication.base import EmailService
+from pzio.modules.auth.oauth import oauth
 
 
 class EmailAlreadyExistsError(Exception):
@@ -193,24 +194,55 @@ def confirm_password_reset(db: Session, payload: PasswordResetConfirm) -> None:
     db.commit()
 
 
-def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
+async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
     """
-    OAuth login logic. Matches user by email or registers a new one via JIT provisioning.
+    Verifying OAuth tokens directly with the provider using Authlib.
     """
     provider = payload.provider.lower()
-    if provider not in ["google", "github"]:
+    token = payload.oauth_token
+
+    if provider == "google":
+        try:
+            resp = await oauth.google.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo", 
+                token={"access_token": token}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            
+            user_email = data.get("email")
+            first_name = data.get("given_name", "Google")
+            last_name = data.get("family_name", "User")
+        except Exception:
+            raise InvalidCredentialsError()
+
+    elif provider == "github":
+        try:
+            resp = await oauth.github.get(
+                "user/emails", 
+                token={"access_token": token}
+            )
+            resp.raise_for_status()
+            emails = resp.json()
+            
+            user_email = next((e["email"] for e in emails if e.get("primary")), None)
+            first_name = "GitHub"
+            last_name = "User"
+            if not user_email:
+                raise InvalidCredentialsError()
+        except Exception:
+            raise InvalidCredentialsError()
+    else:
         raise OAuthProviderNotSupportedError(provider)
 
-    dummy_email = f"user_{provider}@example.com" 
-    
-    user = _get_user_by_email(db, dummy_email)
+    user = _get_user_by_email(db, user_email)
     
     if not user:
         user = User(
-            email=dummy_email,
+            email=user_email,
             password_hash=hash_password(secrets.token_urlsafe(32)),
-            first_name=provider.capitalize(),
-            last_name="User",
+            first_name=first_name[:100],
+            last_name=last_name[:100],
             role=UserRole.TEAM_MEMBER,
             is_active=True
         )
