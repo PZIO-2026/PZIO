@@ -17,8 +17,16 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
+    frontend_url: str = "http://localhost:3000"
+
     # Directory where forced database backups (SAD §4.5 — POST /api/admin/backups) are stored.
     backup_dir: str = "./backups"
+
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
 
     @property
     def cors_origins_list(self) -> list[str]:

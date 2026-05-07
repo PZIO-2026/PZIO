@@ -20,6 +20,7 @@ from pzio.modules.auth.security import (
 )
 from pzio.modules.communication.base import EmailService
 from pzio.modules.auth.oauth import oauth
+from pzio.config import settings
 
 
 class EmailAlreadyExistsError(Exception):
@@ -165,7 +166,7 @@ def request_password_reset(db: Session, email: str, email_service: EmailService)
 
     token = create_reset_token(user.email)
     
-    reset_link = f"http://localhost:3000/reset-password?token={token}"
+    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
     
     subject = "Resetowanie hasła w PZIO"
     body = (
@@ -211,8 +212,9 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
             data = resp.json()
             
             user_email = data.get("email")
-            first_name = data.get("given_name", "Google")
-            last_name = data.get("family_name", "User")
+            fallback_name = user_email.split("@")[0] if user_email else "User"
+            first_name = data.get("given_name") or fallback_name
+            last_name = data.get("family_name") or fallback_name
         except Exception:
             raise InvalidCredentialsError()
 
@@ -226,10 +228,26 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
             emails = resp.json()
             
             user_email = next((e["email"] for e in emails if e.get("primary")), None)
-            first_name = "GitHub"
-            last_name = "User"
             if not user_email:
                 raise InvalidCredentialsError()
+
+            fallback_name = user_email.split("@")[0]
+            
+            try:
+                resp_profile = await oauth.github.get("user", token={"access_token": token})
+                resp_profile.raise_for_status()
+                profile_data = resp_profile.json()
+                full_name = profile_data.get("name")
+            except Exception:
+                full_name = None
+
+            if full_name:
+                name_parts = full_name.split(" ", 1)
+                first_name = name_parts[0]
+                last_name = name_parts[1] if len(name_parts) > 1 else fallback_name
+            else:
+                first_name = fallback_name
+                last_name = fallback_name
         except Exception:
             raise InvalidCredentialsError()
     else:

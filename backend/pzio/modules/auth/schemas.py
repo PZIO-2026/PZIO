@@ -91,7 +91,7 @@ class PasswordResetConfirm(BaseModel):
 
 class OAuthLoginRequest(BaseModel):
     """Body for POST /api/auth/oauth"""
-    provider: str = Field(description="np. 'google' lub 'github'")
+    provider: str = Field(description="e.g., 'google' or 'github'")
     oauth_token: str = Field(alias="oauthToken")
 
     model_config = ConfigDict(populate_by_name=True)
