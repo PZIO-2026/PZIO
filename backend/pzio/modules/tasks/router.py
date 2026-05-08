@@ -21,6 +21,11 @@ DbSession = Annotated[Session, Depends(get_db)]
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
 
 
+def _prepare_project_membership_auth(user_id: int) -> None:
+    # TODO: feed this actor id into project-membership checks once that service is wired in.
+    _ = user_id
+
+
 @router.post(
     "/api/projects/{id}/tasks",
     response_model=schemas.WorkItemResponse,
@@ -30,9 +35,10 @@ def create_task(
     id: int,
     task: schemas.WorkItemCreate,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Utworzenie nowego zadania w backlogu."""
+    _prepare_project_membership_auth(user_id)
     return service.create_work_item(db=db, project_id=id, task=task)
 
 
@@ -40,13 +46,14 @@ def create_task(
 def get_tasks(
     id: int,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
     status: str | None = None,
     assignee_id: int | None = Query(default=None, alias="assigneeId"),
     sprint_id: int | None = Query(default=None, alias="sprintId"),
     task_type: str | None = Query(default=None, alias="type"),
 ):
     """Pobranie zadań w projekcie z opcjonalnym filtrowaniem."""
+    _prepare_project_membership_auth(user_id)
     return service.get_work_items(
         db,
         project_id=id,
@@ -61,8 +68,10 @@ def get_tasks(
 def get_task(
     id: int,
     db: DbSession,
+    user_id: CurrentUserId,
 ):
     """Pobranie szczegółów zadania."""
+    _prepare_project_membership_auth(user_id)
     task = service.get_work_item(db, task_id=id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -74,9 +83,10 @@ def update_task(
     id: int,
     task_update: schemas.WorkItemUpdate,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Edycja szczegółów zadania (metoda PATCH)."""
+    _prepare_project_membership_auth(user_id)
     task = service.update_work_item(db, task_id=id, update_data=task_update)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -87,9 +97,10 @@ def update_task(
 def delete_task(
     id: int,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Usunięcie zadania."""
+    _prepare_project_membership_auth(user_id)
     success = service.delete_work_item(db, task_id=id)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -133,8 +144,10 @@ def create_worklog(
 def get_worklogs(
     id: int,
     db: DbSession,
+    user_id: CurrentUserId,
 ):
     """Pobranie historii logów czasu pracy."""
+    _prepare_project_membership_auth(user_id)
     logs = service.get_time_logs(db, task_id=id)
     if logs is None:
         raise HTTPException(status_code=404, detail="Task not found")

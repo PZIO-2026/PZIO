@@ -51,7 +51,7 @@ class WorkItemResponse(WorkItemBase):
 
 
 class TimeLogCreate(BaseModel):
-    hours_spent: float = Field(..., alias="hoursSpent")
+    hours_spent: float = Field(..., gt=0, alias="hoursSpent")
     note: str | None = None
 
     model_config: ClassVar[ConfigDict] = ConfigDict(populate_by_name=True)
