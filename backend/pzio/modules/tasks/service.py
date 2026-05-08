@@ -46,6 +46,7 @@ def get_work_items(
         statement = statement.where(models.WorkItem.sprint_id == sprint_id)
     if task_type is not None:
         statement = statement.where(models.WorkItem.type == task_type)
+    statement = statement.order_by(models.WorkItem.id.asc())
     return list(db.scalars(statement).all())
 
 
@@ -96,11 +97,13 @@ def update_work_item_status(
         return None
 
     old_status = db_item.status
+    if old_status == new_status:
+        return db_item
+
     db_item.status = new_status
 
     # Rejestrowanie logu audytowego - UC7
     db.add(db_item)
-    db.commit()
     admin_service.log_activity(
         db,
         task_id=task_id,
@@ -136,5 +139,9 @@ def get_time_logs(db: Session, task_id: int) -> list[models.TimeLog] | None:
     if not get_work_item(db, task_id):
         return None
 
-    statement = select(models.TimeLog).where(models.TimeLog.work_item_id == task_id)
+    statement = (
+        select(models.TimeLog)
+        .where(models.TimeLog.work_item_id == task_id)
+        .order_by(models.TimeLog.created_at.asc(), models.TimeLog.id.asc())
+    )
     return list(db.scalars(statement).all())
