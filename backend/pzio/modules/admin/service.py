@@ -1,11 +1,16 @@
 import shutil
+import subprocess
+import zipfile
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from testcontainers.core.container import DockerContainer
 
 from pzio.modules.admin.models import ActivityLog, Backup, TaskType
 from pzio.modules.admin.schemas import TaskTypeCreate
@@ -57,51 +62,133 @@ def _resolve_sqlite_file(database_url: str) -> Path | None:
     """
     for prefix in _SQLITE_PREFIXES:
         if database_url.startswith(prefix):
-            raw = database_url[len(prefix):]
+            raw = database_url[len(prefix) :]
             if not raw or raw == ":memory:":
                 return None
             return Path(raw)
     return None
 
 
-def create_backup(db: Session, database_url: str, backup_dir: str) -> Backup:
-    """Force a backup of the SQLite database file.
-
-    Strategy: copy the live `.db` file into `backup_dir` with a UTC timestamp suffix.
-    A `Backup` row is recorded in either case ("completed" / "failed") so admins can
-    audit attempts. On failure, we still raise — the router maps that to HTTP 500.
-    """
+def _backup_sqlite_db(database_url: str, target_dir: Path, base_filename: str) -> str:
     source = _resolve_sqlite_file(database_url)
-    timestamp = datetime.now(timezone.utc)
-
     if source is None or not source.exists():
-        record = Backup(file_path="", status="failed", created_at=timestamp)
-        db.add(record)
-        db.commit()
-        db.refresh(record)
         raise BackupFailedError(
             "Database file is not available for a file-level backup "
-            "(only local SQLite is supported)."
+            "(only local SQLite and PostgreSQL string connections are supported)."
         )
 
+    destination = target_dir / f"{base_filename}.db"
+    shutil.copy2(source, destination)
+    return str(destination)
+
+
+def _pg_zip_sql(sql_dest: Path, zip_dest: Path) -> str:
+    """Helper to zip the generated .sql file and remove the original."""
+    with zipfile.ZipFile(zip_dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.write(sql_dest, arcname=sql_dest.name)
+    sql_dest.unlink(missing_ok=True)
+    return str(zip_dest)
+
+
+def _run_pg_dump_local(clean_url: str, sql_dest: Path) -> None:
+    subprocess.run(["pg_dump", clean_url, "-f", str(sql_dest)], check=True, capture_output=True)
+
+
+def _run_pg_dump_testcontainers(clean_url: str, target_dir: Path, sql_dest: Path) -> None:
+    container = DockerContainer(
+        image="postgres:latest",
+        volumes=[(str(target_dir.absolute()), "/backup", "rw")],
+        command=f"pg_dump {clean_url} -f /backup/{sql_dest.name}",
+        network_mode="host",
+    )
+    with container:
+        # The container will run the pg_dump command and exit.
+        # Wait for the process to finish directly.
+        c = container.get_wrapped_container()
+        result = c.wait()
+
+        if result.get("StatusCode", 1) != 0:
+            raise RuntimeError(f"pg_dump via testcontainers failed with status {result.get('StatusCode')}")
+        if not sql_dest.exists():
+            raise RuntimeError("pg_dump via testcontainers did not produce the expected file")
+
+
+def _zip_postgres_data_dir(db: Session, target_dir: Path, base_filename: str) -> str:
+    try:
+        data_dir = db.execute(text("SHOW data_directory;")).scalar()
+        if data_dir and Path(data_dir).exists():
+            zip_dest = target_dir / f"{base_filename}_data_dir.zip"
+            shutil.make_archive(str(zip_dest.with_suffix("")), "zip", data_dir)
+            return str(zip_dest)
+        else:
+            raise BackupFailedError(
+                "All PostgreSQL backup methods failed (pg_dump, docker pg_dump, data_directory zip)."
+            )
+    except Exception as e:
+        raise BackupFailedError(f"PostgreSQL backup failed: {e}")
+
+
+def _backup_postgres_db(db: Session, database_url: str, target_dir: Path, base_filename: str) -> str:
+    clean_url = re.sub(r"postgresql\+[^:]+://", "postgresql://", database_url)
+    sql_dest = target_dir / f"{base_filename}.sql"
+    zip_dest = target_dir / f"{base_filename}.zip"
+
+    # 1. Attempt pg_dump locally
+    try:
+        _run_pg_dump_local(clean_url, sql_dest)
+        return _pg_zip_sql(sql_dest, zip_dest)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    # 2. Attempt testcontainers pg_dump (Docker)
+    try:
+        _run_pg_dump_testcontainers(clean_url, target_dir, sql_dest)
+        return _pg_zip_sql(sql_dest, zip_dest)
+    except Exception:
+        pass
+
+    # 3. Zip data directory if all dumps fail completely
+    return _zip_postgres_data_dir(db, target_dir, base_filename)
+
+
+def create_backup(db: Session, database_url: str, backup_dir: str) -> Backup:
+    """Force a backup of the SQLite or PostgreSQL database.
+
+    Strategy:
+    - SQLite: copy the live `.db` file into `backup_dir` with a UTC timestamp suffix.
+    - PostgreSQL: attempt pg_dump, fallback to testcontainers pg_dump, fallback to zipping data_directory.
+    A `Backup` row is recorded in either case ("completed" / "failed") so admins can
+    audit attempts. On failure, we still raise - the router maps that to HTTP 500.
+    """
+    timestamp = datetime.now(timezone.utc)
     target_dir = Path(backup_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"pzio_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}.db"
-    destination = target_dir / filename
+    base_filename = f"pzio_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}"
+
+    is_postgres = database_url.startswith(("postgresql://", "postgresql+", "postgres://"))
+
+    destination = ""
+    success = False
+    error_msg = ""
 
     try:
-        shutil.copy2(source, destination)
-    except OSError as exc:
-        record = Backup(file_path=str(destination), status="failed", created_at=timestamp)
-        db.add(record)
-        db.commit()
-        db.refresh(record)
-        raise BackupFailedError(str(exc))
+        if is_postgres:
+            destination = _backup_postgres_db(db, database_url, target_dir, base_filename)
+        else:
+            destination = _backup_sqlite_db(database_url, target_dir, base_filename)
+        success = True
+    except Exception as exc:
+        success = False
+        error_msg = str(exc)
 
-    record = Backup(file_path=str(destination), status="completed", created_at=timestamp)
+    record = Backup(file_path=destination, status="completed" if success else "failed", created_at=timestamp)
     db.add(record)
     db.commit()
     db.refresh(record)
+
+    if not success:
+        raise BackupFailedError(error_msg)
+
     return record
 
 
