@@ -1,5 +1,8 @@
+// ============================================================
+// Projekty
+// ============================================================
+
 export type ProjectStatus = "active" | "archived";
-export type ProjectRole = "project_owner" | "scrum_master" | "developer" | "qa";
 
 export interface Project {
   projectId: number;
@@ -7,7 +10,7 @@ export interface Project {
   description: string | null;
   status: ProjectStatus;
   createdAt: string;
-  updatedAt: string | null;
+  currentUserRoles: ProjectRole[];
 }
 
 export interface ProjectStats {
@@ -15,13 +18,77 @@ export interface ProjectStats {
   sprintCount: number;
 }
 
+
 export interface ProjectDetail extends Project {
   stats: ProjectStats;
 }
 
-export interface Page<T> {
+export interface PaginatedResponse<T> {
   items: T[];
   total: number;
   page: number;
   size: number;
+}
+
+export interface ProjectsQueryParams {
+  status?: ProjectStatus;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+  page?: number;
+  size?: number;
+}
+
+// ============================================================
+// Członkowie projektu
+// ============================================================
+
+export type ProjectRole =
+  | "project_owner"
+  | "scrum_master"
+  | "developer"
+  | "qa"
+  | "maintainer";
+
+export interface ProjectMember {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  roles: ProjectRole[];
+  joinedAt: string;
+}
+
+export interface MembersQueryParams {
+  role?: ProjectRole;
+  search?: string;
+  page?: number;
+  size?: number;
+}
+
+// ============================================================
+// Sprinty
+// ============================================================
+
+export type SprintStatus = "planned" | "active" | "completed";
+
+export interface Sprint {
+  sprintId: number;
+  projectId: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: SprintStatus;
+  goal?: string;
+}
+
+export interface BurndownDay {
+  date: string;
+  remainingPoints: number;
+}
+
+export interface BurndownData {
+  sprintId: number;
+  totalPoints: number;
+  days: BurndownDay[];
 }
