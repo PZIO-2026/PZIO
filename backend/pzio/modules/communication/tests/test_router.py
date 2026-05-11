@@ -10,14 +10,16 @@ def test_get_comments_returns_history(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:
     user = user_factory()
-    comment_factory(task_id=1, author_id=user.user_id, content="First")
-    comment_factory(task_id=1, author_id=user.user_id, content="Second")
+    first = comment_factory(task_id=1, author_id=user.user_id, content="First")
+    second = comment_factory(task_id=1, author_id=user.user_id, content="Second")
     comment_factory(task_id=2, author_id=user.user_id, content="Other task")
 
     response = client.get("/api/tasks/1/comments", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert [item["content"] for item in response.json()] == ["First", "Second"]
+    payload = response.json()
+    assert {item["commentId"] for item in payload} == {first.comment_id, second.comment_id}
+    assert {item["content"] for item in payload} == {"First", "Second"}
 
 
 def test_edit_comment_success(
@@ -152,7 +154,7 @@ def test_list_attachments_filters_by_task(
     response = client.get("/api/tasks/1/attachments", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert [item["attachmentId"] for item in response.json()] == [first.attachment_id]
+    assert {item["attachmentId"] for item in response.json()} == {first.attachment_id}
 
 
 def test_download_attachment_success(
@@ -187,6 +189,31 @@ def test_download_attachment_not_found(
 
     response = client.get(
         "/api/attachments/999/download",
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 404
+
+
+def test_download_attachment_missing_file_returns_404(
+    client: TestClient,
+    user_factory,
+    auth_headers,
+    attachment_factory,
+) -> None:
+    user = user_factory()
+    attachment = attachment_factory(
+        task_id=1,
+        uploader_id=user.user_id,
+        filename="file.bin",
+        content_type="application/octet-stream",
+        data=b"data",
+    )
+
+    Path(attachment.file_path).unlink()
+
+    response = client.get(
+        f"/api/attachments/{attachment.attachment_id}/download",
         headers=auth_headers(user),
     )
 
