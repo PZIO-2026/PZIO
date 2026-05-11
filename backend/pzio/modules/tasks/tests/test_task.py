@@ -229,7 +229,7 @@ def test_update_task_status(client: TestClient, db_session: Session):
     assert response.status_code == 200
     assert response.json()["status"] == "InProgress"
     logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
-    assert len(logs) == 1
+    assert len(logs) == 2  # CREATE_TASK + STATUS_CHANGE
 
     user = (
         db_session.query(User)
@@ -239,6 +239,10 @@ def test_update_task_status(client: TestClient, db_session: Session):
     assert user is not None
 
     log = logs[0]
+    assert log.action == "CREATE_TASK"
+    assert log.user_id == user.user_id
+
+    log = logs[1]
     assert log.action == "STATUS_CHANGE"
     assert log.field_name == "status"
     assert log.old_value == "ToDo"

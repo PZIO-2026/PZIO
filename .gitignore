@@ -21,6 +21,7 @@ node_modules/
 dist/
 logs/
 .pytest_cache/
+.coverage
 
 # Local databases
 *.db
@@ -29,8 +30,9 @@ logs/
 *.sqlite3
 local/
 
-# Forced DB backups (POST /api/admin/backups).
+# DB backups and uploads
 backups/
+uploads/
 
 # IDEs and editors
 .idea/
