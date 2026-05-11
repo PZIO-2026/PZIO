@@ -109,6 +109,7 @@ def test_get_tasks(client: TestClient):
     assert response.status_code == 200
     tasks = cast(list[dict[str, object]], response.json())
     assert len(tasks) == 3
+    assert [task["title"] for task in tasks] == ["Task 1", "Task 2", "Task 3"]
 
     # Pobieramy z filtrowaniem po typie
     response_filtered = client.get("/api/projects/1/tasks?type=Bug")
@@ -246,6 +247,26 @@ def test_update_task_status(client: TestClient, db_session: Session):
     assert log.user_id == user.user_id
 
 
+def test_update_task_status_does_not_log_when_status_is_unchanged(
+    client: TestClient, db_session: Session
+):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "No-op status", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    response = client.patch(f"/api/tasks/{task_id}/status", json={"status": "ToDo"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ToDo"
+    logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
+    assert logs == []
+
+
 def test_delete_task(client: TestClient):
     """Test usuwania zadania."""
     create_resp = client.post(
@@ -306,6 +327,86 @@ def test_worklogs(client: TestClient, db_session: Session):
     assert created_log.user_id > 0
 
 
+def test_worklogs_reject_non_positive_hours(client: TestClient):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Walidacja czasu", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    zero_response = client.post(
+        f"/api/tasks/{task_id}/worklogs",
+        json={"hoursSpent": 0, "note": "zero"},
+    )
+    negative_response = client.post(
+        f"/api/tasks/{task_id}/worklogs",
+        json={"hoursSpent": -1, "note": "negative"},
+    )
+
+    assert zero_response.status_code == 400
+    assert negative_response.status_code == 400
+    assert "greater than 0" in zero_response.json()["detail"]
+    assert "greater than 0" in negative_response.json()["detail"]
+
+
+def test_worklogs_are_returned_in_creation_order(client: TestClient):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Kolejnosc worklogow", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    first_response = client.post(
+        f"/api/tasks/{task_id}/worklogs",
+        json={"hoursSpent": 1.0, "note": "first"},
+    )
+    second_response = client.post(
+        f"/api/tasks/{task_id}/worklogs",
+        json={"hoursSpent": 2.0, "note": "second"},
+    )
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+
+    response = client.get(f"/api/tasks/{task_id}/worklogs")
+    assert response.status_code == 200
+    logs = cast(list[dict[str, object]], response.json())
+    assert [log["note"] for log in logs] == ["first", "second"]
+
+
+def test_work_item_relationships_include_worklogs_and_activity_logs(
+    client: TestClient, db_session: Session
+):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Relacje ORM", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    worklog_response = client.post(
+        f"/api/tasks/{task_id}/worklogs",
+        json={"hoursSpent": 1.5, "note": "relationship"},
+    )
+    status_response = client.patch(f"/api/tasks/{task_id}/status", json={"status": "Done"})
+    assert worklog_response.status_code == 201
+    assert status_response.status_code == 200
+
+    work_item = db_session.get(models.WorkItem, task_id)
+    assert work_item is not None
+    assert len(work_item.time_logs) == 1
+    assert work_item.time_logs[0].note == "relationship"
+    assert len(work_item.activity_logs) == 1
+    assert work_item.activity_logs[0].action == "STATUS_CHANGE"
+
+
 def test_create_worklog_task_not_found(client: TestClient):
     response = client.post(
         "/api/tasks/999999/worklogs",
@@ -340,5 +441,11 @@ def test_protected_endpoints_require_auth(client: TestClient):
             json={"hoursSpent": 1.0, "note": "unauthorized"},
         )
         assert worklog_response.status_code == 401
+        task_response = client.get(f"/api/tasks/{task_id}")
+        assert task_response.status_code == 401
+        task_list_response = client.get("/api/projects/1/tasks")
+        assert task_list_response.status_code == 401
+        worklogs_response = client.get(f"/api/tasks/{task_id}/worklogs")
+        assert worklogs_response.status_code == 401
     finally:
         app.dependency_overrides.pop(get_current_user, None)
