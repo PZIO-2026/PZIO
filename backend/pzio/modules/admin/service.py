@@ -96,7 +96,7 @@ def _run_pg_dump_local(clean_url: str, sql_dest: Path) -> None:
 
 def _run_pg_dump_testcontainers(clean_url: str, target_dir: Path, sql_dest: Path) -> None:
     container = DockerContainer(
-        image="postgres:latest",
+        image="postgres:16-alpine",
         volumes=[(str(target_dir.absolute()), "/backup", "rw")],
         command=f"pg_dump {clean_url} -f /backup/{sql_dest.name}",
         network_mode="host",
@@ -195,8 +195,8 @@ def create_backup(db: Session, database_url: str, backup_dir: str) -> Backup:
 def get_task_history(db: Session, task_id: int) -> Sequence[ActivityLog]:
     """Return all audit entries for a task in chronological order.
 
-    The `tasks` module is still a skeleton (FR07–FR15), so we don't validate that
-    the task exists — an unknown id simply returns an empty list. This keeps the
+    The `tasks` module is still a skeleton (FR07-FR15), so we don't validate that
+    the task exists - an unknown id simply returns an empty list. This keeps the
     endpoint usable while the audit infrastructure is wired up.
     """
     stmt = (

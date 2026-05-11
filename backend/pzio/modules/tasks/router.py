@@ -30,10 +30,10 @@ def create_task(
     id: int,
     task: schemas.WorkItemCreate,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Utworzenie nowego zadania w backlogu."""
-    return service.create_work_item(db=db, project_id=id, task=task)
+    return service.create_work_item(db=db, project_id=id, task=task, user_id=user_id)
 
 
 @router.get("/api/projects/{id}/tasks", response_model=list[schemas.WorkItemResponse])
@@ -74,10 +74,10 @@ def update_task(
     id: int,
     task_update: schemas.WorkItemUpdate,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Edycja szczegółów zadania (metoda PATCH)."""
-    task = service.update_work_item(db, task_id=id, update_data=task_update)
+    task = service.update_work_item(db, task_id=id, update_data=task_update, user_id=user_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -87,10 +87,10 @@ def update_task(
 def delete_task(
     id: int,
     db: DbSession,
-    _user_id: CurrentUserId,
+    user_id: CurrentUserId,
 ):
     """Usunięcie zadania."""
-    success = service.delete_work_item(db, task_id=id)
+    success = service.delete_work_item(db, task_id=id, user_id=user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
 

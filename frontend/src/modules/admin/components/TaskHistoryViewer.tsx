@@ -28,6 +28,18 @@ function formatEntryCount(n: number): string {
   }
 }
 
+const taskActionMap: Record<string, string> = {
+  ADD_COMMENT: "Dodano komentarz",
+  DELETE_COMMENT: "Usunięto komentarz",
+  ADD_ATTACHMENT: "Dodano załącznik",
+  DELETE_ATTACHMENT: "Usunięto załącznik",
+  CREATE_TASK: "Utworzono zadanie",
+  UPDATE_FIELD: "Zaktualizowano zadanie",
+  DELETE_TASK: "Usunięto zadanie",
+  STATUS_CHANGE: "Zmieniono status zadania",
+  LOG_WORK: "Zalogowano czas pracy",
+};
+
 interface LoadedHistory {
   taskId: number;
   entries: ActivityLogEntry[];
@@ -67,11 +79,7 @@ export default function TaskHistoryViewer() {
         Wprowadź identyfikator zadania, aby zobaczyć jego dziennik audytu (ActivityLog).
       </p>
 
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end"
-        noValidate
-      >
+      <form onSubmit={handleSubmit(onSubmit)} className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end" noValidate>
         <div className="flex-1">
           <label htmlFor="history-task-id" className={labelClass}>
             ID zadania
@@ -102,29 +110,22 @@ export default function TaskHistoryViewer() {
         </button>
       </form>
 
-      {error !== null && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
+      {error !== null && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {history !== null && error === null && (
         <div>
           <h3 className="mb-2 text-sm font-medium text-gray-700">
-            Zadanie #{history.taskId} — {history.entries.length}{" "}
-            {formatEntryCount(history.entries.length)}
+            Zadanie #{history.taskId} — {history.entries.length} {formatEntryCount(history.entries.length)}
           </h3>
           {history.entries.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              Brak zarejestrowanych zmian dla tego zadania.
-            </p>
+            <p className="text-sm text-gray-500">Brak zarejestrowanych zmian dla tego zadania.</p>
           ) : (
             <ul className="divide-y divide-gray-200 text-sm">
               {history.entries.map((entry) => (
                 <li key={entry.activityLogId} className="py-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{entry.action}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(entry.createdAt).toLocaleString("pl-PL")}
-                    </span>
+                    <span className="font-medium text-gray-900">{taskActionMap[entry.action] ?? entry.action}</span>
+                    <span className="text-xs text-gray-500">{new Date(entry.createdAt).toLocaleString("pl-PL")}</span>
                   </div>
                   {entry.fieldName !== null && (
                     <p className="mt-1 text-gray-600">
