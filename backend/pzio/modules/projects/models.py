@@ -34,11 +34,6 @@ class ProjectRole(str, enum.Enum):
     MAINTAINER = "maintainer"
 
 
-MEMBERSHIP_MANAGER_ROLES: frozenset[ProjectRole] = frozenset(
-    {ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER, ProjectRole.MAINTAINER}
-)
-
-
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -102,6 +97,9 @@ class Sprint(Base):
     sprint_id: Mapped[int] = mapped_column(
         "sprint_id", Integer, primary_key=True, autoincrement=True
     )
+
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     project_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False, index=True
     )
