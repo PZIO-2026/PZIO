@@ -192,8 +192,6 @@ def create_sprint(
     db: DBSession,
     current_user: AuthUser,
 ) -> SprintOut:
-    
-
     return services.create_sprint(db, id, payload, current_user.user_id)
 
 
