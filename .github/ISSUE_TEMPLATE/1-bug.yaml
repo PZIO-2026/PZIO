@@ -1,0 +1,49 @@
+name: Bug Report
+description: Zgłoś błąd lub niepoprawne działanie systemu.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Opis
+      description: Opisz dokładnie istotę błędu.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Kroki odtworzenia
+      description: Podaj szczegółowe kroki, które pozwolą nam odtworzyć problem.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: expected-behavior
+    attributes:
+      label: Oczekiwane zachowanie
+      description: Opisz rezultat, jakiego się spodziewałeś.
+    validations:
+      required: true
+  - type: input
+    id: actual-behavior
+    attributes:
+      label: Rzeczywiste zachowanie
+      description: Opisz, co się faktycznie wydarzyło.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logi aplikacji
+      description: Tutaj wklej logi aplikacji, jeśli masz je pod ręką i widzisz jakieś wyjątki lub nietypowe komunikaty.
+      render: shell
+  - type: upload
+    id: screenshots
+    attributes:
+      label: Zrzuty ekranu
+      description: Jeśli błąd uwidacznia się we frontendzie, możesz dołączyć zrzuty ekranu.
+    validations:
+      accept: ".png,.jpg,.jpeg" 
