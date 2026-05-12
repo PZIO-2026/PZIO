@@ -1,0 +1,38 @@
+name: Feature / Task
+description: Zasugeruj nową funkcjonalność lub opisz zadanie do wykonania przez zespół.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Opis
+      description: Opisz dokładnie, na czym polega proponowana funkcjonalność lub zadanie.
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Lista wymagań
+      description: Podaj listę wymagań lub kryteriów, które powinny zostać spełnione, aby uznać tę funkcjonalność za ukończoną.
+      value: |
+        1.
+        2.
+        3.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Dotyczy
+      description: Wybierz moduł lub obszar systemu, którego dotyczy ta funkcjonalność.
+      multiple: true
+      options:
+        - Frontend
+        - Backend
+        - Moduł Tożsamości i Autoryzacji
+        - Moduł Zarządzania Projektami
+        - Moduł Zarządzania Zadaniami
+        - Moduł Komunikacji i Powiadomień
+        - Moduł Administracyjny i Audytu
+        - Inne
+      default: 7
+    validations:
+      required: true
