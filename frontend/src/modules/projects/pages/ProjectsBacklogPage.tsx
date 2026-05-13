@@ -4,14 +4,15 @@ import { useOutletContext } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
 
-import { deleteTask, fetchTasks } from "../api";
+import { deleteTask, fetchSprints, fetchTasks } from "../api";
 
-import type { ProjectDetail, WorkItem } from "../types";
+import type { ProjectDetail, Sprint, WorkItem } from "../types";
 
 import { hasProjectRole } from "../helpers/permissions";
 
 import AddTaskModal from "../components/backlog/AddTaskModal";
 import EditTaskModal from "../components/backlog/EditTaskModal";
+import AssignSprintModal from "../components/backlog/AssignSprintModal";
 
 // ============================================================
 // Context
@@ -46,10 +47,12 @@ export default function ProjectsBacklogPage() {
   ]);
 
   const [tasks, setTasks] = useState<WorkItem[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<WorkItem | null>(null);
+  const [assigningTask, setAssigningTask] = useState<WorkItem | null>(null);
 
   // ============================================================
   // Handlers
@@ -78,11 +81,15 @@ export default function ProjectsBacklogPage() {
       setLoadError(null);
 
       try {
-        const response = await fetchTasks(project.projectId, { status: "Backlog" });
+        const [taskResponse, sprintResponse] = await Promise.all([
+          fetchTasks(project.projectId, { status: "Backlog" }),
+          fetchSprints(project.projectId),
+        ]);
 
         if (cancelled) return;
 
-        setTasks(response);
+        setTasks(taskResponse);
+        setSprints(sprintResponse);
       } catch (err) {
         if (cancelled) return;
 
@@ -174,6 +181,13 @@ export default function ProjectsBacklogPage() {
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
+                              onClick={() => setAssigningTask(task)}
+                              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            >
+                              Przypisz
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setEditingTask(task)}
                               className="rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
                             >
@@ -215,6 +229,17 @@ export default function ProjectsBacklogPage() {
             current.map((t) => (t.id === updated.id ? updated : t)),
           );
           setEditingTask(null);
+        }}
+      />
+
+      <AssignSprintModal
+        isOpen={assigningTask !== null}
+        onClose={() => setAssigningTask(null)}
+        task={assigningTask}
+        sprints={sprints}
+        onAssigned={(updated) => {
+          setTasks((current) => current.filter((t) => t.id !== updated.id));
+          setAssigningTask(null);
         }}
       />
     </>

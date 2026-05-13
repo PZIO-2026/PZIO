@@ -192,3 +192,10 @@ export function updateTaskStatus(taskId: number, status: string): Promise<WorkIt
 export function deleteTask(taskId: number): Promise<void> {
   return apiFetch<void>(`/api/tasks/${taskId}`, { method: "DELETE" });
 }
+
+export function assignTaskToSprint(taskId: number, sprintId: number): Promise<WorkItem> {
+  return apiFetch<WorkItem>(`/api/tasks/${taskId}`, {
+    method: "PATCH",
+    body: { sprintId },
+  });
+}
