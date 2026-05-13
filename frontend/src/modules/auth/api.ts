@@ -1,6 +1,6 @@
 import { apiFetch } from "../../api/client";
 import type { LoginInput, RegisterInput } from "./schemas";
-import type { TokenResponse, User } from "./types";
+import type { MessageResponse, TokenResponse, User } from "./types";
 
 export function register(input: RegisterInput): Promise<User> {
   return apiFetch<User>("/api/auth/register", {
@@ -29,6 +29,25 @@ export interface UpdateMeInput {
 export function updateMe(input: UpdateMeInput): Promise<User> {
   return apiFetch<User>("/api/users/me", {
     method: "PATCH",
+    body: input,
+  });
+}
+
+export function requestPasswordReset(email: string): Promise<MessageResponse> {
+  return apiFetch<MessageResponse>("/api/auth/reset-password", {
+    method: "POST",
+    body: { email },
+  });
+}
+
+export interface ConfirmPasswordResetInput {
+  token: string;
+  newPassword: string;
+}
+
+export function confirmPasswordReset(input: ConfirmPasswordResetInput): Promise<MessageResponse> {
+  return apiFetch<MessageResponse>("/api/auth/reset-password/confirm", {
+    method: "POST",
     body: input,
   });
 }
