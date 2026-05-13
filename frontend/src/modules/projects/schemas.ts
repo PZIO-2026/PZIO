@@ -61,6 +61,14 @@ export const addMemberSchema = z.object({
 
 export type AddMemberFormInput = z.infer<typeof addMemberSchema>;
 
+export const projectMemberUpdateSchema = z.object({
+  roles: z.array(
+    z.enum(["developer", "qa", "scrum_master", "project_owner"])
+  ).min(1, "Wybierz przynajmniej jedną rolę"),
+});
+
+export type ProjectMemberUpdateFormValues = z.infer<typeof projectMemberUpdateSchema>;
+
 export const sprintFormSchema = z
   .object({
     name: z

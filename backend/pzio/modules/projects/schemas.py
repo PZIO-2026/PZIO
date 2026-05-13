@@ -93,6 +93,12 @@ class ProjectMemberCreate(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+class ProjectMemberUpdate(BaseModel):
+    """PATCH /api/projects/{id}/members/ – request body for role update."""
+
+    roles: list[ProjectRole] = Field(..., min_length=1)
+    model_config = ConfigDict(populate_by_name=True)
+
 
 class ProjectMemberOut(BaseModel):
     """Response body for a single project member."""
@@ -104,7 +110,7 @@ class ProjectMemberOut(BaseModel):
     joined_at: datetime = Field(serialization_alias="joinedAt")
     first_name: Optional[str] = Field(default=None, serialization_alias="firstName")
     last_name: Optional[str] = Field(default=None, serialization_alias="lastName")
-
+    email: str
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 

@@ -37,6 +37,7 @@ from .schemas import (
     ProjectListParams,
     ProjectMemberCreate,
     ProjectMemberOut,
+    ProjectMemberUpdate,
     ProjectOut,
     ProjectStats,
     ProjectUpdate,
@@ -387,6 +388,67 @@ def remove_member(
         
     db.delete(membership_to_be_removed)
     db.commit()
+
+def update_member_roles(
+    db: Session, 
+    project_id: int, 
+    user_id: int, 
+    payload: ProjectMemberUpdate, 
+    current_user_id: int
+) -> ProjectMemberOut:
+    _get_project_or_404(db, project_id)
+    
+    current_membership = _require_project_roles(
+        db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER}
+    )
+
+    membership_to_be_updated = _get_membership_or_403(db, project_id, user_id)
+
+    is_editing_owner = ProjectRole.PROJECT_OWNER in membership_to_be_updated.roles
+    is_current_user_owner = ProjectRole.PROJECT_OWNER in current_membership.roles
+    is_trying_to_remove_owner = is_editing_owner and ProjectRole.PROJECT_OWNER not in payload.roles
+    is_trying_to_add_owner = not is_editing_owner and ProjectRole.PROJECT_OWNER in payload.roles
+
+    if is_editing_owner and not is_current_user_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko obecny Owner może edytować role innego Ownera."
+        )
+        
+    if is_trying_to_add_owner and not is_current_user_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko obecny Owner może nadać komuś rolę Właściciela Projektu."
+        )
+
+    if is_trying_to_remove_owner:
+        owner_count = db.query(ProjectMember).filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.roles.like(f"%{ProjectRole.PROJECT_OWNER.value}%")
+        ).count()
+        
+        if owner_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nie możesz usunąć tej roli. Projekt musi mieć co najmniej jednego Właściciela (Ownera)."
+            )
+
+    membership_to_be_updated.roles = payload.roles
+    db.commit()
+    db.refresh(membership_to_be_updated)
+
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    return ProjectMemberOut(
+        id=membership_to_be_updated.id,
+        project_id=membership_to_be_updated.project_id,
+        user_id=user.user_id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        roles=membership_to_be_updated.roles,
+        joined_at=membership_to_be_updated.joined_at,
+    )
 
 # ---------------------------------------------------------------------------
 # Sprints

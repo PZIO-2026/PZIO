@@ -1,4 +1,4 @@
-// src/modules/projects/components/ProjectMembersPanel.tsx
+// src/modules/projects/pages/ProjectsMembersPage.tsx
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -10,6 +10,7 @@ import {
 import ProjectRoleBadge from "../components/ProjectRoleBadge";
 
 import AddProjectMemberModal from "../components/members/AddProjectMemberModal";
+import EditProjectMemberModal from "../components/members/EditProjectMemberModal";
 
 import { ApiError } from "../../../api/client";
 
@@ -77,6 +78,9 @@ export default function ProjectsMembersPage() {
   const [isAddModalOpen, setIsAddModalOpen] =
     useState(false);
 
+  const [editingMember, setEditingMember] = useState<ProjectMember | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const page = Number(searchParams.get("page") ?? "1");
 
   const search = searchParams.get("search") ?? "";
@@ -134,7 +138,7 @@ export default function ProjectsMembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [project.projectId, filters]);
+  }, [project.projectId, filters, refreshKey]);
 
   function updateFilters(next: {
     page?: number;
@@ -363,20 +367,30 @@ export default function ProjectsMembersPage() {
 
                           {canManageMembers && (
                             <td className="px-6 py-4 text-right">
-                              <button
-                                type="button"
-                                disabled={
-                                  removeLoadingId === member.userId
-                                }
-                                onClick={() =>
-                                  handleRemove(member.userId)
-                                }
-                                className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                {removeLoadingId === member.userId
-                                  ? "Usuwanie..."
-                                  : "Usuń"}
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingMember(member)}
+                                  className="rounded-md border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                                >
+                                  Edytuj
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  disabled={
+                                    removeLoadingId === member.userId
+                                  }
+                                  onClick={() =>
+                                    handleRemove(member.userId)
+                                  }
+                                  className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {removeLoadingId === member.userId
+                                    ? "Usuwanie..."
+                                    : "Usuń"}
+                                </button>
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -438,6 +452,18 @@ export default function ProjectsMembersPage() {
           setTotal((current) => current + 1);
         }}
       />
+      {editingMember && (
+        <EditProjectMemberModal
+          projectId={project.projectId}
+          userId={editingMember.userId}
+          email={editingMember.email}
+          currentRoles={editingMember.roles}
+          onClose={() => setEditingMember(null)}
+          onSuccess={() => {
+            setRefreshKey((prev) => prev + 1);
+          }}
+        />
+      )}
     </>
   );
 }

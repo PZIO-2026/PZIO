@@ -100,6 +100,13 @@ export function removeProjectMember(
   });
 }
 
+export async function updateProjectMemberRoles(projectId: number, userId: number, roles: string[]) {
+  return apiFetch(`/api/projects/${projectId}/members/${userId}`, {
+    method: "PATCH",
+    body: { roles },
+  });
+}
+
 // ============================================================
 // Sprinty
 // ============================================================
