@@ -1,37 +1,13 @@
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from pzio.main import app
-from pzio.modules.auth.models import User, UserRole
-from pzio.modules.auth.security import create_access_token, hash_password
+from pzio.modules.auth.security import create_access_token
 from pzio.modules.communication.deps import provide_email_service
 from pzio.modules.communication.mock import MockEmailService
 
 
-def _seed_user(
-    db: Session,
-    *,
-    email: str = "commenter@example.com",
-    password: str = "s3cret-pass",
-    first_name: str = "Ada",
-    last_name: str = "Lovelace",
-) -> User:
-    user = User(
-        email=email,
-        password_hash=hash_password(password),
-        first_name=first_name,
-        last_name=last_name,
-        role=UserRole.TEAM_MEMBER,
-        is_active=True,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-def test_add_comment_sends_email_notification(client: TestClient, db_session: Session) -> None:
-    user = _seed_user(db_session)
+def test_add_comment_sends_email_notification(client: TestClient, user_factory) -> None:
+    user = user_factory(email="commenter@example.com")
     token, _ = create_access_token(user.user_id, user.role)
 
     mock_email_service = MockEmailService()

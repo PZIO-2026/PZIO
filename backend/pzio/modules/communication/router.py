@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -208,8 +210,12 @@ def download_attachment(
     except service.AttachmentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
 
+    file_path = Path(attachment.file_path)
+    if not file_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment file not found")
+
     return FileResponse(
-        path=attachment.file_path,
+        path=str(file_path),
         filename=attachment.filename,
         media_type=attachment.content_type,
     )

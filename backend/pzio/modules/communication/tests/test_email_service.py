@@ -1,4 +1,7 @@
 
+import pytest
+
+from pzio.modules.communication.base import EmailService
 from pzio.modules.communication.factory import get_email_service
 from pzio.modules.communication.mock import MockEmailService
 
@@ -15,5 +18,16 @@ def test_mock_email_service_stores_messages_in_memory() -> None:
         "subject": "Hello",
         "body": "Body",
     }
+
+
+def test_email_service_base_raises() -> None:
+    with pytest.raises(NotImplementedError):
+        EmailService().send_email("user@test.com", "Subject", "Body")
+
+
+def test_get_email_service_returns_mock() -> None:
+    service = get_email_service()
+
+    assert isinstance(service, MockEmailService)
 
 

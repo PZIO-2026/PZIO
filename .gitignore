@@ -21,6 +21,7 @@ node_modules/
 dist/
 logs/
 .pytest_cache/
+.coverage
 
 # Local databases
 *.db
@@ -36,3 +37,4 @@ backups/
 .idea/
 .vscode/
 .DS_Store
+
