@@ -81,30 +81,6 @@ export default function ProjectsSprintsPage() {
   // Handlers
   // ============================================================
 
-  async function loadSprints() {
-    setIsLoading(true);
-
-    setLoadError(null);
-
-    try {
-      const response = await fetchSprints(
-        project.projectId,
-      );
-
-      setSprints(response);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setLoadError(err.detail);
-      } else {
-        setLoadError(
-          "Nie udało się pobrać sprintów.",
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   async function handleDelete(sprintId: number) {
     const confirmed = window.confirm(
       "Czy na pewno chcesz usunąć sprint?",
@@ -170,7 +146,38 @@ export default function ProjectsSprintsPage() {
   // ============================================================
 
   useEffect(() => {
-    loadSprints();
+    let cancelled = false;
+
+    async function load() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await fetchSprints(project.projectId);
+
+        if (cancelled) return;
+
+        setSprints(response);
+      } catch (err) {
+        if (cancelled) return;
+
+        setLoadError(
+          err instanceof ApiError
+            ? err.detail
+            : "Nie udało się pobrać sprintów.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [project.projectId]);
 
   // ============================================================

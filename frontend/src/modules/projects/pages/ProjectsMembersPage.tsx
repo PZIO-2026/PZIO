@@ -103,19 +103,18 @@ export default function ProjectsMembersPage() {
   useEffect(() => {
     let cancelled = false;
 
-    setIsLoading(true);
+    async function load() {
+      setLoadError(null);
+      setIsLoading(true);
 
-    setLoadError(null);
+      try {
+        const response = await fetchProjectMembers(project.projectId, filters);
 
-    fetchProjectMembers(project.projectId, filters)
-      .then((response) => {
         if (cancelled) return;
 
         setMembers(response.items);
-
         setTotal(response.total);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
 
         setLoadError(
@@ -123,12 +122,14 @@ export default function ProjectsMembersPage() {
             ? err.detail
             : "Nie udało się pobrać członków projektu.",
         );
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setIsLoading(false);
         }
-      });
+      }
+    }
+
+    load();
 
     return () => {
       cancelled = true;

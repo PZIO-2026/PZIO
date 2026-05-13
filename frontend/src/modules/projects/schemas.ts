@@ -15,7 +15,7 @@ export const createProjectSchema = z.object({
     .default(""),
 });
 
-export type CreateProjectFormInput = z.infer<typeof createProjectSchema>;
+export type CreateProjectFormInput = z.input<typeof createProjectSchema>;
 
 export const updateProjectSchema = z.object({
   name: z

@@ -8,11 +8,7 @@ import { ApiError } from "../../../../api/client";
 import { createProject } from "../../api";
 import type { Project } from "../../types";
 import { createProjectSchema } from "../../schemas";
-
-interface FormValues {
-  name: string;
-  description?: string;
-}
+import type { CreateProjectFormInput } from "../../schemas";
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
@@ -42,15 +38,15 @@ export default function CreateProjectModal({
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(createProjectSchema) as any,
+  } = useForm<CreateProjectFormInput>({
+    resolver: zodResolver(createProjectSchema),
     defaultValues: {
       name: "",
       description: "",
     },
   });
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: CreateProjectFormInput) {
     setSubmitError(null);
     setSuccessMessage(null);
 

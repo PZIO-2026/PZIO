@@ -79,7 +79,7 @@ function BurndownChart({
   }));
 
   return (
-    <div ref={containerRef} className="h-[400px] min-w-0 w-full">
+    <div ref={containerRef} className="h-100 min-w-0 w-full">
       {chartSize.width > 0 && chartSize.height > 0 && (
         <LineChart
           width={chartSize.width}

@@ -56,17 +56,18 @@ export default function ProjectsListPage() {
   useEffect(() => {
     let cancelled = false;
 
-    setIsLoading(true);
-    setError(null);
+    async function load() {
+      setIsLoading(true);
+      setError(null);
 
-    fetchProjects(filters)
-      .then((response) => {
+      try {
+        const response = await fetchProjects(filters);
+
         if (cancelled) return;
 
         setProjects(response.items);
         setTotal(response.total);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
 
         setError(
@@ -74,12 +75,14 @@ export default function ProjectsListPage() {
             ? err.detail
             : "Nie udało się pobrać listy projektów.",
         );
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) {
           setIsLoading(false);
         }
-      });
+      }
+    }
+
+    load();
 
     return () => {
       cancelled = true;
