@@ -28,9 +28,6 @@ describe("apiFetch", () => {
       await apiFetch("/api/users/me");
       expect(fetchMock).toHaveBeenCalledWith("http://localhost:8000/api/users/me", expect.anything());
     });
-    // TODO: cover the VITE_API_BASE_URL override path. The env var is read at
-    // module load time in client.ts, so vi.stubEnv after import has no effect.
-    // Follow-up: refactor client.ts to read the env lazily, then test it here.
   });
 
   describe("headers", () => {
