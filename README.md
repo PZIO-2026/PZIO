@@ -12,6 +12,35 @@ Main repository: [GitHub - PZIO](https://github.com/PZIO-2026/PZIO)
 
 For more details on one of the components, check out the respective README file in the `backend` and `frontend` directories.
 
+## Pierwsze uruchomienie
+
+Aplikacja działa według zasady *zero configuration* — po uruchomieniu backendu
+i frontendu baza jest tworzona automatycznie, bez ręcznych skryptów SQL.
+Pierwszy użytkownik zarejestrowany przez `POST /api/auth/register` otrzymuje
+rolę **Administrator**. Każde kolejne konto domyślnie dostaje rolę
+**TeamMember**.
+
+Po zalogowaniu admin zarządza pozostałymi kontami z panelu `/admin` —
+sekcja *Użytkownicy* pozwala zmienić rolę (`Guest`, `TeamMember`, `Manager`,
+`Administrator`) dowolnego użytkownika poza sobą. Pod spodem wywoływany jest
+endpoint `PATCH /api/users/{id}/role`.
+
+### Uruchomienie z Dockerem
+
+Cały stos (PostgreSQL + backend + frontend) startuje jednym poleceniem:
+
+```bash
+docker compose up --build
+```
+
+Po wystartowaniu wszystkich kontenerów:
+
+- frontend — http://localhost:5173
+- backend (Swagger) — http://localhost:8000/docs
+
+`JWT_SECRET` zdefiniowany w `docker-compose.yml` to wartość deweloperska — przed
+wdrożeniem produkcyjnym należy ją nadpisać własnym, losowym sekretem.
+
 ## Authors
 
 - [Kevin Stuka](https://github.com/kevooo49)
