@@ -124,3 +124,17 @@ export type SprintFormInput = z.infer<
   typeof sprintFormSchema
 >;
 
+// ============================================================
+// Zadania (Work Items)
+// ============================================================
+
+export const createTaskSchema = z.object({
+  title: z.string().min(1, "Tytuł jest wymagany").max(500, "Tytuł może mieć maksymalnie 500 znaków"),
+  description: z.string().max(5000, "Opis może mieć maksymalnie 5000 znaków").optional(),
+  type: z.string().min(1, "Typ jest wymagany"),
+  priority: z.enum(["Low", "Medium", "High"], { error: "Wybierz priorytet" }),
+  storyPoints: z.coerce.number().int().nonnegative().optional(),
+});
+
+export type CreateTaskFormInput = z.infer<typeof createTaskSchema>;
+

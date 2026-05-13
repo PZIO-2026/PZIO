@@ -8,7 +8,9 @@ import type {
   ProjectMember,
   ProjectsQueryParams,
   Sprint,
+  WorkItem,
 } from "./types";
+import type { CreateTaskFormInput } from "./schemas";
 import type {
   AddMemberFormInput,
   CreateProjectFormInput,
@@ -148,4 +150,34 @@ export function deleteSprint(sprintId: number): Promise<void> {
 
 export function fetchBurndown(sprintId: number): Promise<BurndownData> {
   return apiFetch<BurndownData>(`/api/sprints/${sprintId}/burndown`);
+}
+
+// ============================================================
+// Zadania (Work Items)
+// ============================================================
+
+export function fetchTasks(
+  projectId: number,
+  params: { status?: string; sprintId?: number } = {},
+): Promise<WorkItem[]> {
+  return apiFetch<WorkItem[]>(
+    `/api/projects/${projectId}/tasks${toQueryString(params as Record<string, unknown>)}`,
+  );
+}
+
+export function createTask(
+  projectId: number,
+  input: CreateTaskFormInput & { status: string },
+): Promise<WorkItem> {
+  return apiFetch<WorkItem>(`/api/projects/${projectId}/tasks`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export function updateTaskStatus(taskId: number, status: string): Promise<WorkItem> {
+  return apiFetch<WorkItem>(`/api/tasks/${taskId}/status`, {
+    method: "PATCH",
+    body: { status },
+  });
 }
