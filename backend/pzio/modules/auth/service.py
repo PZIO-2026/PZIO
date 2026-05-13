@@ -231,8 +231,14 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
                     },
                     headers={"Accept": "application/json"}
                 )
-                access_token = token_resp.json().get("access_token")
+                
+                token_resp.raise_for_status()
+                data = token_resp.json()
 
+            if data.get("error"):
+                raise InvalidCredentialsError()
+
+            access_token = data.get("access_token")
             if not access_token:
                 raise InvalidCredentialsError()
 
@@ -264,7 +270,10 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
             else:
                 first_name = fallback_name
                 last_name = fallback_name
-        except Exception:
+                
+        except (httpx.HTTPStatusError, httpx.RequestError):
+            raise InvalidCredentialsError()
+        except Exception: 
             raise InvalidCredentialsError()
     else:
         raise OAuthProviderNotSupportedError(provider)
