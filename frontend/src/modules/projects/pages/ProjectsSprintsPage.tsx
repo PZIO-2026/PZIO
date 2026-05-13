@@ -200,12 +200,6 @@ export default function ProjectsSprintsPage() {
   return (
     <>
       <div className="space-y-6">
-        {/* Header */}
-
-        {/* <section className="rounded-2xl bg-white p-6 shadow">
-          
-        </section> */}
-
         {/* Sprint list */}
 
         <section className="rounded-2xl bg-white p-6 shadow">
