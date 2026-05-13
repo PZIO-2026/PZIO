@@ -4,13 +4,14 @@ import { useOutletContext } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
 
-import { fetchTasks } from "../api";
+import { deleteTask, fetchTasks } from "../api";
 
 import type { ProjectDetail, WorkItem } from "../types";
 
 import { hasProjectRole } from "../helpers/permissions";
 
 import AddTaskModal from "../components/backlog/AddTaskModal";
+import EditTaskModal from "../components/backlog/EditTaskModal";
 
 // ============================================================
 // Context
@@ -37,7 +38,7 @@ const PRIORITY_STYLES: Record<string, string> = {
 export default function ProjectsBacklogPage() {
   const { project } = useOutletContext<OutletContext>();
 
-  const canAddTasks = hasProjectRole(project.currentUserRoles, [
+  const canManageTasks = hasProjectRole(project.currentUserRoles, [
     "project_owner",
     "scrum_master",
     "developer",
@@ -48,6 +49,22 @@ export default function ProjectsBacklogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<WorkItem | null>(null);
+
+  // ============================================================
+  // Handlers
+  // ============================================================
+
+  async function handleDelete(taskId: number) {
+    if (!window.confirm("Czy na pewno chcesz usunąć zadanie?")) return;
+
+    try {
+      await deleteTask(taskId);
+      setTasks((current) => current.filter((t) => t.id !== taskId));
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : "Nie udało się usunąć zadania.");
+    }
+  }
 
   // ============================================================
   // Effects
@@ -93,7 +110,7 @@ export default function ProjectsBacklogPage() {
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Backlog</h1>
-            {canAddTasks && (
+            {canManageTasks && (
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
@@ -122,13 +139,21 @@ export default function ProjectsBacklogPage() {
                     <th className="pb-2 pr-4">Tytuł</th>
                     <th className="pb-2 pr-4">Typ</th>
                     <th className="pb-2 pr-4">Priorytet</th>
-                    <th className="pb-2">Story Points</th>
+                    <th className="pb-2 pr-4">Story Points</th>
+                    {canManageTasks && <th className="pb-2" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {tasks.map((task) => (
                     <tr key={task.id} className="hover:bg-gray-50">
-                      <td className="py-3 pr-4 font-medium text-gray-900">{task.title}</td>
+                      <td className="py-3 pr-4 font-medium text-gray-900">
+                        {task.title}
+                        {task.parentId !== null && (
+                          <span className="ml-2 text-xs text-gray-400">
+                            (#{task.parentId})
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 pr-4">
                         <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
                           {task.type}
@@ -141,9 +166,29 @@ export default function ProjectsBacklogPage() {
                           {task.priority}
                         </span>
                       </td>
-                      <td className="py-3 text-gray-600">
+                      <td className="py-3 pr-4 text-gray-600">
                         {task.storyPoints !== null ? task.storyPoints : <span className="text-gray-400">—</span>}
                       </td>
+                      {canManageTasks && (
+                        <td className="py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingTask(task)}
+                              className="rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
+                            >
+                              Edytuj
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(task.id)}
+                              className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                            >
+                              Usuń
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -158,6 +203,19 @@ export default function ProjectsBacklogPage() {
         onClose={() => setIsAddModalOpen(false)}
         projectId={project.projectId}
         onTaskCreated={(task) => setTasks((current) => [task, ...current])}
+      />
+
+      <EditTaskModal
+        isOpen={editingTask !== null}
+        onClose={() => setEditingTask(null)}
+        task={editingTask}
+        projectId={project.projectId}
+        onTaskUpdated={(updated) => {
+          setTasks((current) =>
+            current.map((t) => (t.id === updated.id ? updated : t)),
+          );
+          setEditingTask(null);
+        }}
       />
     </>
   );

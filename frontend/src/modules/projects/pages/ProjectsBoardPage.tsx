@@ -8,17 +8,17 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
+  useDraggable,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 
-import { useDroppable, useDraggable } from "@dnd-kit/core";
-
 import { ApiError } from "../../../api/client";
 
-import { fetchTasks, updateTaskStatus } from "../api";
+import { fetchSprints, fetchTasks, updateTaskStatus } from "../api";
 
-import type { ProjectDetail, WorkItem, WorkItemStatus } from "../types";
+import type { ProjectDetail, Sprint, WorkItem, WorkItemStatus } from "../types";
 
 // ============================================================
 // Context
@@ -45,6 +45,53 @@ const PRIORITY_STYLES: Record<string, string> = {
   Medium: "bg-yellow-100 text-yellow-700",
   Low: "bg-green-100 text-green-700",
 };
+
+// ============================================================
+// Helpers
+// ============================================================
+
+function daysLeft(endDate: string): number {
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("pl-PL");
+}
+
+// ============================================================
+// SprintBanner
+// ============================================================
+
+function SprintBanner({ sprint }: { sprint: Sprint }) {
+  const remaining = daysLeft(sprint.endDate);
+
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wide text-blue-500">Aktywny sprint</p>
+        <h2 className="mt-0.5 text-lg font-semibold text-blue-900 truncate">{sprint.name}</h2>
+      </div>
+      <div className="flex flex-wrap items-center gap-6 text-sm text-blue-700">
+        <span>
+          {formatDate(sprint.startDate)} — {formatDate(sprint.endDate)}
+        </span>
+        <span
+          className={`font-semibold ${remaining < 0 ? "text-red-600" : remaining <= 3 ? "text-orange-600" : "text-blue-800"}`}
+        >
+          {remaining < 0
+            ? `Przekroczono o ${Math.abs(remaining)} dni`
+            : remaining === 0
+              ? "Ostatni dzień"
+              : `${remaining} dni pozostało`}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 // ============================================================
 // TaskCard
@@ -132,6 +179,7 @@ function KanbanColumn({ id, label, tasks, activeTaskId }: KanbanColumnProps) {
 export default function ProjectsBoardPage() {
   const { project } = useOutletContext<OutletContext>();
 
+  const [activeSprint, setActiveSprint] = useState<Sprint | null>(null);
   const [tasks, setTasks] = useState<WorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -153,15 +201,23 @@ export default function ProjectsBoardPage() {
       setLoadError(null);
 
       try {
-        const response = await fetchTasks(project.projectId);
+        const sprints = await fetchSprints(project.projectId);
+        const sprint = sprints.find((s) => s.status === "active") ?? null;
 
         if (cancelled) return;
 
-        setTasks(response.filter((t) => BOARD_STATUSES.has(t.status)));
+        setActiveSprint(sprint);
+
+        const params = sprint ? { sprintId: sprint.sprintId } : {};
+        const allTasks = await fetchTasks(project.projectId, params);
+
+        if (cancelled) return;
+
+        setTasks(allTasks.filter((t) => BOARD_STATUSES.has(t.status)));
       } catch (err) {
         if (cancelled) return;
 
-        setLoadError(err instanceof ApiError ? err.detail : "Nie udało się pobrać zadań.");
+        setLoadError(err instanceof ApiError ? err.detail : "Nie udało się pobrać danych tablicy.");
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -233,23 +289,33 @@ export default function ProjectsBoardPage() {
       ) : loadError !== null ? (
         <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {COLUMNS.map((col) => (
-              <KanbanColumn
-                key={col.id}
-                id={col.id}
-                label={col.label}
-                tasks={tasksByStatus[col.id]}
-                activeTaskId={activeTaskId}
-              />
-            ))}
-          </div>
+        <>
+          {activeSprint ? (
+            <SprintBanner sprint={activeSprint} />
+          ) : (
+            <div className="mb-6 rounded-xl border border-dashed border-gray-300 px-5 py-4 text-sm text-gray-500">
+              Brak aktywnego sprintu. Wyświetlane są wszystkie zadania z tablicy.
+            </div>
+          )}
 
-          <DragOverlay>
-            {activeTask ? <TaskCard task={activeTask} /> : null}
-          </DragOverlay>
-        </DndContext>
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {COLUMNS.map((col) => (
+                <KanbanColumn
+                  key={col.id}
+                  id={col.id}
+                  label={col.label}
+                  tasks={tasksByStatus[col.id]}
+                  activeTaskId={activeTaskId}
+                />
+              ))}
+            </div>
+
+            <DragOverlay>
+              {activeTask ? <TaskCard task={activeTask} /> : null}
+            </DragOverlay>
+          </DndContext>
+        </>
       )}
     </div>
   );

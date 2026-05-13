@@ -10,7 +10,7 @@ import type {
   Sprint,
   WorkItem,
 } from "./types";
-import type { CreateTaskFormInput } from "./schemas";
+import type { TaskFormInput } from "./schemas";
 import type {
   AddMemberFormInput,
   CreateProjectFormInput,
@@ -167,10 +167,17 @@ export function fetchTasks(
 
 export function createTask(
   projectId: number,
-  input: CreateTaskFormInput & { status: string },
+  input: TaskFormInput & { status: string },
 ): Promise<WorkItem> {
   return apiFetch<WorkItem>(`/api/projects/${projectId}/tasks`, {
     method: "POST",
+    body: input,
+  });
+}
+
+export function updateTask(taskId: number, input: TaskFormInput): Promise<WorkItem> {
+  return apiFetch<WorkItem>(`/api/tasks/${taskId}`, {
+    method: "PATCH",
     body: input,
   });
 }
@@ -180,4 +187,8 @@ export function updateTaskStatus(taskId: number, status: string): Promise<WorkIt
     method: "PATCH",
     body: { status },
   });
+}
+
+export function deleteTask(taskId: number): Promise<void> {
+  return apiFetch<void>(`/api/tasks/${taskId}`, { method: "DELETE" });
 }
