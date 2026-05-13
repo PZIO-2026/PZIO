@@ -9,7 +9,7 @@ from pzio.modules.communication import service
 def test_get_comments_returns_history(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:
-    user = user_factory()
+    user = user_factory(avatar="https://example.com/avatar.png")
     first = comment_factory(task_id=1, author_id=user.user_id, content="First")
     second = comment_factory(task_id=1, author_id=user.user_id, content="Second")
     comment_factory(task_id=2, author_id=user.user_id, content="Other task")
@@ -20,6 +20,9 @@ def test_get_comments_returns_history(
     payload = response.json()
     assert {item["commentId"] for item in payload} == {first.comment_id, second.comment_id}
     assert {item["content"] for item in payload} == {"First", "Second"}
+    assert all(item["user"]["firstName"] == user.first_name for item in payload)
+    assert all(item["user"]["lastName"] == user.last_name for item in payload)
+    assert all(item["user"]["avatar"] == user.avatar for item in payload)
 
 
 def test_edit_comment_success(

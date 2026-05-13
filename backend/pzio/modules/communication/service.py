@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
@@ -40,7 +40,12 @@ def create_comment(db: Session, task_id: int, author_id: int, payload: CommentCr
 
 def list_comments(db: Session, task_id: int) -> list[Comment]:
     """Return all comments for a task, ordered chronologically."""
-    stmt = select(Comment).where(Comment.task_id == task_id).order_by(Comment.created_at.asc())
+    stmt = (
+        select(Comment)
+        .options(selectinload(Comment.user))
+        .where(Comment.task_id == task_id)
+        .order_by(Comment.created_at.asc())
+    )
     return list(db.execute(stmt).scalars().all())
 
 
