@@ -84,7 +84,13 @@ def test_oauth_login_google_invalid_token(client: TestClient, db_session: Sessio
 
 
 def test_oauth_login_github_success(client: TestClient, db_session: Session) -> None:
-    with patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+    with patch("pzio.modules.auth.service.httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
+         patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+
+        # Mockhttpx token exchange
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "real-mocked-token"}
+        mock_post.return_value = mock_token_resp
 
         def side_effect(url, **kwargs):
             mock_resp = MagicMock()
@@ -99,7 +105,7 @@ def test_oauth_login_github_success(client: TestClient, db_session: Session) -> 
 
         response = client.post(
             "/api/auth/oauth",
-            json={"provider": "github", "oauthToken": "fake-github-token"},
+            json={"provider": "github", "oauthToken": "fake-github-code"},
         )
 
         assert response.status_code == 200
@@ -107,7 +113,13 @@ def test_oauth_login_github_success(client: TestClient, db_session: Session) -> 
 
 
 def test_oauth_login_github_no_primary_email(client: TestClient, db_session: Session) -> None:
-    with patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+    with patch("pzio.modules.auth.service.httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
+         patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+
+        # Mock httpx token exchange
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "real-mocked-token"}
+        mock_post.return_value = mock_token_resp
 
         def side_effect(url, **kwargs):
             mock_resp = MagicMock()
@@ -120,7 +132,7 @@ def test_oauth_login_github_no_primary_email(client: TestClient, db_session: Ses
 
         response = client.post(
             "/api/auth/oauth",
-            json={"provider": "github", "oauthToken": "fake-github-token"},
+            json={"provider": "github", "oauthToken": "fake-github-code"},
         )
 
         assert response.status_code == 401
@@ -137,7 +149,13 @@ def test_oauth_login_unsupported_provider(client: TestClient, db_session: Sessio
 
 
 def test_oauth_login_github_profile_fail_no_name(client: TestClient, db_session: Session) -> None:
-    with patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+    with patch("pzio.modules.auth.service.httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
+         patch("pzio.modules.auth.service.oauth.github.get", new_callable=AsyncMock) as mock_get:
+
+        # Mock httpx token exchange
+        mock_token_resp = MagicMock()
+        mock_token_resp.json.return_value = {"access_token": "real-mocked-token"}
+        mock_post.return_value = mock_token_resp
 
         def side_effect(url, **kwargs):
             mock_resp = MagicMock()
@@ -152,7 +170,7 @@ def test_oauth_login_github_profile_fail_no_name(client: TestClient, db_session:
 
         response = client.post(
             "/api/auth/oauth",
-            json={"provider": "github", "oauthToken": "fake-github-token"},
+            json={"provider": "github", "oauthToken": "fake-github-code"},
         )
 
         assert response.status_code == 200
