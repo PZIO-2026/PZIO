@@ -6,6 +6,7 @@ import ForgotPasswordPage from "../modules/auth/pages/ForgotPasswordPage";
 import LoginPage from "../modules/auth/pages/LoginPage";
 import ProfilePage from "../modules/auth/pages/ProfilePage";
 import RegisterPage from "../modules/auth/pages/RegisterPage";
+import ResetPasswordPage from "../modules/auth/pages/ResetPasswordPage";
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import AppLayout from "./AppLayout";
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />
