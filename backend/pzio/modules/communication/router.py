@@ -211,7 +211,7 @@ def download_attachment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found based on id")
 
     file_path = Path(attachment.file_path)
-    if not file_path.exists():
+    if not file_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment file not found")
 
     return FileResponse(
