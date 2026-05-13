@@ -1,5 +1,3 @@
-// src/modules/projects/components/AddProjectMemberModal.tsx
-
 import { useForm } from "react-hook-form";
 // import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,10 +15,6 @@ import type {
 } from "../../types";
 
 import { addMemberSchema, type AddMemberFormInput  } from "../../schemas";
-
-// ============================================================
-// Styles
-// ============================================================
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
@@ -58,7 +52,6 @@ export default function AddProjectMemberModal({
     register,
     handleSubmit,
     reset,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<AddMemberFormInput>({
     resolver: zodResolver(addMemberSchema),
@@ -67,8 +60,6 @@ export default function AddProjectMemberModal({
       roles: ["developer"],
     },
   });
-
-  const selectedRoles = watch("roles");
 
   async function onSubmit(values: AddMemberFormInput) {
     setSubmitError(null);
@@ -145,7 +136,6 @@ export default function AddProjectMemberModal({
                 <input
                   type="checkbox"
                   value={roleValue}
-                  checked={selectedRoles.includes(roleValue)}
                   {...register("roles")}
                 />
 
