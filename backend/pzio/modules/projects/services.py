@@ -439,6 +439,12 @@ def update_member_roles(
 
     user = db.query(User).filter(User.user_id == user_id).first()
 
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id '{user_id}' was not found.",
+        )
+
     return ProjectMemberOut(
         id=membership_to_be_updated.id,
         project_id=membership_to_be_updated.project_id,
