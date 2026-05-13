@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
 import { confirmPasswordReset } from "../api";
@@ -23,6 +23,7 @@ interface ResetPasswordConfirmFormProps {
 export default function ResetPasswordConfirmForm({ token }: ResetPasswordConfirmFormProps) {
   const navigate = useNavigate();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [invalidToken, setInvalidToken] = useState(false);
 
   const {
     register,
@@ -35,12 +36,14 @@ export default function ResetPasswordConfirmForm({ token }: ResetPasswordConfirm
 
   async function onSubmit(values: ResetPasswordConfirmInput) {
     setSubmitError(null);
+    setInvalidToken(false);
     try {
       await confirmPasswordReset({ token, newPassword: values.newPassword });
       navigate("/login", { state: { passwordResetSuccess: true }, replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 400) {
-        setSubmitError("Link do resetu hasła jest nieprawidłowy lub wygasł. Poproś o nowy link.");
+        setSubmitError("Link do resetu hasła jest nieprawidłowy lub wygasł.");
+        setInvalidToken(true);
         return;
       }
       if (err instanceof ApiError) {
@@ -99,7 +102,16 @@ export default function ResetPasswordConfirmForm({ token }: ResetPasswordConfirm
       </div>
 
       {submitError !== null && (
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p>
+        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{submitError}</p>
+          {invalidToken && (
+            <p className="mt-1">
+              <Link to="/forgot-password" className="font-medium underline hover:no-underline">
+                Wyślij nowy link
+              </Link>
+            </p>
+          )}
+        </div>
       )}
 
       <button
