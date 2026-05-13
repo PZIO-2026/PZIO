@@ -37,13 +37,6 @@ def _save_attachment(
     )
 
 
-@pytest.fixture
-def upload_dir(tmp_path, monkeypatch) -> Path:
-    upload_root = tmp_path / "uploads"
-    monkeypatch.setattr(service, "UPLOAD_DIR", upload_root)
-    return upload_root
-
-
 def test_create_list_get_comment(db_session: Session, user_factory) -> None:
     user = user_factory()
     first = _create_comment(db_session, 1, user.user_id, "First")

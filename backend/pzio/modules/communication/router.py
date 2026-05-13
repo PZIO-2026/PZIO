@@ -208,7 +208,7 @@ def download_attachment(
     try:
         attachment = service.get_attachment(db, attachment_id)
     except service.AttachmentNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found based on id")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
 
     file_path = Path(attachment.file_path)
     if not file_path.is_file():
