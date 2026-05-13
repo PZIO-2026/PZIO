@@ -83,7 +83,7 @@ frontend/src/
 | `/login`                    | public     | Email + password → `POST /api/auth/login`                                          |
 | `/register`                 | public     | Form → `POST /api/auth/register` → redirects to `/login`                           |
 | `/forgot-password`          | public     | Email → `POST /api/auth/reset-password` → shows a generic "link sent" message      |
-| `/reset-password/:token`    | public     | New password + confirm → `POST /api/auth/reset-password/confirm` → redirects to `/login` |
+| `/reset-password?token=...` | public     | New password + confirm → `POST /api/auth/reset-password/confirm` → redirects to `/login` |
 | `/`                         | protected  | Welcome screen with the logged-in user's name                                      |
 | `/profile`                  | protected  | View and edit the current user's profile (`GET` / `PATCH /api/users/me`)           |
 | `*` (other)                 | redirect   | Falls back to `/`, which then bounces to `/login` if needed                        |

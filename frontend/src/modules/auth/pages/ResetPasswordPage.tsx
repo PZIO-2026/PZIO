@@ -1,11 +1,12 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import ResetPasswordConfirmForm from "../components/ResetPasswordConfirmForm";
 
 export default function ResetPasswordPage() {
-  const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
 
-  const hasValidToken = token !== undefined && token.length > 0;
+  const hasValidToken = token !== null && token.length > 0;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
