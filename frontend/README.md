@@ -16,12 +16,30 @@ reachable at `VITE_API_BASE_URL` (default `http://localhost:8000`) — see
 
 ## Available scripts
 
-| Command           | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| `npm run dev`     | Vite dev server with HMR                 |
-| `npm run build`   | Type-check (`tsc -b`) + production build |
-| `npm run lint`    | ESLint over the whole project            |
-| `npm run preview` | Serve the production build locally       |
+| Command              | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `npm run dev`        | Vite dev server with HMR                 |
+| `npm run build`      | Type-check (`tsc -b`) + production build |
+| `npm run lint`       | ESLint over the whole project            |
+| `npm run preview`    | Serve the production build locally       |
+| `npm test`           | Vitest in watch mode (local dev)         |
+| `npm run test:run`   | Vitest single-pass run (used by CI)      |
+
+## Testing
+
+The frontend uses **Vitest** with the **jsdom** environment. Test files
+colocate with the source they cover (`foo.test.ts` next to `foo.ts`).
+
+The current scope is unit tests for the pure-logic modules behind the auth
+flows:
+
+- `src/modules/auth/schemas.test.ts` — zod validators (login, register, edit profile).
+- `src/modules/auth/storage.test.ts` — JWT persistence + localStorage key contract.
+- `src/api/client.test.ts` — `apiFetch`, `ApiError`, and the `pzio:auth-expired` event rules.
+
+Component and end-to-end tests (Testing Library, Playwright) are tracked as
+follow-ups. The suite runs on every push and pull request via the
+`npm-build` GitHub Actions workflow.
 
 ## Module structure
 
