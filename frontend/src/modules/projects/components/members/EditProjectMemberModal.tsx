@@ -20,6 +20,7 @@ interface FormValues {
 const AVAILABLE_ROLES = [
   { value: "developer", label: "Developer" },
   { value: "qa", label: "QA / Tester" },
+  { value: "maintainer", label: "Maintainer" },
   { value: "scrum_master", label: "Scrum Master" },
   { value: "project_owner", label: "Właściciel Projektu (Owner)" },
 ];

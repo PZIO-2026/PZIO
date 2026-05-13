@@ -277,10 +277,15 @@ export default function ProjectsMembersPage() {
                   <option value="developer">
                     Developer
                   </option>
-
+                  
                   <option value="qa">
                     QA Engineer
                   </option>
+
+                  <option value="maintainer">
+                    Maintainer
+                  </option>
+
                 </select>
               </div>
             </div>

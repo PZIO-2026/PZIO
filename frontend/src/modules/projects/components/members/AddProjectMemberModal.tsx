@@ -127,6 +127,7 @@ export default function AddProjectMemberModal({
                 "scrum_master",
                 "developer",
                 "qa",
+                "maintainer",
               ] as const
             ).map((roleValue) => (
               <label

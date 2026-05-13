@@ -54,6 +54,7 @@ export const addMemberSchema = z.object({
         "scrum_master",
         "developer",
         "qa",
+        "maintainer",
       ]),
     )
     .min(1, "Wybierz przynajmniej jedną rolę"),
@@ -63,7 +64,7 @@ export type AddMemberFormInput = z.infer<typeof addMemberSchema>;
 
 export const projectMemberUpdateSchema = z.object({
   roles: z.array(
-    z.enum(["developer", "qa", "scrum_master", "project_owner"])
+    z.enum(["developer", "qa", "scrum_master", "project_owner", "maintainer"]),
   ).min(1, "Wybierz przynajmniej jedną rolę"),
 });
 
