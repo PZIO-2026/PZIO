@@ -27,19 +27,26 @@ reachable at `VITE_API_BASE_URL` (default `http://localhost:8000`) — see
 
 ## Testing
 
-The frontend uses **Vitest** with the **jsdom** environment. Test files
-colocate with the source they cover (`foo.test.ts` next to `foo.ts`).
+The frontend uses **Vitest** with the **jsdom** environment and
+**React Testing Library** for component tests. Test files colocate with the
+source they cover (`foo.test.ts` next to `foo.ts`; `Foo.test.tsx` next to
+`Foo.tsx`).
 
-The current scope is unit tests for the pure-logic modules behind the auth
-flows:
+Unit tests cover the pure-logic modules behind the auth flows:
 
 - `src/modules/auth/schemas.test.ts` — zod validators (login, register, edit profile).
 - `src/modules/auth/storage.test.ts` — JWT persistence + localStorage key contract.
 - `src/api/client.test.ts` — `apiFetch`, `ApiError`, and the `pzio:auth-expired` event rules.
 
-Component and end-to-end tests (Testing Library, Playwright) are tracked as
-follow-ups. The suite runs on every push and pull request via the
-`npm-build` GitHub Actions workflow.
+Component tests cover the auth slice's UI and providers:
+
+- `src/modules/auth/components/RegisterForm.test.tsx` — validation, success path, 409 / generic ApiError / network-error fallbacks.
+- `src/modules/auth/components/EditProfileForm.test.tsx` — defaults from props, `avatar`→`null` normalisation, `onSuccess` / `onCancel` callbacks, error surfacing.
+- `src/routes/ProtectedRoute.test.tsx` — redirects unauthenticated users, shows the loading state, enforces `requiredRole`.
+- `src/modules/auth/AuthProvider.test.tsx` — token seeding from `localStorage`, `getMe` success/failure, `login` / `logout` / `updateUser`, and the `pzio:auth-expired` handler.
+
+End-to-end tests (Playwright) are tracked as a follow-up. The suite runs on
+every push and pull request via the `npm-build` GitHub Actions workflow.
 
 ## Module structure
 
