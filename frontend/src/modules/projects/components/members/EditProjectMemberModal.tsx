@@ -4,6 +4,8 @@ import { projectMemberUpdateSchema } from "../../schemas";
 import { updateProjectMemberRoles } from "../../api";
 import { ApiError } from "../../../../api/client";
 
+import Modal from "../Modal";
+
 interface EditProjectMemberModalProps {
   projectId: number;
   userId: number;
@@ -60,12 +62,13 @@ export default function EditProjectMemberModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-xl font-bold mb-4">Edytuj role użytkownika: {email}</h2>
-        
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
+    <Modal
+      title={`Edytuj role użytkownika: ${email}`}
+      isOpen={true}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Role w projekcie *</label>
             <div className="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
               {AVAILABLE_ROLES.map((role) => (
@@ -101,7 +104,6 @@ export default function EditProjectMemberModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
