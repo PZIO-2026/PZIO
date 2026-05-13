@@ -1,4 +1,4 @@
-import { Download, File as FileIcon, Loader2, Paperclip, Plus, Trash2, X } from "lucide-react";
+import { Download, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { deleteAttachment, downloadAttachment, fetchAttachments, uploadAttachment } from "../api";
