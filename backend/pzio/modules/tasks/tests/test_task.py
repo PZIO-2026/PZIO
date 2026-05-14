@@ -369,7 +369,7 @@ def test_update_task_status_does_not_log_when_status_is_unchanged(
     assert response.status_code == 200
     assert response.json()["status"] == "ToDo"
     logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
-    assert logs == []
+    assert len(logs) == 1  # Tylko CREATE_TASK, brak STATUS_CHANGE
 
 
 def test_delete_task(client: TestClient):
@@ -409,8 +409,10 @@ def test_delete_task_preserves_activity_logs(client: TestClient, db_session: Ses
     assert delete_response.status_code == 204
 
     logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
-    assert len(logs) == 1
-    assert logs[0].action == "STATUS_CHANGE"
+    assert len(logs) == 3  # CREATE_TASK + STATUS_CHANGE + DELETE_TASK
+    assert logs[0].action == "CREATE_TASK"
+    assert logs[1].action == "STATUS_CHANGE"
+    assert logs[2].action == "DELETE_TASK"
 
 
 def test_worklogs(client: TestClient, db_session: Session):
@@ -529,8 +531,10 @@ def test_work_item_relationships_include_worklogs_and_activity_logs(
     assert work_item is not None
     assert len(work_item.time_logs) == 1
     assert work_item.time_logs[0].note == "relationship"
-    assert len(work_item.activity_logs) == 1
-    assert work_item.activity_logs[0].action == "STATUS_CHANGE"
+    assert len(work_item.activity_logs) == 3  # CREATE_TASK + LOG_WORK + STATUS_CHANGE
+    assert work_item.activity_logs[0].action == "CREATE_TASK"
+    assert work_item.activity_logs[1].action == "LOG_WORK"
+    assert work_item.activity_logs[2].action == "STATUS_CHANGE"
 
 
 def test_create_worklog_task_not_found(client: TestClient):
