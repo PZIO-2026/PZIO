@@ -94,11 +94,11 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 
 ### Strona główna (`/`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU STRONY GŁÓWNEJ ]
+![Zrzut ekranu strony głównej](assets/main-page.png)
 
-- Ekran powitalny witający zalogowanego użytkownika
-- Dostęp nawigacyjny do reszty ekosystemu (Navbar i Outlet)
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Ekran powitalny witający zalogowanego użytkownika.
+- Dostęp nawigacyjny do reszty ekosystemu - głównie do listy projektów i zadań, a także do profilu użytkownika i panelu administratora (jeśli użytkownik ma odpowiednie uprawnienia).
+- Aktualnie dość pusta, ale docelowo będzie zawierała różne widżety i skróty do najważniejszych funkcji.
 
 ### Projekty (`/projects`)
 
