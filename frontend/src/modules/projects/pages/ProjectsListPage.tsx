@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
+import { useAuth } from "../../auth/hooks";
 import { fetchProjects } from "../api";
 import ProjectRoleBadge from "../components/ProjectRoleBadge";
 import Modal from "../components/Modal";
@@ -27,6 +28,9 @@ const statusLabels: Record<ProjectStatus, string> = {
 
 export default function ProjectsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const canCreateProject =
+    user?.role === "Manager" || user?.role === "Administrator";
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [total, setTotal] = useState(0);
@@ -192,13 +196,15 @@ export default function ProjectsListPage() {
               Łącznie projektów: <span className="font-medium">{total}</span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Dodaj projekt
-            </button>
+            {canCreateProject && (
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Dodaj projekt
+              </button>
+            )}
           </div>
         </div>
 
