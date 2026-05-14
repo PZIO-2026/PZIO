@@ -4,7 +4,7 @@ import Modal from "../Modal";
 
 import { ApiError } from "../../../../api/client";
 
-import { assignTaskToSprint } from "../../api";
+import { updateTask } from "../../api";
 
 import type { Sprint, WorkItem } from "../../types";
 
@@ -64,7 +64,7 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
     setSubmitError(null);
 
     try {
-      const updated = await assignTaskToSprint(task.id, selectedSprint.sprintId);
+      const updated = await updateTask(task.id, { sprintId: selectedSprint.sprintId });
       onAssigned(updated);
       handleClose();
     } catch (err) {

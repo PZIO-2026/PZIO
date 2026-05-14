@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
-import { fetchTask, updateTaskAssignee } from "../api";
+import { fetchTask } from "../api";
 import { useAuth } from "../../auth/hooks";
 import {
   deleteTask,
   fetchProjectMembers,
   fetchSprints,
+  updateTask,
   updateTaskStatus,
 } from "../../projects/api";
 import type { ProjectMember, Sprint, WorkItem } from "../../projects/types";
@@ -98,7 +99,7 @@ export default function TaskDetailPage() {
   async function handleAssigneeChange(assigneeId: number | null) {
     if (!task) return;
     try {
-      const updated = await updateTaskAssignee(task.id, assigneeId);
+      const updated = await updateTask(task.id, { assigneeId });
       setTask(updated);
     } catch {
       // assignee stays unchanged on error
@@ -189,7 +190,10 @@ export default function TaskDetailPage() {
               {task.type}
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+          <h1 className="flex flex-wrap items-baseline gap-3 text-2xl font-bold text-gray-900">
+            {task.title}
+            <span className="text-base font-normal text-gray-400">#{task.id}</span>
+          </h1>
           <div>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
               Opis
