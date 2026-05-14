@@ -61,7 +61,7 @@ export default function EditProjectSprintModal({
 
     reset({
       name: sprint.name,
-      // for propper formatting
+      // for proper formatting
       startDate: sprint.startDate.split("T")[0],
       endDate: sprint.endDate.split("T")[0],
       goal: sprint.goal ?? "",
