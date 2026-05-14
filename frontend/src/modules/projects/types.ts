@@ -86,7 +86,7 @@ export interface Sprint {
 // Zadania (Work Items)
 // ============================================================
 
-export type WorkItemStatus = "Backlog" | "ToDo" | "InProgress" | "Done";
+export type WorkItemStatus = "ToDo" | "InProgress" | "Done";
 
 export interface WorkItem {
   id: number;

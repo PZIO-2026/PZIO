@@ -49,17 +49,15 @@ const selectClass =
 const PAGE_SIZE = 20;
 
 const STATUS_STYLES: Record<string, string> = {
-  Backlog: "bg-gray-100 text-gray-700",
   ToDo: "bg-blue-100 text-blue-700",
   InProgress: "bg-yellow-100 text-yellow-700",
   Done: "bg-green-100 text-green-700",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  Backlog: "Backlog",
-  ToDo: "Do zrobienia",
-  InProgress: "W toku",
-  Done: "Gotowe",
+  ToDo: "To Do",
+  InProgress: "In Progress",
+  Done: "Done",
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
@@ -230,10 +228,9 @@ export default function TasksListPage() {
                 onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
               >
                 <option value="">Wszystkie</option>
-                <option value="Backlog">Backlog</option>
-                <option value="ToDo">Do zrobienia</option>
-                <option value="InProgress">W toku</option>
-                <option value="Done">Gotowe</option>
+                <option value="ToDo">To Do</option>
+                <option value="InProgress">In Progress</option>
+                <option value="Done">Done</option>
               </select>
             </div>
 

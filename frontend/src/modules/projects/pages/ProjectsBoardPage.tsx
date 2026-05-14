@@ -38,7 +38,6 @@ interface OutletContext {
 // ============================================================
 
 const COLUMNS: { id: WorkItemStatus; label: string }[] = [
-  { id: "Backlog", label: "Backlog" },
   { id: "ToDo", label: "To Do" },
   { id: "InProgress", label: "In Progress" },
   { id: "Done", label: "Done" },

@@ -213,10 +213,9 @@ export default function TaskDetailPage() {
                   className={selectClass}
                   onChange={(e) => handleStatusChange(e.target.value)}
                 >
-                  <option value="Backlog">Backlog</option>
-                  <option value="ToDo">Do zrobienia</option>
-                  <option value="InProgress">W toku</option>
-                  <option value="Done">Gotowe</option>
+                  <option value="ToDo">To Do</option>
+                  <option value="InProgress">In Progress</option>
+                  <option value="Done">Done</option>
                 </select>
               </dd>
             </div>

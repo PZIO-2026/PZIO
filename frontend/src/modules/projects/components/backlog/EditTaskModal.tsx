@@ -38,6 +38,7 @@ interface Props {
 export default function EditTaskModal({ isOpen, onClose, task, projectId, onTaskUpdated }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [taskTypesLoading, setTaskTypesLoading] = useState(false);
   const [allTasks, setAllTasks] = useState<WorkItem[]>([]);
 
   const {
@@ -68,7 +69,8 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
   useEffect(() => {
     if (!isOpen) return;
 
-    fetchTaskTypes().then(setTaskTypes).catch(() => {});
+    setTaskTypesLoading(true);
+    fetchTaskTypes().then(setTaskTypes).catch(() => {}).finally(() => setTaskTypesLoading(false));
     fetchTasks(projectId).then(setAllTasks).catch(() => {});
   }, [isOpen, projectId]);
 
@@ -121,6 +123,7 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
           setValue={setValue}
           parentId={parentId}
           taskTypes={taskTypes}
+          taskTypesLoading={taskTypesLoading}
           allTasks={allTasks}
           editingTaskId={task?.id}
         />

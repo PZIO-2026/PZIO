@@ -93,7 +93,7 @@ export default function ProjectsBacklogPage() {
 
       try {
         const [taskResponse, sprintResponse] = await Promise.all([
-          fetchTasks(project.projectId, { status: "Backlog" }),
+          fetchTasks(project.projectId, { status: "ToDo" }),
           fetchSprints(project.projectId),
         ]);
 

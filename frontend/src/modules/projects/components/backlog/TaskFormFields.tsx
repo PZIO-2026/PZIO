@@ -17,6 +17,7 @@ interface Props {
   setValue: UseFormSetValue<TaskFormInput>;
   parentId: number | null;
   taskTypes: TaskType[];
+  taskTypesLoading: boolean;
   allTasks: WorkItem[];
   editingTaskId?: number;
 }
@@ -31,6 +32,7 @@ export default function TaskFormFields({
   setValue,
   parentId,
   taskTypes,
+  taskTypesLoading,
   allTasks,
   editingTaskId,
 }: Props) {
@@ -71,26 +73,18 @@ export default function TaskFormFields({
         <label className="mb-1 block text-sm font-medium text-gray-700">
           Typ <span className="text-red-500">*</span>
         </label>
-        {taskTypes.length > 0 ? (
-          <select
-            {...register("type")}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">Wybierz typ</option>
-            {taskTypes.map((t) => (
-              <option key={t.taskTypeId} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type="text"
-            {...register("type")}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            placeholder="Np. Task, Bug, Story"
-          />
-        )}
+        <select
+          {...register("type")}
+          disabled={taskTypesLoading}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+        >
+          <option value="">{taskTypesLoading ? "Ładowanie..." : "Wybierz typ"}</option>
+          {taskTypes.map((t) => (
+            <option key={t.taskTypeId} value={t.name}>
+              {t.name}
+            </option>
+          ))}
+        </select>
         {errors.type && (
           <p className="mt-1 text-xs text-red-600">{errors.type.message}</p>
         )}

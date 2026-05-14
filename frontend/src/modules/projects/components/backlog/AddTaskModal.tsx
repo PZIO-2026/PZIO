@@ -37,6 +37,7 @@ interface Props {
 export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [taskTypesLoading, setTaskTypesLoading] = useState(false);
   const [allTasks, setAllTasks] = useState<WorkItem[]>([]);
 
   const {
@@ -67,7 +68,8 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
   useEffect(() => {
     if (!isOpen) return;
 
-    fetchTaskTypes().then(setTaskTypes).catch(() => {});
+    setTaskTypesLoading(true);
+    fetchTaskTypes().then(setTaskTypes).catch(() => {}).finally(() => setTaskTypesLoading(false));
     fetchTasks(projectId).then(setAllTasks).catch(() => {});
   }, [isOpen, projectId]);
 
@@ -79,7 +81,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
     setSubmitError(null);
 
     try {
-      const created = await createTask(projectId, { ...values, status: "Backlog" });
+      const created = await createTask(projectId, { ...values, status: "ToDo" });
 
       onTaskCreated(created);
       reset();
@@ -106,6 +108,7 @@ export default function AddTaskModal({ isOpen, onClose, projectId, onTaskCreated
           setValue={setValue}
           parentId={parentId}
           taskTypes={taskTypes}
+          taskTypesLoading={taskTypesLoading}
           allTasks={allTasks}
         />
 
