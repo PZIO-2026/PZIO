@@ -1,3 +1,4 @@
+from fnmatch import fnmatch
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
@@ -17,6 +18,20 @@ from pzio.modules.communication.schemas import (
 )
 
 router = APIRouter(tags=["Communication"])
+
+# File upload security constraints
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_MIME_TYPES = ["image/*", "application/pdf"]
+
+
+def _is_mime_type_allowed(content_type: str | None) -> bool:
+    """Check if content_type matches the whitelist of allowed MIME types."""
+    if not content_type:
+        return False
+    for allowed in ALLOWED_MIME_TYPES:
+        if fnmatch(content_type, allowed):
+            return True
+    return False
 
 
 def _build_comment_notification_message(task_id: int, author: User, content: str) -> tuple[str, str]:
@@ -145,9 +160,11 @@ def delete_comment(
     status_code=status.HTTP_201_CREATED,
     summary="Upload an attachment",
     description="Uploads a file attachment to the specified task. "
-    "Request must use `multipart/form-data`.",
+    "Request must use `multipart/form-data`. Max file size: 10 MB. "
+    "Allowed types: images, PDFs.",
     responses={
         201: {"description": "Attachment created"},
+        400: {"description": "File too large or unsupported file type"},
         401: {"description": "Missing or invalid token"},
     },
 )
@@ -157,12 +174,27 @@ def upload_attachment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AttachmentRead:
+    # Validate MIME type
+    if not _is_mime_type_allowed(file.content_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type not allowed. Supported types: {', '.join(ALLOWED_MIME_TYPES)}",
+        )
+    
+    # Validate file size
+    if file.size and file.size > MAX_FILE_SIZE:
+        max_mb = MAX_FILE_SIZE / (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size: {max_mb:.0f} MB",
+        )
+    
     attachment = service.save_attachment(
         db,
         task_id=task_id,
         uploader_id=current_user.user_id,
         filename=file.filename or "unnamed",
-        content_type=file.content_type or "application/octet-stream",
+        content_type=file.content_type,
         file_obj=file.file,
     )
     return AttachmentRead.model_validate(attachment)

@@ -4,6 +4,26 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pzio.modules.communication import service
+from pzio.modules.communication.router import _is_mime_type_allowed
+
+
+def test_mime_type_validation() -> None:
+    """Test MIME type whitelist validation with wildcard patterns."""
+    # Allowed types
+    assert _is_mime_type_allowed("image/png") is True
+    assert _is_mime_type_allowed("image/jpeg") is True
+    assert _is_mime_type_allowed("image/gif") is True
+    assert _is_mime_type_allowed("image/webp") is True
+    assert _is_mime_type_allowed("application/pdf") is True
+    
+    # Disallowed types
+    assert _is_mime_type_allowed("application/x-msdownload") is False
+    assert _is_mime_type_allowed("application/x-executable") is False
+    assert _is_mime_type_allowed("text/plain") is False
+    assert _is_mime_type_allowed("text/html") is False
+    assert _is_mime_type_allowed("application/json") is False
+    assert _is_mime_type_allowed(None) is False
+    assert _is_mime_type_allowed("") is False
 
 
 def test_get_comments_returns_history(
@@ -281,3 +301,65 @@ def test_delete_attachment_not_found(
     )
 
     assert response.status_code == 404
+
+
+def test_upload_attachment_file_too_large(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    user = user_factory()
+    # Create a file larger than 10MB (11MB)
+    large_file_data = b"x" * (11 * 1024 * 1024)
+
+    response = client.post(
+        "/api/tasks/1/attachments",
+        files={"file": ("large.png", large_file_data, "image/png")},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 400
+    assert "too large" in response.json()["detail"].lower()
+
+
+def test_upload_attachment_unsupported_mime_type(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    user = user_factory()
+
+    response = client.post(
+        "/api/tasks/1/attachments",
+        files={"file": ("script.exe", b"MZ\x90\x00", "application/x-msdownload")},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 400
+    assert "not allowed" in response.json()["detail"].lower()
+
+
+def test_upload_attachment_pdf_allowed(
+    client: TestClient, user_factory, auth_headers, upload_dir: Path
+) -> None:
+    user = user_factory()
+
+    response = client.post(
+        "/api/tasks/1/attachments",
+        files={"file": ("document.pdf", b"%PDF-1.4", "application/pdf")},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 201
+    assert response.json()["filename"] == "document.pdf"
+
+
+def test_upload_attachment_image_types_allowed(
+    client: TestClient, user_factory, auth_headers, upload_dir: Path
+) -> None:
+    user = user_factory()
+
+    for mime_type in ["image/png", "image/jpeg", "image/gif", "image/webp"]:
+        response = client.post(
+            "/api/tasks/1/attachments",
+            files={"file": ("image.bin", b"imagedata", mime_type)},
+            headers=auth_headers(user),
+        )
+
+        assert response.status_code == 201, f"Failed for {mime_type}"
