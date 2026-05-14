@@ -13,6 +13,7 @@ import {
 } from "../../projects/api";
 import type { ProjectMember, Sprint, WorkItem } from "../../projects/types";
 import EditTaskModal from "../../projects/components/backlog/EditTaskModal";
+import TaskCommunicationPanel from "../../communication/components/TaskCommunicationPanel";
 
 const selectClass =
   "block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-sm " +
@@ -336,6 +337,9 @@ export default function TaskDetailPage() {
           </dl>
         </div>
       </div>
+
+      {/* Communication — attachments & comments */}
+      <TaskCommunicationPanel taskId={task.id} />
 
       <EditTaskModal
         isOpen={isEditModalOpen}
