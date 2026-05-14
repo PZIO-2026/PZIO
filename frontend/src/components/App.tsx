@@ -1,4 +1,3 @@
-import { Toaster } from "react-hot-toast";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminPanelPage from "../modules/admin/pages/AdminPanelPage";
