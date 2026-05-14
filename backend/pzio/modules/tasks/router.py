@@ -114,6 +114,7 @@ def update_task_status(
     user_id: CurrentUserId,
 ):
     """Zmiana statusu zadania (Kanban drag & drop). Zapisuje log audytowy."""
+    _prepare_project_membership_auth(user_id)
     task = service.update_work_item_status(
         db, task_id=id, new_status=status_update.status, user_id=user_id
     )
@@ -134,6 +135,7 @@ def create_worklog(
     user_id: CurrentUserId,
 ):
     """Rejestrowanie czasu pracy (Worklog)."""
+    _prepare_project_membership_auth(user_id)
     created_log = service.create_time_log(db, task_id=id, log_data=worklog, user_id=user_id)
     if not created_log:
         raise HTTPException(status_code=404, detail="Task not found")

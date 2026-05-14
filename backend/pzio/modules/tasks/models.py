@@ -38,7 +38,7 @@ class WorkItem(Base):
     activity_logs: Mapped[list[ActivityLog]] = relationship(
         ActivityLog,
         primaryjoin=lambda: WorkItem.id == foreign(ActivityLog.task_id),
-        cascade="all, delete-orphan",
+        viewonly=True,
     )
 
 

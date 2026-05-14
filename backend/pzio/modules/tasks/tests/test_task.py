@@ -287,6 +287,27 @@ def test_delete_task(client: TestClient):
     assert get_response.status_code == 404
 
 
+def test_delete_task_preserves_activity_logs(client: TestClient, db_session: Session):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Audyt po usunieciu", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+    task_id = task_id_value
+
+    status_response = client.patch(f"/api/tasks/{task_id}/status", json={"status": "Done"})
+    assert status_response.status_code == 200
+
+    delete_response = client.delete(f"/api/tasks/{task_id}")
+    assert delete_response.status_code == 204
+
+    logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == task_id).all()
+    assert len(logs) == 1
+    assert logs[0].action == "STATUS_CHANGE"
+
+
 def test_worklogs(client: TestClient, db_session: Session):
     """Test rejestrowania i pobierania logów czasu pracy."""
     # 1. Tworzymy zadanie
