@@ -50,6 +50,7 @@ class ProjectUpdate(BaseModel):
 
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=5000)
+    status: Optional[ProjectStatus] = None
 
 
 class ProjectStats(BaseModel):
@@ -61,6 +62,7 @@ class ProjectStats(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
+
 class ProjectOut(BaseModel):
     """Standard project response body."""
 
@@ -68,6 +70,10 @@ class ProjectOut(BaseModel):
     name: str
     description: Optional[str] = None
     status: ProjectStatus
+    current_user_roles: list[ProjectRole] = Field(
+        default_factory=list,
+        serialization_alias="currentUserRoles",
+    )
     created_at: datetime = Field(serialization_alias="createdAt")
     updated_at: datetime = Field(serialization_alias="updatedAt")
 
@@ -82,9 +88,15 @@ class ProjectDetailOut(ProjectOut):
 class ProjectMemberCreate(BaseModel):
     """POST /api/projects/{id}/members – request body."""
 
-    user_id: int = Field(..., alias="userId")
+    email: str = Field(..., max_length=255, pattern=r"^[^@]+@[^@]+\.[^@]+$")
     roles: list[ProjectRole] = Field(..., min_length=1)
 
+    model_config = ConfigDict(populate_by_name=True)
+
+class ProjectMemberUpdate(BaseModel):
+    """PATCH /api/projects/{id}/members/ – request body for role update."""
+
+    roles: list[ProjectRole] = Field(..., min_length=1)
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -96,7 +108,9 @@ class ProjectMemberOut(BaseModel):
     user_id: int = Field(serialization_alias="userId")
     roles: list[ProjectRole]
     joined_at: datetime = Field(serialization_alias="joinedAt")
-
+    first_name: Optional[str] = Field(default=None, serialization_alias="firstName")
+    last_name: Optional[str] = Field(default=None, serialization_alias="lastName")
+    email: str
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
@@ -107,6 +121,7 @@ class SprintCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     start_date: datetime = Field(..., alias="startDate")
     end_date: datetime = Field(..., alias="endDate")
+    goal: Optional[str] = Field(default=None, max_length=1500)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -118,7 +133,7 @@ class SprintUpdate(BaseModel):
     start_date: Optional[datetime] = Field(default=None, alias="startDate")
     end_date: Optional[datetime] = Field(default=None, alias="endDate")
     status: Optional[SprintStatus] = None
-
+    goal: Optional[str] = Field(default=None, max_length=1500)
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -129,6 +144,7 @@ class SprintOut(BaseModel):
     project_id: int = Field(serialization_alias="projectId")
     name: str
     status: SprintStatus
+    goal: Optional[str] = Field(default=None, max_length=1500)
     start_date: datetime = Field(serialization_alias="startDate")
     end_date: datetime = Field(serialization_alias="endDate")
     created_at: datetime = Field(serialization_alias="createdAt")

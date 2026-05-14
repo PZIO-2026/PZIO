@@ -20,6 +20,7 @@ from .schemas import (
     ProjectListParams,
     ProjectMemberCreate,
     ProjectMemberOut,
+    ProjectMemberUpdate,
     ProjectOut,
     ProjectUpdate,
     SprintCreate,
@@ -174,6 +175,22 @@ def remove_member(
 ) -> None:
     services.remove_member(db, id, user_id, current_user.user_id)
 
+@router.patch(
+    "/api/projects/{id}/members/{user_id}",
+    response_model=ProjectMemberOut,
+    response_model_by_alias=True,
+    status_code=status.HTTP_200_OK,
+    summary="Update roles of a project member (requires project_owner or scrum_master role)",
+)
+def update_member_roles(
+    id: int,
+    user_id: int,
+    payload: ProjectMemberUpdate,
+    db: DBSession,
+    current_user: AuthUser,
+) -> ProjectMemberOut:
+    return services.update_member_roles(db, id, user_id, payload, current_user.user_id)
+
 
 # ---------------------------------------------------------------------------
 # SPRINTS
@@ -192,8 +209,6 @@ def create_sprint(
     db: DBSession,
     current_user: AuthUser,
 ) -> SprintOut:
-    
-
     return services.create_sprint(db, id, payload, current_user.user_id)
 
 

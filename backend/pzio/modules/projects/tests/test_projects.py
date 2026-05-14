@@ -49,6 +49,7 @@ def _make_user(user_id: int, email: str = None) -> User:
 
 MOCK_USER = _make_user(1, "test@pzio.com")
 OTHER_USER = _make_user(2, "other@pzio.com")
+EXTRA_USER = _make_user(99, "extra@pzio.com")
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +61,10 @@ def db_session():
     """Tworzy schemat bazy przed każdym testem i usuwa po teście."""
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
+    # Persist the mock users so email-based lookups in services work
+    for user in (MOCK_USER, OTHER_USER, EXTRA_USER):
+        db.merge(user)
+    db.commit()
     try:
         yield db
     finally:
@@ -122,17 +127,20 @@ def _create_sprint(client: TestClient, project_id: int, name: str = "Sprint 1") 
     return res.json()
 
 
-def _add_member(client: TestClient, project_id: int, user_id: int, roles: list[str]) -> dict:
+def _add_member(client: TestClient, project_id: int, email: str, roles: list[str]) -> dict:
+    """Add a member by email (matches updated ProjectMemberCreate schema)."""
     res = client.post(
         f"/api/projects/{project_id}/members",
-        json={"userId": user_id, "roles": roles},
+        json={"email": email, "roles": roles},
     )
     assert res.status_code == 201, res.text
     return res.json()
 
+
 def login_as(user: User):
     """Zmienia aktywnego użytkownika w trakcie trwania testu."""
     app.dependency_overrides[get_current_user] = lambda: user
+
 
 # ---------------------------------------------------------------------------
 # PROJECTS – CRUD
@@ -197,7 +205,7 @@ class TestListProjects:
 
     def test_pagination(self, client: TestClient):
         for i in range(5):
-            proj = _create_project(client, f"Projekt {i}")
+            _create_project(client, f"Projekt {i}")
 
         res = client.get("/api/projects?page=1&size=2")
         data = res.json()
@@ -207,8 +215,8 @@ class TestListProjects:
         assert data["size"] == 2
 
     def test_search_by_name(self, client: TestClient):
-        proj_a = _create_project(client, "Alpha")
-        proj_b = _create_project(client, "Beta")
+        _create_project(client, "Alpha")
+        _create_project(client, "Beta")
 
         res = client.get("/api/projects?search=Alpha")
         data = res.json()
@@ -229,7 +237,7 @@ class TestListProjects:
 
     def test_sort_by_name_asc(self, client: TestClient):
         for name in ["Zeta", "Alpha", "Mu"]:
-            proj = _create_project(client, name)
+            _create_project(client, name)
 
         res = client.get("/api/projects?sortBy=name&sortDirection=asc")
         names = [p["name"] for p in res.json()["items"]]
@@ -253,7 +261,7 @@ class TestGetProject:
     def test_stats_reflect_added_members_and_sprints(self, client: TestClient):
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 99, ["developer"])
+        _add_member(client, pid, EXTRA_USER.email, ["developer"])
         _create_sprint(client, pid)
 
         res = client.get(f"/api/projects/{pid}")
@@ -355,11 +363,11 @@ class TestProjectMembers:
 
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 42, "roles": ["developer"]},
+            json={"email": OTHER_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 201
         data = res.json()
-        assert data["userId"] == 42
+        assert data["userId"] == OTHER_USER.user_id
         assert "developer" in data["roles"]
         assert data["projectId"] == pid
         assert "joinedAt" in data
@@ -370,7 +378,7 @@ class TestProjectMembers:
 
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 10, "roles": ["developer", "scrum_master"]},
+            json={"email": OTHER_USER.email, "roles": ["developer", "scrum_master"]},
         )
         assert res.status_code == 201
         assert set(res.json()["roles"]) == {"developer", "scrum_master"}
@@ -379,7 +387,7 @@ class TestProjectMembers:
         proj = _create_project(client)
         pid = proj["projectId"]
 
-        payload = {"userId": 55, "roles": ["developer"]}
+        payload = {"email": OTHER_USER.email, "roles": ["developer"]}
         client.post(f"/api/projects/{pid}/members", json=payload)
         res = client.post(f"/api/projects/{pid}/members", json=payload)
         assert res.status_code == 409
@@ -387,7 +395,18 @@ class TestProjectMembers:
     def test_add_member_to_nonexistent_project_returns_404(self, client: TestClient):
         res = client.post(
             "/api/projects/99999/members",
-            json={"userId": 1, "roles": ["developer"]},
+            json={"email": OTHER_USER.email, "roles": ["developer"]},
+        )
+        assert res.status_code == 404
+
+    def test_add_nonexistent_user_email_returns_404(self, client: TestClient):
+        """Próba dodania użytkownika o nieznanym emailu zwraca 404."""
+        proj = _create_project(client)
+        pid = proj["projectId"]
+
+        res = client.post(
+            f"/api/projects/{pid}/members",
+            json={"email": "nobody@unknown.com", "roles": ["developer"]},
         )
         assert res.status_code == 404
 
@@ -398,7 +417,7 @@ class TestProjectMembers:
 
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 50, "roles": ["manager"]},  # nieistniejąca rola
+            json={"email": OTHER_USER.email, "roles": ["manager"]},
         )
         assert res.status_code == 422
 
@@ -409,7 +428,18 @@ class TestProjectMembers:
 
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 50, "roles": []},
+            json={"email": OTHER_USER.email, "roles": []},
+        )
+        assert res.status_code == 422
+
+    def test_invalid_email_format_returns_422(self, client: TestClient):
+        """Niepoprawny format emailu zwraca 422."""
+        proj = _create_project(client)
+        pid = proj["projectId"]
+
+        res = client.post(
+            f"/api/projects/{pid}/members",
+            json={"email": "not-an-email", "roles": ["developer"]},
         )
         assert res.status_code == 422
 
@@ -419,11 +449,11 @@ class TestProjectMembers:
         proj = _create_project(client)
         pid = proj["projectId"]
 
-        _add_member(client, pid, OTHER_USER.user_id, ["developer"])
+        _add_member(client, pid, OTHER_USER.email, ["developer"])
         login_as(OTHER_USER)
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 99, "roles": ["developer"]},
+            json={"email": EXTRA_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 403
 
@@ -432,11 +462,11 @@ class TestProjectMembers:
         login_as(MOCK_USER)
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, OTHER_USER.user_id, ["qa"])
+        _add_member(client, pid, OTHER_USER.email, ["qa"])
         login_as(OTHER_USER)
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 99, "roles": ["developer"]},
+            json={"email": EXTRA_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 403
 
@@ -445,11 +475,11 @@ class TestProjectMembers:
         login_as(MOCK_USER)
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, OTHER_USER.user_id, ["scrum_master"])
+        _add_member(client, pid, OTHER_USER.email, ["scrum_master"])
         login_as(OTHER_USER)
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 99, "roles": ["developer"]},
+            json={"email": EXTRA_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 201
 
@@ -460,7 +490,7 @@ class TestProjectMembers:
 
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 99, "roles": ["developer"]},
+            json={"email": OTHER_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 201
 
@@ -472,15 +502,15 @@ class TestProjectMembers:
         login_as(OTHER_USER)
         res = client.post(
             f"/api/projects/{pid}/members",
-            json={"userId": 99, "roles": ["developer"]},
+            json={"email": EXTRA_USER.email, "roles": ["developer"]},
         )
         assert res.status_code == 403
 
     def test_list_members(self, client: TestClient):
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 10, ["developer"])
-        _add_member(client, pid, 20, ["qa"])
+        _add_member(client, pid, OTHER_USER.email, ["developer"])
+        _add_member(client, pid, EXTRA_USER.email, ["qa"])
 
         res = client.get(f"/api/projects/{pid}/members")
         assert res.status_code == 200
@@ -501,10 +531,10 @@ class TestProjectMembers:
         login_as(MOCK_USER)
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, OTHER_USER.user_id, ["developer"])
-        _add_member(client, pid, 77, ["qa"])
+        _add_member(client, pid, OTHER_USER.email, ["developer"])
+        _add_member(client, pid, EXTRA_USER.email, ["qa"])
         login_as(OTHER_USER)
-        res = client.delete(f"/api/projects/{pid}/members/77")
+        res = client.delete(f"/api/projects/{pid}/members/{EXTRA_USER.user_id}")
         assert res.status_code == 403
 
     def test_scrum_master_can_remove_member(self, client: TestClient):
@@ -512,37 +542,38 @@ class TestProjectMembers:
         login_as(MOCK_USER)
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 77, ["developer"])
-        _add_member(client, pid, OTHER_USER.user_id, ["scrum_master"])
+        _add_member(client, pid, EXTRA_USER.email, ["developer"])
+        _add_member(client, pid, OTHER_USER.email, ["scrum_master"])
         login_as(OTHER_USER)
-        res = client.delete(f"/api/projects/{pid}/members/77")
+        res = client.delete(f"/api/projects/{pid}/members/{EXTRA_USER.user_id}")
         assert res.status_code == 204
 
     def test_project_owner_can_remove_member(self, client: TestClient):
         """Project Owner może usuwać członków."""
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 77, ["developer"])
+        _add_member(client, pid, OTHER_USER.email, ["developer"])
 
-        res = client.delete(f"/api/projects/{pid}/members/77")
+        res = client.delete(f"/api/projects/{pid}/members/{OTHER_USER.user_id}")
         assert res.status_code == 204
 
     def test_remove_member_actually_removes(self, client: TestClient):
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 77, ["developer"])
+        _add_member(client, pid, OTHER_USER.email, ["developer"])
 
-        client.delete(f"/api/projects/{pid}/members/77")
+        client.delete(f"/api/projects/{pid}/members/{OTHER_USER.user_id}")
 
         res = client.get(f"/api/projects/{pid}/members")
         user_ids = [m["userId"] for m in res.json()["items"]]
-        assert 77 not in user_ids
+        assert OTHER_USER.user_id not in user_ids
 
     def test_remove_nonexistent_member_returns_404(self, client: TestClient):
+        """Próba usunięcia użytkownika, który nie jest członkiem, zwraca 404."""
         proj = _create_project(client)
         pid = proj["projectId"]
 
-        res = client.delete(f"/api/projects/{pid}/members/99999")
+        res = client.delete(f"/api/projects/{pid}/members/9999")
         assert res.status_code == 404
 
     def test_non_member_cannot_remove_member(self, client: TestClient):
@@ -550,9 +581,9 @@ class TestProjectMembers:
         login_as(MOCK_USER)
         proj = _create_project(client)
         pid = proj["projectId"]
-        _add_member(client, pid, 77, ["developer"])
+        _add_member(client, pid, EXTRA_USER.email, ["developer"])
         login_as(OTHER_USER)
-        res = client.delete(f"/api/projects/{pid}/members/77")
+        res = client.delete(f"/api/projects/{pid}/members/{EXTRA_USER.user_id}")
         assert res.status_code == 403
 
 
