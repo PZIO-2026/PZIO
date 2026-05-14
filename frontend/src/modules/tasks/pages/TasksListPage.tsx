@@ -55,15 +55,21 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  ToDo: "To Do",
-  InProgress: "In Progress",
-  Done: "Done",
+  ToDo: "Do zrobienia",
+  InProgress: "W trakcie",
+  Done: "Ukończone",
 };
 
 const PRIORITY_STYLES: Record<string, string> = {
   High: "bg-red-100 text-red-700",
   Medium: "bg-yellow-100 text-yellow-700",
   Low: "bg-green-100 text-green-700",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  High: "Wysoki",
+  Medium: "Średni",
+  Low: "Niski",
 };
 
 export default function TasksListPage() {
@@ -228,9 +234,9 @@ export default function TasksListPage() {
                 onChange={(e) => updateFilters({ status: e.target.value, page: 1 })}
               >
                 <option value="">Wszystkie</option>
-                <option value="ToDo">To Do</option>
-                <option value="InProgress">In Progress</option>
-                <option value="Done">Done</option>
+                <option value="ToDo">Do zrobienia</option>
+                <option value="InProgress">W trakcie</option>
+                <option value="Done">Ukończone</option>
               </select>
             </div>
 
@@ -337,7 +343,7 @@ export default function TasksListPage() {
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-700"}`}
                         >
-                          {task.priority}
+                          {PRIORITY_LABELS[task.priority] ?? task.priority}
                         </span>
                       </td>
                       <td className="px-6 py-4">

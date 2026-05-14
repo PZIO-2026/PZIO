@@ -32,6 +32,12 @@ const PRIORITY_STYLES: Record<string, string> = {
   Low: "bg-green-100 text-green-700",
 };
 
+const PRIORITY_LABELS: Record<string, string> = {
+  High: "Wysoki",
+  Medium: "Średni",
+  Low: "Niski",
+};
+
 // ============================================================
 // Component
 // ============================================================
@@ -219,7 +225,7 @@ export default function ProjectsBacklogPage() {
                           <span
                             className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-600"}`}
                           >
-                            {task.priority}
+                            {PRIORITY_LABELS[task.priority] ?? task.priority}
                           </span>
                         </td>
                         <td className="py-3 pr-4 text-gray-600">

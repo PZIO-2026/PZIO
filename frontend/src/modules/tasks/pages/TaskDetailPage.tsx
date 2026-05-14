@@ -23,6 +23,12 @@ const PRIORITY_STYLES: Record<string, string> = {
   Low: "bg-green-100 text-green-700",
 };
 
+const PRIORITY_LABELS: Record<string, string> = {
+  High: "Wysoki",
+  Medium: "Średni",
+  Low: "Niski",
+};
+
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -213,9 +219,9 @@ export default function TaskDetailPage() {
                   className={selectClass}
                   onChange={(e) => handleStatusChange(e.target.value)}
                 >
-                  <option value="ToDo">To Do</option>
-                  <option value="InProgress">In Progress</option>
-                  <option value="Done">Done</option>
+                  <option value="ToDo">Do zrobienia</option>
+                  <option value="InProgress">W trakcie</option>
+                  <option value="Done">Ukończone</option>
                 </select>
               </dd>
             </div>
@@ -226,7 +232,7 @@ export default function TaskDetailPage() {
                 <span
                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-700"}`}
                 >
-                  {task.priority}
+                  {PRIORITY_LABELS[task.priority] ?? task.priority}
                 </span>
               </dd>
             </div>

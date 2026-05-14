@@ -38,15 +38,21 @@ interface OutletContext {
 // ============================================================
 
 const COLUMNS: { id: WorkItemStatus; label: string }[] = [
-  { id: "ToDo", label: "To Do" },
-  { id: "InProgress", label: "In Progress" },
-  { id: "Done", label: "Done" },
+  { id: "ToDo", label: "Do zrobienia" },
+  { id: "InProgress", label: "W trakcie" },
+  { id: "Done", label: "Ukończone" },
 ];
 
 const PRIORITY_STYLES: Record<string, string> = {
   High: "bg-red-100 text-red-700",
   Medium: "bg-yellow-100 text-yellow-700",
   Low: "bg-green-100 text-green-700",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  High: "Wysoki",
+  Medium: "Średni",
+  Low: "Niski",
 };
 
 // ============================================================
@@ -161,7 +167,7 @@ function TaskCard({ task, isDragging }: TaskCardProps) {
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-600"}`}
         >
-          {task.priority}
+          {PRIORITY_LABELS[task.priority] ?? task.priority}
         </span>
         {task.storyPoints !== null && (
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
@@ -188,7 +194,7 @@ function TaskCardOverlay({ task }: { task: WorkItem }) {
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-600"}`}
         >
-          {task.priority}
+          {PRIORITY_LABELS[task.priority] ?? task.priority}
         </span>
         {task.storyPoints !== null && (
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
