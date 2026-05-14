@@ -295,6 +295,7 @@ export default function ProjectsBoardPage() {
       return;
     }
 
+    const sprint = selectedSprint;
     let cancelled = false;
 
     async function loadTasks() {
@@ -302,7 +303,7 @@ export default function ProjectsBoardPage() {
       setLoadError(null);
 
       try {
-        const taskList = await fetchTasks(project.projectId, { sprintId: selectedSprint.sprintId });
+        const taskList = await fetchTasks(project.projectId, { sprintId: sprint.sprintId });
 
         if (cancelled) return;
 

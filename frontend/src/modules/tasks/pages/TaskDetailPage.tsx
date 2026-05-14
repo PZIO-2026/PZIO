@@ -23,12 +23,6 @@ const PRIORITY_STYLES: Record<string, string> = {
   Low: "bg-green-100 text-green-700",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  Backlog: "Backlog",
-  ToDo: "Do zrobienia",
-  InProgress: "W toku",
-  Done: "Gotowe",
-};
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();

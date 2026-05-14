@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -48,7 +48,7 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     control,
     formState: { errors, isSubmitting },
   } = useForm<TaskFormInput>({
-    resolver: zodResolver(taskFormSchema),
+    resolver: zodResolver(taskFormSchema) as Resolver<TaskFormInput>,
     defaultValues: {
       title: "",
       description: "",
