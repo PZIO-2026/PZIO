@@ -7,6 +7,7 @@ import { ApiError } from "../../../api/client";
 import { register as registerApi } from "../api";
 import { registerSchema } from "../schemas";
 import type { RegisterInput } from "../schemas";
+import PasswordInput from "./PasswordInput";
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
@@ -114,15 +115,13 @@ export default function RegisterForm() {
         <label htmlFor="register-password" className={labelClass}>
           Hasło
         </label>
-        <input
+        <PasswordInput
           id="register-password"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.password !== undefined}
           aria-describedby={
             errors.password ? "register-password-error" : "register-password-hint"
           }
-          className={inputClass}
           {...registerField("password")}
         />
         {errors.password && (
