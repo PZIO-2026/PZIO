@@ -39,8 +39,4 @@ uploads/
 .idea/
 .vscode/
 .DS_Store
-<<<<<<< HEAD
-
-=======
 .claude
->>>>>>> 5b24084 (Added basic view for backlog and board tabs)
