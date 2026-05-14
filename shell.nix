@@ -23,5 +23,7 @@ pkgs.mkShell {
   packages = [
     pythonEnv
     pkgs.nodejs
+    pkgs.postgresql
+    pkgs.sqlite
   ];
 }

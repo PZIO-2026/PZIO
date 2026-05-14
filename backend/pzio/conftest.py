@@ -8,9 +8,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from pzio.config import settings
 from pzio.db import Base, get_db
 from pzio.main import app
-
 
 # Default: in-memory SQLite — fast, hermetic, zero external dependencies.
 # Set `PZIO_TEST_DB=postgres` to spin up a real PostgreSQL via testcontainers
@@ -25,7 +25,9 @@ def _engine() -> Generator[Engine, None, None]:
         from testcontainers.postgres import PostgresContainer
 
         with PostgresContainer("postgres:16-alpine", driver="psycopg") as postgres:
-            engine = create_engine(postgres.get_connection_url(), future=True)
+            db_url = postgres.get_connection_url()
+            settings.database_url = db_url
+            engine = create_engine(db_url, future=True)
             try:
                 yield engine
             finally:
@@ -34,6 +36,7 @@ def _engine() -> Generator[Engine, None, None]:
         # In-memory SQLite shared across the connection pool so all sessions
         # opened during one test see the same data. StaticPool keeps a single
         # underlying connection.
+        settings.database_url = "sqlite://"
         engine = create_engine(
             "sqlite://",
             connect_args={"check_same_thread": False},

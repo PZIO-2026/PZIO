@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pzio.modules.admin import service as admin_service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
 
@@ -35,6 +36,12 @@ def create_comment(db: Session, task_id: int, author_id: int, payload: CommentCr
     db.add(comment)
     db.commit()
     db.refresh(comment)
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=author_id,
+        action="ADD_COMMENT",
+    )
     return comment
 
 
@@ -71,8 +78,15 @@ def delete_comment(db: Session, comment_id: int, user_id: int) -> None:
     if comment.author_id != user_id:
         raise NotOwnerError()
 
+    task_id = comment.task_id
     db.delete(comment)
     db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="DELETE_COMMENT",
+    )
 
 
 def _ensure_upload_dir() -> Path:
@@ -117,6 +131,14 @@ def save_attachment(
     db.add(attachment)
     db.commit()
     db.refresh(attachment)
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=uploader_id,
+        action="ADD_ATTACHMENT",
+        field_name="filename",
+        new_value=filename,
+    )
     return attachment
 
 
@@ -145,5 +167,15 @@ def delete_attachment(db: Session, attachment_id: int, user_id: int) -> None:
     except FileNotFoundError:
         pass
 
+    task_id = attachment.task_id
+    filename = attachment.filename
     db.delete(attachment)
     db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="DELETE_ATTACHMENT",
+        field_name="filename",
+        old_value=filename,
+    )
