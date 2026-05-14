@@ -7,6 +7,7 @@ import LoginPage from "../modules/auth/pages/LoginPage";
 import ProfilePage from "../modules/auth/pages/ProfilePage";
 import RegisterPage from "../modules/auth/pages/RegisterPage";
 import ResetPasswordPage from "../modules/auth/pages/ResetPasswordPage";
+import OAuthCallbackPage from "../modules/auth/pages/OAuthCallbackPage";
 import ProjectsListPage from "../modules/projects/pages/ProjectsListPage";
 import ProjectDetailsLayout  from "../modules/projects/layouts/ProjectDetailsLayout";
 import ProjectsOverviewPage from "../modules/projects/pages/ProjectsOverviewPage";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />

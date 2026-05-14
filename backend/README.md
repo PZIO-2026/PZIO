@@ -94,17 +94,43 @@ Endpoints, request/response shapes, status codes and error formats are defined i
 
 All `4xx` responses follow a single shape: `{"detail": "<message>"}`. The application takes care of this for both `HTTPException` and Pydantic validation errors.
 
+#### Extension to SAD §4.1 — `PATCH /api/users/{id}/role`
+
+The auth module exposes one endpoint beyond the table in SAD §4.1 to support administrative role management from the UI (agreed with the Identity module Tech Lead).
+
+- **Method / path:** `PATCH /api/users/{id}/role`
+- **Auth:** Administrator role required.
+- **Request body:** `{ "role": "Administrator" }` — one of `Guest`, `TeamMember`, `Manager`, `Administrator`.
+- **Response 200 OK:** updated `User` object.
+- **Errors:**
+  - `400` — admin tries to change their own role, or the body fails validation,
+  - `401` — missing or invalid token,
+  - `403` — caller is not an administrator,
+  - `404` — target user does not exist.
+
+## First run (zero configuration)
+
+If no user with role `Administrator` exists in the database, the next
+account registered through `POST /api/auth/register` is automatically
+promoted to `Administrator` (see `pzio.modules.auth.service.create_user`).
+This removes the need for manual SQL edits to bootstrap the first admin —
+the very first registration takes ownership of the system.
+
 ## Configuration
 
 Settings come from environment variables (or a local `.env` file — see `.env.example`).
 
-| Variable          | Default                                | Notes                                                          |
-| ----------------- | -------------------------------------- | -------------------------------------------------------------- |
-| `DATABASE_URL`    | `sqlite:///./pzio.db`                  | Override with a Postgres URL in production.                    |
-| `JWT_SECRET`      | `dev-secret-change-me-in-production`   | **Must** be overridden in production.                          |
-| `JWT_ALGORITHM`   | `HS256`                                |                                                                |
-| `JWT_EXPIRES_MIN` | `60`                                   | Access token lifetime in minutes.                              |
-| `CORS_ORIGINS`    | `http://localhost:5173`                | Comma-separated list of allowed origins.                       |
+| Variable               | Default                              | Notes                                       |
+| ---------------------- | ------------------------------------ | ------------------------------------------- |
+| `DATABASE_URL`         | `sqlite:///./pzio.db`                | Override with a Postgres URL in production. |
+| `JWT_SECRET`           | `dev-secret-change-me-in-production` | **Must** be overridden in production.       |
+| `JWT_ALGORITHM`        | `HS256`                              |                                             |
+| `JWT_EXPIRES_MIN`      | `60`                                 | Access token lifetime in minutes.           |
+| `CORS_ORIGINS`         | `http://localhost:5173`              | Comma-separated list of allowed origins.    |
+| `GOOGLE_CLIENT_ID`     |                                      | Google OAuth Client ID.                     |
+| `GOOGLE_CLIENT_SECRET` |                                      | Google OAuth Client Secret.                 |
+| `GITHUB_CLIENT_ID`     |                                      | GitHub OAuth Client ID.                     |
+| `GITHUB_CLIENT_SECRET` |                                      | GitHub OAuth Client Secret.                 |
 
 ## Tech stack
 
@@ -114,3 +140,4 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 - **Pydantic** / **pydantic-settings** — request/response validation, env-driven config
 - **pytest** + **pytest-cov** + **httpx** — tests
 - **SQLite** locally; **PostgreSQL** in production
+- **Authlib** — OAuth 2.0 integration

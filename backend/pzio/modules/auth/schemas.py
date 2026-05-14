@@ -67,6 +67,14 @@ class UserStatusUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class UserRoleUpdate(BaseModel):
+    """Body for `PATCH /api/users/{id}/role` (Admin only)."""
+
+    role: UserRole
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
 class PaginatedUserResponse(BaseModel):
     """Response for `GET /api/users` (Admin only)."""
 
