@@ -44,6 +44,15 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=5000)
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Apollo Migration",
+                "description": "Migrate the legacy Apollo billing engine to the new microservice platform.",
+            }
+        }
+    )
+
 
 class ProjectUpdate(BaseModel):
     """PATCH /api/projects/{id} - all fields optional (partial update)."""
@@ -52,6 +61,15 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
     status: Optional[ProjectStatus] = None
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Apollo Migration (Phase 2)",
+                "status": "active",
+            }
+        }
+    )
+
 
 class ProjectStats(BaseModel):
     """Embedded statistics returned on GET /api/projects/{id}."""
@@ -59,7 +77,11 @@ class ProjectStats(BaseModel):
     member_count: int = Field(serialization_alias="memberCount")
     sprint_count: int = Field(serialization_alias="sprintCount")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={"example": {"memberCount": 6, "sprintCount": 3}},
+    )
 
 
 
@@ -77,12 +99,43 @@ class ProjectOut(BaseModel):
     created_at: datetime = Field(serialization_alias="createdAt")
     updated_at: datetime = Field(serialization_alias="updatedAt")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "projectId": 7,
+                "name": "Apollo Migration",
+                "description": "Migrate the legacy Apollo billing engine to the new microservice platform.",
+                "status": "active",
+                "currentUserRoles": ["project_owner"],
+                "createdAt": "2026-05-14T09:30:00Z",
+                "updatedAt": "2026-05-14T09:30:00Z",
+            }
+        },
+    )
 
 
 class ProjectDetailOut(ProjectOut):
     """Extended project response (single GET) with stats."""
     stats: ProjectStats
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "projectId": 7,
+                "name": "Apollo Migration",
+                "description": "Migrate the legacy Apollo billing engine to the new microservice platform.",
+                "status": "active",
+                "currentUserRoles": ["project_owner"],
+                "createdAt": "2026-05-14T09:30:00Z",
+                "updatedAt": "2026-05-14T09:30:00Z",
+                "stats": {"memberCount": 6, "sprintCount": 3},
+            }
+        },
+    )
 
 # PROJECT MEMBER SCHEMAS
 class ProjectMemberCreate(BaseModel):
@@ -91,13 +144,25 @@ class ProjectMemberCreate(BaseModel):
     email: str = Field(..., max_length=255, pattern=r"^[^@]+@[^@]+\.[^@]+$")
     roles: list[ProjectRole] = Field(..., min_length=1)
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "email": "bob@example.com",
+                "roles": ["developer", "qa_engineer"],
+            }
+        },
+    )
 
 class ProjectMemberUpdate(BaseModel):
     """PATCH /api/projects/{id}/members/ – request body for role update."""
 
     roles: list[ProjectRole] = Field(..., min_length=1)
-    model_config = ConfigDict(populate_by_name=True)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={"example": {"roles": ["scrum_master"]}},
+    )
 
 
 class ProjectMemberOut(BaseModel):
@@ -111,10 +176,26 @@ class ProjectMemberOut(BaseModel):
     first_name: Optional[str] = Field(default=None, serialization_alias="firstName")
     last_name: Optional[str] = Field(default=None, serialization_alias="lastName")
     email: str
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "id": 15,
+                "projectId": 7,
+                "userId": 88,
+                "roles": ["developer"],
+                "joinedAt": "2026-05-14T10:00:00Z",
+                "firstName": "Bob",
+                "lastName": "Brown",
+                "email": "bob@example.com",
+            }
+        },
+    )
 
 
-# SPRINT SCHEMAS 
+# SPRINT SCHEMAS
 class SprintCreate(BaseModel):
     """POST /api/projects/{id}/sprints - request body."""
 
@@ -123,7 +204,17 @@ class SprintCreate(BaseModel):
     end_date: datetime = Field(..., alias="endDate")
     goal: Optional[str] = Field(default=None, max_length=1500)
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "name": "Sprint 1",
+                "startDate": "2026-05-15T00:00:00Z",
+                "endDate": "2026-05-29T00:00:00Z",
+                "goal": "Ship the auth flow and basic backlog UI.",
+            }
+        },
+    )
 
 
 class SprintUpdate(BaseModel):
@@ -134,7 +225,13 @@ class SprintUpdate(BaseModel):
     end_date: Optional[datetime] = Field(default=None, alias="endDate")
     status: Optional[SprintStatus] = None
     goal: Optional[str] = Field(default=None, max_length=1500)
-    model_config = ConfigDict(populate_by_name=True)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {"status": "active", "goal": "Updated goal mid-sprint."}
+        },
+    )
 
 
 class SprintOut(BaseModel):
@@ -150,7 +247,23 @@ class SprintOut(BaseModel):
     created_at: datetime = Field(serialization_alias="createdAt")
     updated_at: datetime = Field(serialization_alias="updatedAt")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "sprintId": 21,
+                "projectId": 7,
+                "name": "Sprint 1",
+                "status": "planned",
+                "goal": "Ship the auth flow and basic backlog UI.",
+                "startDate": "2026-05-15T00:00:00Z",
+                "endDate": "2026-05-29T00:00:00Z",
+                "createdAt": "2026-05-14T11:00:00Z",
+                "updatedAt": "2026-05-14T11:00:00Z",
+            }
+        },
+    )
 
 
 # BURNDOWN CHART SCHEMAS
@@ -160,7 +273,12 @@ class BurndownDay(BaseModel):
     date: datetime
     remainingPoints: int = Field(..., serialization_alias="remainingPoints")
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {"date": "2026-05-15T00:00:00Z", "remainingPoints": 34}
+        },
+    )
 
 
 class BurndownOut(BaseModel):
@@ -170,7 +288,21 @@ class BurndownOut(BaseModel):
     total_points: int = Field(..., serialization_alias="totalPoints")
     days: list[BurndownDay]
 
-    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "sprintId": 21,
+                "totalPoints": 34,
+                "days": [
+                    {"date": "2026-05-15T00:00:00Z", "remainingPoints": 34},
+                    {"date": "2026-05-16T00:00:00Z", "remainingPoints": 31},
+                    {"date": "2026-05-17T00:00:00Z", "remainingPoints": 27},
+                ],
+            }
+        },
+    )
 
 
 

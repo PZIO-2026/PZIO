@@ -15,6 +15,7 @@ WORKDIR /app
 # package present at install time because pyproject.toml uses `find` + include).
 COPY pyproject.toml ./
 COPY pzio ./pzio
+COPY scripts ./scripts
 RUN pip install .
 
 # Forced backups (POST /api/admin/backups) write here; mount a volume to persist.

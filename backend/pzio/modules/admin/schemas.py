@@ -10,7 +10,10 @@ class TaskTypeCreate(BaseModel):
 
     name: str = Field(min_length=1, max_length=TASK_TYPE_NAME_MAX_LENGTH)
 
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        json_schema_extra={"example": {"name": "Epic"}},
+    )
 
 
 class TaskTypeRead(BaseModel):
@@ -20,7 +23,17 @@ class TaskTypeRead(BaseModel):
     name: str
     created_at: datetime = Field(serialization_alias="createdAt")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "taskTypeId": 3,
+                "name": "Epic",
+                "createdAt": "2026-05-14T08:00:00Z",
+            }
+        },
+    )
 
 
 class BackupRead(BaseModel):
@@ -34,7 +47,17 @@ class BackupRead(BaseModel):
     timestamp: datetime = Field(validation_alias="created_at")
     status: str
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "backupId": 12,
+                "timestamp": "2026-05-14T03:00:00Z",
+                "status": "completed",
+            }
+        },
+    )
 
 
 class ActivityLogRead(BaseModel):
@@ -49,4 +72,19 @@ class ActivityLogRead(BaseModel):
     new_value: str | None = Field(default=None, serialization_alias="newValue")
     created_at: datetime = Field(serialization_alias="createdAt")
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+        json_schema_extra={
+            "example": {
+                "activityLogId": 87,
+                "taskId": 123,
+                "userId": 42,
+                "action": "STATUS_CHANGE",
+                "fieldName": "status",
+                "oldValue": "ToDo",
+                "newValue": "InProgress",
+                "createdAt": "2026-05-14T13:15:00Z",
+            }
+        },
+    )
