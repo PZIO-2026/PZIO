@@ -8,7 +8,6 @@ import { fetchUsers, updateUserRole } from "../api";
 const PAGE_SIZE = 50;
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "Guest", label: "Gość" },
   { value: "TeamMember", label: "Członek zespołu" },
   { value: "Manager", label: "Manager" },
   { value: "Administrator", label: "Administrator" },
