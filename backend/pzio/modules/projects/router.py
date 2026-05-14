@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
 
-from .dependencies import AuthUser, DBSession
+from .dependencies import AuthUser, DBSession, ManagerUser
 from .schemas import (
     BurndownOut,
     MemberListParams,
@@ -45,7 +45,7 @@ router = APIRouter(tags=["Projects"])
 def create_project(
     payload: ProjectCreate,
     db: DBSession,
-    current_user: AuthUser,
+    current_user: ManagerUser,
 ) -> ProjectOut:
     return services.create_project(db, payload, current_user.user_id)
 

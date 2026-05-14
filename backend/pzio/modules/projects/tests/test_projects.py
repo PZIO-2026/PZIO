@@ -35,14 +35,18 @@ app.include_router(router)
 # MOCK USERS
 # ---------------------------------------------------------------------------
 
-def _make_user(user_id: int, email: str = None) -> User:
+def _make_user(
+    user_id: int,
+    email: str = None,
+    role: UserRole = UserRole.MANAGER,
+) -> User:
     return User(
         user_id=user_id,
         email=email or f"user{user_id}@pzio.com",
         password_hash="irrelevant",
         first_name="Test",
         last_name="User",
-        role=UserRole.TEAM_MEMBER,
+        role=role,
         is_active=True,
     )
 
@@ -165,6 +169,47 @@ class TestCreateProject:
     def test_missing_name_returns_422(self, client: TestClient):
         res = client.post("/api/projects", json={"description": "Bez nazwy"})
         assert res.status_code == 422
+
+    def test_administrator_can_create_project(self, db_session):
+        admin = _make_user(
+            user_id=500, email="admin@pzio.com", role=UserRole.ADMINISTRATOR
+        )
+        db_session.merge(admin)
+        db_session.commit()
+        admin_client = _make_client(db_session, admin)
+        try:
+            res = admin_client.post("/api/projects", json={"name": "Admin's project"})
+            assert res.status_code == 201, res.text
+            assert res.json()["name"] == "Admin's project"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_team_member_cannot_create_project_returns_403(self, db_session):
+        member = _make_user(
+            user_id=501, email="member@pzio.com", role=UserRole.TEAM_MEMBER
+        )
+        db_session.merge(member)
+        db_session.commit()
+        member_client = _make_client(db_session, member)
+        try:
+            res = member_client.post("/api/projects", json={"name": "Should fail"})
+            assert res.status_code == 403, res.text
+            assert res.json()["detail"] == "Insufficient privileges"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_unauthenticated_request_returns_401(self, db_session):
+        def override_get_db():
+            yield db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        # No override for get_current_user — bearer scheme will reject the request.
+        anon_client = TestClient(app)
+        try:
+            res = anon_client.post("/api/projects", json={"name": "Anonymous"})
+            assert res.status_code == 401, res.text
+        finally:
+            app.dependency_overrides.clear()
 
     def test_empty_name_returns_422(self, client: TestClient):
         res = client.post("/api/projects", json={"name": ""})

@@ -41,7 +41,21 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """FastAPI dependency that enforces the Administrator role."""
     if current_user.role != UserRole.ADMINISTRATOR:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient privileges"
+        )
+    return current_user
+
+
+def require_manager(current_user: User = Depends(get_current_user)) -> User:
+    """FastAPI dependency that enforces a managerial role.
+
+    Accepts either Manager or Administrator — Administrator is treated as a
+    superset so that admins are never locked out of management actions.
+    """
+    if current_user.role not in {UserRole.MANAGER, UserRole.ADMINISTRATOR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient privileges",
         )
     return current_user
