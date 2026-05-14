@@ -41,6 +41,11 @@ router = APIRouter(tags=["Projects"])
     response_model_by_alias=True,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new project",
+    description=(
+        "Creates a new project owned by the calling user. "
+        "The caller is automatically added as a member with the `project_owner` role. "
+        "Any authenticated user can create projects."
+    ),
 )
 def create_project(
     payload: ProjectCreate,
@@ -56,6 +61,11 @@ def create_project(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="List projects the current user is a member of",
+    description=(
+        "Returns a paginated list of projects the caller is a member of. "
+        "Supports filtering by `status`, free-text `search` over the name, "
+        "and sorting via `sortBy` (`created_at`, `name`, `updated_at`) + `sortDirection` (`asc`/`desc`)."
+    ),
 )
 def list_projects(
     db: DBSession,
@@ -84,6 +94,11 @@ def list_projects(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Get a single project with member and sprint statistics",
+    description=(
+        "Returns the project together with embedded `stats` (member and sprint counts). "
+        "The caller must be a member of the project — otherwise the API returns `404 Not Found` "
+        "(membership is not leaked to outsiders)."
+    ),
 )
 def get_project(
     id: int,
@@ -99,6 +114,10 @@ def get_project(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Partially update a project",
+    description=(
+        "Partial update of a project's name, description or status. "
+        "Empty body returns `400`. Requires the caller to be a member of the project."
+    ),
 )
 def update_project(
     id: int,
@@ -113,6 +132,11 @@ def update_project(
     "/api/projects/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Archive (soft-delete) a project",
+    description=(
+        "Soft-deletes the project by transitioning its `status` to `archived`. "
+        "The row stays in the database so historical data (sprints, tasks, comments) remains queryable. "
+        "Requires the caller to be a project member."
+    ),
 )
 def delete_project(
     id: int,
@@ -132,6 +156,11 @@ def delete_project(
     response_model_by_alias=True,
     status_code=status.HTTP_201_CREATED,
     summary="Add a user to a project (requires project_owner or scrum_master role)",
+    description=(
+        "Adds an existing user (looked up by email) to the project with one or more project roles. "
+        "Returns `404` if the email is unknown, `409` if the user is already a member, "
+        "`403` if the caller does not have `project_owner` or `scrum_master`."
+    ),
 )
 def add_member(
     id: int,
@@ -148,6 +177,11 @@ def add_member(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="List project members with optional role/search filtering",
+    description=(
+        "Paginated list of project members. Optional `role` filter narrows to a single project role; "
+        "optional `search` matches against first name, last name and email (case-insensitive). "
+        "Only project members may call this endpoint."
+    ),
 )
 def list_members(
     id: int,
@@ -166,6 +200,10 @@ def list_members(
     "/api/projects/{id}/members/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove a user from a project (requires project_owner or scrum_master role)",
+    description=(
+        "Removes a member from the project. Requires `project_owner` or `scrum_master`. "
+        "Returns `404` if the membership does not exist."
+    ),
 )
 def remove_member(
     id: int,
@@ -181,6 +219,10 @@ def remove_member(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Update roles of a project member (requires project_owner or scrum_master role)",
+    description=(
+        "Replaces the member's project roles with the supplied list (`roles`). "
+        "At least one role is required. Returns `403` for callers without `project_owner` or `scrum_master`."
+    ),
 )
 def update_member_roles(
     id: int,
@@ -202,6 +244,10 @@ def update_member_roles(
     response_model_by_alias=True,
     status_code=status.HTTP_201_CREATED,
     summary="Create a sprint in a project",
+    description=(
+        "Creates a sprint with `status=planned`. `endDate` must be strictly later than `startDate`, "
+        "otherwise the API returns `400`. Only project members can create sprints."
+    ),
 )
 def create_sprint(
     id: int,
@@ -218,6 +264,10 @@ def create_sprint(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="List all sprints for a project ordered by start date",
+    description=(
+        "Returns every sprint belonging to the project, ordered by `startDate` ascending. "
+        "Non-members get `404`."
+    ),
 )
 def list_sprints(
     id: int,
@@ -233,6 +283,11 @@ def list_sprints(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Partially update a sprint",
+    description=(
+        "Partial update of a sprint (name, dates, goal, status). "
+        "Use `status=active` to start a sprint and `status=completed` to close it. "
+        "Empty body returns `400`."
+    ),
 )
 def update_sprint(
     id: int,
@@ -247,6 +302,10 @@ def update_sprint(
     "/api/sprints/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a sprint",
+    description=(
+        "Hard-deletes a sprint. Tasks previously linked to the sprint have their `sprintId` cleared "
+        "rather than being deleted."
+    ),
 )
 def delete_sprint(
     id: int,
@@ -262,6 +321,11 @@ def delete_sprint(
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Get burndown chart data for a sprint",
+    description=(
+        "Returns one data point per day between `startDate` and `endDate` (inclusive). "
+        "Each point reports the sum of story points of tasks not yet in `Done`, "
+        "letting the frontend plot a classic burndown chart."
+    ),
 )
 def get_burndown(
     id: int,
