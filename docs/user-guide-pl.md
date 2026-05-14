@@ -1,0 +1,115 @@
+# PZIO - Podręcznik Użytkownika
+
+## 1. Instalacja i konfiguracja
+
+Aplikacja PZIO w architekturze backend+frontend tworzy powiązane usługi i bazę danych automatycznie w filozofii _zero configuration_.
+
+Zestawienie środowiska można przeprowadzić na dwa sposoby:
+
+### Sposób 1: Docker (Sposób zalecany)
+
+Dzięki wykorzystaniu Docker Compose całe środowisko wraz z bazą PostgreSQL i serwerami zostaje uruchomione jedną komendą.
+
+1. Skopiuj przykładowy plik konfiguracyjny (zawierający m.in. klucz JWT):
+    ```bash
+    cp .env.example .env
+    ```
+2. Zbuduj i uruchom stos kontenerów:
+    ```bash
+    docker compose up --build
+    ```
+
+Aplikacja będzie dostępna pod adresem: **http://localhost:5173**  
+Dokumentacja API (Swagger) pod adresem: **http://localhost:8000/docs** lub w podfolderze repozytorium: `/docs/api`
+
+> **Uwaga (Środowisko produkcyjne):** Wartość `JWT_SECRET` w skopiowanym pliku `.env` jest celowo testowa. Przed każdym wejściem na produkcję musisz nadpisać ten klucz długim i losowym ciągiem znaków. Backend odmówi startu, jeśli w ogóle go nie zdefiniujesz.
+
+### Sposób 2: Uruchamianie klasyczne (komendy lokalne)
+
+Aplikację można też uruchomić tradycyjnie, ręcznie instalując niezbędne komponenty oddzielnie dla backendu oraz frontendu.
+
+**Backend:**
+
+```bash
+cd backend
+cp .env.example .env
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -m pzio
+```
+
+API wystartuje pod: `http://localhost:8000`.
+
+**Frontend:**
+Otwórz drugą zakładkę terminala i wykonaj:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Domyślnie użyje on adresu `http://localhost:8000` dla backendu. Frontend ruszy pod adresem `http://localhost:5173`.
+
+> _Użytkownicy Nix:_ W głównym roocie projektu znajduje się również plik `shell.nix`. Możesz skorzystać po prostu z komendy `nix-shell` z roota, aby szybko ustawić wyizolowane środowisko systemowe.
+
+## 2. Baza danych i zasady środowiskowe
+
+Baza konfigurowana jest z biegu. Pamiętaj o zasobach ról:
+
+- **Pierwszy zarejestrowany użytkownik** uzyskuje automatycznie najwyższe uprawnienia: **Administrator**.
+- **Każdy kolejny** staje się domyślnie **Team Memberem**.
+
+_Uwaga deweloperska:_ Przypominanie haseł póki co używa komponentu `MockEmailService`. Aplikacja nie wysyła fizycznie e-maili, ale zapisuje requesty resetu w bazie danych.
+
+## 3. Sposób użycia - Funkcjonalności
+
+Poniżej znajdziesz zestawienie widoków we frontendzie.
+
+### Logowanie (`/login`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU LOGOWANIA ]
+
+- Logowanie na już istniejące konto przy użyciu email i hasła
+- [... uzupełnij: inne funkcje dla tego widoku ...]
+
+### Rejestracja (`/register`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU REJESTRACJI ]
+
+- Założenie nowego konta użytkownika z przekierowaniem na panel logowania
+- Pierwsze założone w systemie konto otrzyma rolę Administrator
+- [... uzupełnij: inne funkcje dla tego widoku ...]
+
+### Zapomniane hasło (`/forgot-password` i `/reset-password`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU WYMIANY HASŁA ]
+
+- Konfigurowalny flow wymiany utraconego hasła (resetowanie linkiem)
+- [... uzupełnij: inne funkcje dla tego widoku ...]
+
+### Strona główna (`/`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU STRONY GŁÓWNEJ ]
+
+- Ekran powitalny witający zalogowanego użytkownika
+- Dostęp nawigacyjny do reszty ekosystemu (Navbar i Outlet)
+- [... uzupełnij: inne funkcje dla tego widoku ...]
+
+### Profil Użytkownika (`/profile`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU PROFILU ]
+
+- Wyświetlanie aktualnych informacji na swój temat (GET `me`)
+- Formularz edycji i aktualizacji wybranych danych przypisanych do Twojego konta
+- [... uzupełnij: inne funkcje dla tego widoku ...]
+
+### Panel Administratora (`/admin`)
+
+[ TUTAJ UMIEŚĆ ZRZUT EKRANU PANELU ZARZĄDZANIA (ADMIN) ]
+
+- Panel dedykowany do zarządzania kontami w przestrzeni (Users) przestrzeni
+- Umożliwia zmianę ról innym kontom pomiędzy `TeamMember`, `Manager` oraz `Administrator` (zabezpieczenie uniemożliwiające zmianę ról samemu sobie).
+- [... uzupełnij: inne funkcje dla tego widoku ...]
