@@ -1,0 +1,51 @@
+# Zero-config stack for PZIO (SAD §2.2 / §7.1.4 — three containers, one per layer).
+# `docker compose up --build` brings up Postgres, the FastAPI backend and the
+# React frontend; the very first registration auto-promotes the user to
+# Administrator (see backend/pzio/modules/auth/service.create_user).
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pzio
+      POSTGRES_USER: pzio
+      POSTGRES_PASSWORD: pzio
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pzio -d pzio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://pzio:pzio@db:5432/pzio
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set — copy .env.example to .env or export it}
+      CORS_ORIGINS: http://localhost:5173
+      FRONTEND_URL: http://localhost:5173
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-backups:/app/backups
+      - backend-uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
+  backend-backups:
+  backend-uploads:

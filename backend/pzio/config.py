@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
-    frontend_url: str = "http://localhost:3000"
+    frontend_url: str = "http://localhost:5173"
 
     # Directory where forced database backups (SAD §4.5 — POST /api/admin/backups) are stored.
     backup_dir: str = "./backups"

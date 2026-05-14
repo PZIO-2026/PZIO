@@ -5,16 +5,21 @@ Routers call these functions and handle only HTTP concerns.
 
 from __future__ import annotations
 
+from collections import defaultdict
 import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_
+from pzio.modules.tasks.models import (
+    TimeLog,
+    WorkItem,
+)
+from sqlalchemy import func, or_, String, cast
 from sqlalchemy.orm import Session
+from pzio.modules.auth.models import User
 
 from .models import (
-    MEMBERSHIP_MANAGER_ROLES,
     Project,
     ProjectMember,
     ProjectRole,
@@ -32,6 +37,7 @@ from .schemas import (
     ProjectListParams,
     ProjectMemberCreate,
     ProjectMemberOut,
+    ProjectMemberUpdate,
     ProjectOut,
     ProjectStats,
     ProjectUpdate,
@@ -67,61 +73,66 @@ def _get_sprint_or_404(db: Session, sprint_id: int) -> Sprint:
     return sprint
 
 
-def _get_member_or_404(db: Session, project_id: int, user_id: int) -> ProjectMember:
-    member = (
-        db.query(ProjectMember)
-        .filter(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == user_id,
-        )
-        .first()
-    )
-    if member is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Member '{user_id}' not found in project '{project_id}'.",
-        )
-    return member
 
+def _require_project_roles(
+    db: Session,
+    project_id: int,
+    user_id: int,
+    allowed_roles: set[ProjectRole],
+) -> ProjectMember:
+    membership = _get_membership_or_403(db, project_id, user_id)
 
-def _get_membership(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
-    """Return the ProjectMember row for user in project, or None."""
-    return (
-        db.query(ProjectMember)
-        .filter(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id == user_id,
-        )
-        .first()
-    )
+    user_roles = {ProjectRole(r) for r in membership.roles}
 
-
-def _require_project_access(db: Session, project_id: int, user_id: int) -> ProjectMember:
-    """Raise 403 if the user is not a member of the project."""
-    membership = _get_membership(db, project_id, user_id)
-    if membership is None:
+    if not user_roles.intersection(allowed_roles):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this project.",
+            detail="You do not have permission to perform this action.",
         )
+
     return membership
 
 
-def _require_membership_manager(db: Session, project_id: int, user_id: int) -> None:
-    """Raise 403 unless the user holds project_owner or scrum_master role."""
-    membership = _get_membership(db, project_id, user_id)
+def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
+    """Return the ProjectMember row for user in project, or None."""
+    membership = db.query(ProjectMember)\
+        .filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id,
+        )\
+        .first()
+    
     if membership is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not a member of this project.",
         )
-    user_roles = {ProjectRole(r) for r in membership.roles}
-    if not user_roles.intersection(MEMBERSHIP_MANAGER_ROLES):
+
+    return membership
+
+def _get_membership_or_404(db: Session, project_id: int, user_id: int) -> ProjectMember:
+    """Return the ProjectMember row for the target user, or raise 404."""
+    membership = db.query(ProjectMember)\
+        .filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id,
+        )\
+        .first()
+    
+    if membership is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Project Owners and Scrum Masters can manage project membership.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' is not a member of this project.",
         )
 
+    return membership
+
+
+def _project_out(project: Project, roles: list[ProjectRole]) -> ProjectOut:
+    data = ProjectOut.model_validate(project).model_dump(
+        exclude={"current_user_roles"}
+    )
+    return ProjectOut(**data, current_user_roles=roles)
 
 # ---------------------------------------------------------------------------
 # Projects
@@ -145,14 +156,14 @@ def create_project(db: Session, payload: ProjectCreate, current_user_id: int) ->
     db.commit()
     db.refresh(project)
     
-    return ProjectOut.model_validate(project)
+    return _project_out(project, owner.roles)
 
 def list_projects(
     db: Session, params: ProjectListParams, current_user_id: int
 ) -> Page[ProjectOut]:
     # Users can only see projects they are a member of
     query = (
-        db.query(Project)
+        db.query(Project, ProjectMember)
         .join(ProjectMember)
         .filter(ProjectMember.user_id == current_user_id)
     )
@@ -175,10 +186,13 @@ def list_projects(
 
     total: int = query.count()
     offset = (params.page - 1) * params.size
-    projects = query.offset(offset).limit(params.size).all()
+    rows = query.offset(offset).limit(params.size).all()
 
     return Page(
-        items=[ProjectOut.model_validate(p) for p in projects],
+        items=[
+            _project_out(project, membership.roles)
+            for project, membership in rows
+        ],
         total=total,
         page=params.page,
         size=params.size,
@@ -187,7 +201,7 @@ def list_projects(
 
 def get_project(db: Session, project_id: int, current_user_id: int) -> ProjectDetailOut:
     project = _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    membership = _get_membership_or_403(db, project_id, current_user_id)
 
     member_count = (
         db.query(func.count(ProjectMember.id))
@@ -203,8 +217,11 @@ def get_project(db: Session, project_id: int, current_user_id: int) -> ProjectDe
     )
 
     return ProjectDetailOut(
-        **ProjectOut.model_validate(project).model_dump(),
+        **ProjectOut.model_validate(project).model_dump(
+            exclude={"current_user_roles"}
+        ),
         stats=ProjectStats(member_count=member_count, sprint_count=sprint_count),
+        current_user_roles=membership.roles,
     )
 
 
@@ -212,7 +229,10 @@ def update_project(
     db: Session, project_id: int, payload: ProjectUpdate, current_user_id: int
 ) -> ProjectOut:
     project = _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    
+    _require_project_roles(
+        db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER}
+    )
 
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
@@ -227,13 +247,15 @@ def update_project(
     project.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(project)
-    return ProjectOut.model_validate(project)
+    membership = _get_membership_or_403(db, project_id, current_user_id)
+    return _project_out(project, membership.roles)
 
 
 def delete_project(db: Session, project_id: int, current_user_id: int) -> None:
     """Soft-delete: sets status to ARCHIVED."""
     project = _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    _require_project_roles(db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER})
+
     project.status = ProjectStatus.ARCHIVED
     project.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -246,59 +268,118 @@ def add_member(
     db: Session, project_id: int, payload: ProjectMemberCreate, current_user_id: int
 ) -> ProjectMemberOut:
     _get_project_or_404(db, project_id)
-    _require_membership_manager(db, project_id, current_user_id)
+    _require_project_roles(db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
+
+    user = (
+        db.query(User)
+        .filter(User.email == payload.email)
+        .first()
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with email '{payload.email}' was not found.",
+        )
+
 
     existing = (
         db.query(ProjectMember)
         .filter(
             ProjectMember.project_id == project_id,
-            ProjectMember.user_id == payload.user_id,
+            ProjectMember.user_id == user.user_id,
         )
         .first()
     )
+    
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"User '{payload.user_id}' is already a member of this project.",
+            detail=f"User '{payload.email}' is already a member of this project.",
         )
 
     member = ProjectMember(
         project_id=project_id,
-        user_id=payload.user_id,
+        user_id=user.user_id,
         roles=payload.roles,
     )
     db.add(member)
     db.commit()
     db.refresh(member)
-    return ProjectMemberOut.model_validate(member)
+    return ProjectMemberOut(
+        id=member.id,
+        project_id=member.project_id,
+        user_id=user.user_id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        roles=member.roles,
+        joined_at=member.joined_at,
+    )
 
 
 def list_members(
     db: Session, project_id: int, params: MemberListParams, current_user_id: int
 ) -> Page[ProjectMemberOut]:
     _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    _get_membership_or_403(db, project_id, current_user_id)
 
-    query = db.query(ProjectMember).filter(ProjectMember.project_id == project_id)
+    # query = db.query(ProjectMember).filter(ProjectMember.project_id == project_id)
+    query = (
+        db.query(ProjectMember, User)
+        .join(User, User.user_id == ProjectMember.user_id)
+        .filter(ProjectMember.project_id == project_id)
+    )
 
     if params.role:
-        query = query.filter(ProjectMember.roles.contains([params.role]))
+        # check if the underlying database supports array operations (e.g. Postgres)
+        dialect = db.bind.dialect.name if db.bind else db.get_bind().dialect.name
+        if dialect == "postgresql":
+            query = query.filter(ProjectMember.roles.contains([params.role.value]))            
+        else:
+            search_term = f'%"{params.role.value}"%'
+            query = query.filter(cast(ProjectMember.roles, String).like(search_term))
 
     if params.search:
-        # Search by user_id (int) — exact match only; for name/email search
-        # join with the users table when the auth module exposes that relation.
-        try:
-            query = query.filter(ProjectMember.user_id == int(params.search))
-        except ValueError:
-            # Non-integer search term → no results for user_id column
-            query = query.filter(False)  # noqa: simplest safe no-op filter
+        search_term = f"%{params.search.strip()}%"
+
+        query = query.filter(
+            or_(
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term),
+                User.email.ilike(search_term),
+            )
+        )
 
     total: int = query.count()
+
     offset = (params.page - 1) * params.size
-    members = query.offset(offset).limit(params.size).all()
+
+    rows = (
+        query
+        .offset(offset)
+        .limit(params.size)
+        .all()
+    )
+
+
+
+    items = [
+        ProjectMemberOut(
+            id=member.id,
+            project_id=member.project_id,
+            user_id=user.user_id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            roles=member.roles,
+            joined_at=member.joined_at,
+        )
+        for member, user in rows
+    ]
 
     return Page(
-        items=[ProjectMemberOut.model_validate(m) for m in members],
+        items=items,
         total=total,
         page=params.page,
         size=params.size,
@@ -309,18 +390,104 @@ def remove_member(
     db: Session, project_id: int, user_id: int, current_user_id: int
 ) -> None:
     _get_project_or_404(db, project_id)
-    _require_membership_manager(db, project_id, current_user_id)
+    _require_project_roles(db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
+
+    membership = _get_membership_or_403(db, project_id, current_user_id)
+    membership_to_be_removed = _get_membership_or_404(db, project_id, user_id)
     
-    member = _get_member_or_404(db, project_id, user_id)
-    
-    if ProjectRole.PROJECT_OWNER in member.roles:
+    if ProjectRole.PROJECT_OWNER in membership_to_be_removed.roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot remove the project owner."
         )
+    
+    # scrum master can not remove another scrum master
+    if ProjectRole.PROJECT_OWNER not in membership.roles:
+        if ProjectRole.SCRUM_MASTER in membership_to_be_removed.roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Scrum master cannot remove another scrum master."
+            )
         
-    db.delete(member)
+    db.delete(membership_to_be_removed)
     db.commit()
+
+def update_member_roles(
+    db: Session, 
+    project_id: int, 
+    user_id: int, 
+    payload: ProjectMemberUpdate, 
+    current_user_id: int
+) -> ProjectMemberOut:
+    _get_project_or_404(db, project_id)
+    
+    current_membership = _require_project_roles(
+        db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER}
+    )
+
+    membership_to_be_updated = _get_membership_or_404(db, project_id, user_id)
+
+    is_editing_owner = ProjectRole.PROJECT_OWNER in membership_to_be_updated.roles
+    is_current_user_owner = ProjectRole.PROJECT_OWNER in current_membership.roles
+    is_trying_to_remove_owner = is_editing_owner and ProjectRole.PROJECT_OWNER not in payload.roles
+    is_trying_to_add_owner = not is_editing_owner and ProjectRole.PROJECT_OWNER in payload.roles
+
+    if is_editing_owner and not is_current_user_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko obecny Owner może edytować role innego Ownera."
+        )
+        
+    if is_trying_to_add_owner and not is_current_user_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tylko obecny Owner może nadać komuś rolę Właściciela Projektu."
+        )
+
+    if is_trying_to_remove_owner:
+        
+        # check dialect for array support
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            owner_count = db.query(ProjectMember).filter(
+                ProjectMember.project_id == project_id,
+                ProjectMember.roles.contains([ProjectRole.PROJECT_OWNER.value])
+            ).count()
+        else:
+            search_term = f'%"{ProjectRole.PROJECT_OWNER.value}"%'
+            owner_count = db.query(ProjectMember).filter(
+                ProjectMember.project_id == project_id,
+                cast(ProjectMember.roles, String).like(search_term)
+            ).count()
+        
+        if owner_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nie możesz usunąć tej roli. Projekt musi mieć co najmniej jednego Właściciela (Ownera)."
+            )
+
+    membership_to_be_updated.roles = payload.roles
+    db.commit()
+    db.refresh(membership_to_be_updated)
+
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id '{user_id}' was not found.",
+        )
+
+    return ProjectMemberOut(
+        id=membership_to_be_updated.id,
+        project_id=membership_to_be_updated.project_id,
+        user_id=user.user_id,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        roles=membership_to_be_updated.roles,
+        joined_at=membership_to_be_updated.joined_at,
+    )
 
 # ---------------------------------------------------------------------------
 # Sprints
@@ -329,7 +496,7 @@ def create_sprint(
     db: Session, project_id: int, payload: SprintCreate, current_user_id: int
 ) -> SprintOut:
     _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    _require_project_roles(db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
 
     if payload.end_date <= payload.start_date:
         raise HTTPException(
@@ -342,6 +509,7 @@ def create_sprint(
         name=payload.name,
         status=SprintStatus.PLANNED,
         start_date=payload.start_date,
+        goal=payload.goal,
         end_date=payload.end_date,
     )
     db.add(sprint)
@@ -354,7 +522,7 @@ def list_sprints(
     db: Session, project_id: int, current_user_id: int
 ) -> list[SprintOut]:
     _get_project_or_404(db, project_id)
-    _require_project_access(db, project_id, current_user_id)
+    _get_membership_or_403(db, project_id, current_user_id)
 
     sprints = (
         db.query(Sprint)
@@ -369,7 +537,7 @@ def update_sprint(
     db: Session, sprint_id: int, payload: SprintUpdate, current_user_id: int
 ) -> SprintOut:
     sprint = _get_sprint_or_404(db, sprint_id)
-    _require_project_access(db, sprint.project_id, current_user_id)
+    _require_project_roles(db, sprint.project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
 
     changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if not changes:
@@ -377,6 +545,26 @@ def update_sprint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update.",
         )
+    
+    # check if there is already active sprint
+    # if there is - and user tries to set this sprint as active - throw 409 
+    new_status = changes.get("status")
+    if new_status == SprintStatus.ACTIVE:
+        existing_active = (
+            db.query(Sprint)
+            .filter(
+                Sprint.project_id == sprint.project_id,
+                Sprint.status == SprintStatus.ACTIVE,
+                Sprint.sprint_id != sprint.sprint_id,
+            )
+            .first()
+        )
+
+        if existing_active is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="There is already an active sprint in this project.",
+            )
 
     for field, value in changes.items():
         setattr(sprint, field, value)
@@ -395,7 +583,7 @@ def update_sprint(
 
 def delete_sprint(db: Session, sprint_id: int, current_user_id: int) -> None:
     sprint = _get_sprint_or_404(db, sprint_id)
-    _require_project_access(db, sprint.project_id, current_user_id)
+    _require_project_roles(db, sprint.project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
     db.delete(sprint)
     db.commit()
 
@@ -411,13 +599,46 @@ def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownO
     Replace `_stub_burndown_data` with a real cross-module query/service call.
     """
     sprint = _get_sprint_or_404(db, sprint_id)
-    _require_project_access(db, sprint.project_id, current_user_id)
 
-    total_points, daily_remaining = _stub_burndown_data(sprint)
+    _get_membership_or_403(
+        db,
+        sprint.project_id,
+        current_user_id,
+    )
+
+    tasks = (
+        db.query(WorkItem)
+        .filter(WorkItem.sprint_id == sprint_id)
+        .all()
+    )
+
+    logs = (
+        db.query(TimeLog)
+        .join(
+            WorkItem,
+            WorkItem.id == TimeLog.work_item_id,
+        )
+        .filter(WorkItem.sprint_id == sprint_id)
+        .order_by(TimeLog.created_at.asc())
+        .all()
+    )
+
+    total_points, daily_remaining = (
+        _generate_burndown_data(
+            sprint=sprint,
+            tasks=tasks,
+            logs=logs,
+        )
+    )
 
     days = [
-        BurndownDay.model_validate({"date": d, "remainingPoints": r})
-        for d, r in daily_remaining
+        BurndownDay.model_validate(
+            {
+                "date": date,
+                "remainingPoints": remaining,
+            }
+        )
+        for date, remaining in daily_remaining
     ]
 
     return BurndownOut.model_validate(
@@ -429,29 +650,81 @@ def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownO
     )
 
 
-def _stub_burndown_data(
+def _generate_burndown_data(
     sprint: Sprint,
+    tasks: list[WorkItem],
+    logs: list[TimeLog],
 ) -> tuple[int, list[tuple[datetime, int]]]:
     """
-    Placeholder: generates a linear ideal burndown.
-    Replace once the tasks module is integrated.
+    Generates historical burndown data using TimeLog
+    status transitions.
     """
-    total_points = 0
-    start = sprint.start_date
-    end = sprint.end_date
 
-    delta_days = max((end.date() - start.date()).days, 0)
-    daily: list[tuple[datetime, int]] = []
+    start_date = sprint.start_date.date()
+    end_date = sprint.end_date.date()
 
-    for i in range(delta_days + 1):
-        day_dt = datetime(
-            *(start.date() + timedelta(days=i)).timetuple()[:3],
+    sprint_days = (
+        end_date - start_date
+    ).days + 1
+
+    task_points: dict[int, int] = {
+        task.id: task.story_points or 0
+        for task in tasks
+    }
+
+    total_points = sum(task_points.values())
+
+    completed_points_by_day: dict[datetime.date, int] = (
+        defaultdict(int)
+    )
+
+    for log in logs:
+        transitioned_to_done = (
+            log.new_status in {"Done"}
+            and log.old_status not in {"Done"}
+        )
+
+        if not transitioned_to_done:
+            continue
+
+        completed_points_by_day[
+            log.created_at.date()
+        ] += task_points.get(
+            log.work_item_id,
+            0,
+        )
+
+    remaining_points = total_points
+
+    days: list[tuple[datetime, int]] = []
+
+    for i in range(sprint_days):
+        current_date = (
+            start_date + timedelta(days=i)
+        )
+
+        remaining_points -= completed_points_by_day.get(
+            current_date,
+            0,
+        )
+
+        remaining_points = max(
+            remaining_points,
+            0,
+        )
+
+        day_datetime = datetime(
+            current_date.year,
+            current_date.month,
+            current_date.day,
             tzinfo=timezone.utc,
         )
-        remaining = max(
-            0,
-            total_points - math.floor(total_points * i / max(delta_days, 1)),
-        )
-        daily.append((day_dt, remaining))
 
-    return total_points, daily
+        days.append(
+            (
+                day_datetime,
+                remaining_points,
+            )
+        )
+
+    return total_points, days

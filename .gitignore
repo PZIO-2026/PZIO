@@ -31,8 +31,9 @@ logs/
 uploads/
 local/
 
-# Forced DB backups (POST /api/admin/backups).
+# DB backups and uploads
 backups/
+uploads/
 
 # IDEs and editors
 .idea/

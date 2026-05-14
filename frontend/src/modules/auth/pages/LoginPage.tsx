@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 
 import LoginForm from "../components/LoginForm";
+import OAuthButtons from "../components/OAuthButtons";
 
 function readRegisteredEmail(state: unknown): string | null {
   if (typeof state === "object" && state !== null && "registeredEmail" in state) {
@@ -10,9 +11,17 @@ function readRegisteredEmail(state: unknown): string | null {
   return null;
 }
 
+function isPasswordResetSuccess(state: unknown): boolean {
+  if (typeof state === "object" && state !== null && "passwordResetSuccess" in state) {
+    return (state as { passwordResetSuccess?: unknown }).passwordResetSuccess === true;
+  }
+  return false;
+}
+
 export default function LoginPage() {
   const location = useLocation();
   const registeredEmail = readRegisteredEmail(location.state);
+  const passwordResetSuccess = isPasswordResetSuccess(location.state);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
@@ -25,7 +34,21 @@ export default function LoginPage() {
           </p>
         )}
 
+        {passwordResetSuccess && (
+          <p className="mb-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
+            Hasło zostało zmienione. Zaloguj się nowym hasłem.
+          </p>
+        )}
+
         <LoginForm />
+
+        <p className="mt-4 text-center text-sm text-gray-600">
+          <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-700">
+            Zapomniałeś hasła?
+          </Link>
+        </p>
+
+        <OAuthButtons />
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Nie masz konta?{" "}

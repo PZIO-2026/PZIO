@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import RegisterForm from "../components/RegisterForm";
+import OAuthButtons from "../components/OAuthButtons";
 
 export default function RegisterPage() {
   return (
@@ -9,6 +10,8 @@ export default function RegisterPage() {
         <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">Utwórz konto</h1>
 
         <RegisterForm />
+
+        <OAuthButtons />
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Masz już konto?{" "}
