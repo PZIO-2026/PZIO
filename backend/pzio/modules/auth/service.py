@@ -1,4 +1,5 @@
 import secrets
+import httpx
 from typing import Sequence
 
 from sqlalchemy import func, or_, select
@@ -220,9 +221,30 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
 
     elif provider == "github":
         try:
+            async with httpx.AsyncClient() as client:
+                token_resp = await client.post(
+                    "https://github.com/login/oauth/access_token",
+                    data={
+                        "client_id": settings.github_client_id,
+                        "client_secret": settings.github_client_secret,
+                        "code": token, 
+                    },
+                    headers={"Accept": "application/json"}
+                )
+                
+                token_resp.raise_for_status()
+                data = token_resp.json()
+
+            if data.get("error"):
+                raise InvalidCredentialsError()
+
+            access_token = data.get("access_token")
+            if not access_token:
+                raise InvalidCredentialsError()
+
             resp = await oauth.github.get(
                 "user/emails", 
-                token={"access_token": token}
+                token={"access_token": access_token}
             )
             resp.raise_for_status()
             emails = resp.json()
@@ -234,7 +256,7 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
             fallback_name = user_email.split("@")[0]
             
             try:
-                resp_profile = await oauth.github.get("user", token={"access_token": token})
+                resp_profile = await oauth.github.get("user", token={"access_token": access_token})
                 resp_profile.raise_for_status()
                 profile_data = resp_profile.json()
                 full_name = profile_data.get("name")
@@ -248,7 +270,10 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
             else:
                 first_name = fallback_name
                 last_name = fallback_name
-        except Exception:
+                
+        except (httpx.HTTPStatusError, httpx.RequestError):
+            raise InvalidCredentialsError()
+        except Exception: 
             raise InvalidCredentialsError()
     else:
         raise OAuthProviderNotSupportedError(provider)

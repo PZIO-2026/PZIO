@@ -1,14 +1,24 @@
 from typing import cast
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from pzio.modules.admin import service as admin_service
+from pzio.modules.admin.models import ActivityLog, TaskType
 from pzio.modules.tasks import models, schemas
 
 
 def _normalize_status_value(value: str) -> str:
     return "".join(value.lower().split())
+
+
+def _validate_task_type(db: Session, task_type: str) -> None:
+    statement = select(TaskType).where(TaskType.name == task_type)
+    if db.execute(statement).scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid task type",
+        )
 
 
 def create_work_item(
@@ -17,7 +27,10 @@ def create_work_item(
     task: schemas.WorkItemCreate,
     user_id: int,
 ) -> models.WorkItem:
-    db_item = models.WorkItem(**task.model_dump(exclude_unset=True), project_id=project_id)
+    _validate_task_type(db, task.type)
+    db_item = models.WorkItem(
+        **task.model_dump(exclude_unset=True), project_id=project_id
+    )
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
@@ -48,6 +61,7 @@ def get_work_items(
         statement = statement.where(models.WorkItem.sprint_id == sprint_id)
     if task_type is not None:
         statement = statement.where(models.WorkItem.type == task_type)
+    statement = statement.order_by(models.WorkItem.id.asc())
     return list(db.scalars(statement).all())
 
 
@@ -69,6 +83,9 @@ def update_work_item(
     if not db_item:
         return None
     updates = cast(dict[str, object], update_data.model_dump(exclude_unset=True))
+    task_type = updates.get("type")
+    if isinstance(task_type, str):
+        _validate_task_type(db, task_type)
     for key, value in updates.items():
         old_value = getattr(db_item, key, None)
         if old_value == value:
@@ -118,20 +135,24 @@ def update_work_item_status(
         return None
 
     old_status = db_item.status
+    if old_status == new_status:
+        return db_item
+
     db_item.status = new_status
 
     # Rejestrowanie logu audytowego - UC7
     db.add(db_item)
-    db.commit()
-    admin_service.log_activity(
-        db,
-        task_id=task_id,
-        user_id=user_id,
-        action="STATUS_CHANGE",
-        field_name="status",
-        old_value=old_status,
-        new_value=new_status,
+    db.add(
+        ActivityLog(
+            task_id=task_id,
+            user_id=user_id,
+            action="STATUS_CHANGE",
+            field_name="status",
+            old_value=old_status,
+            new_value=new_status,
+        )
     )
+    db.commit()
     db.refresh(db_item)
     return db_item
 
@@ -162,5 +183,9 @@ def get_time_logs(db: Session, task_id: int) -> list[models.TimeLog] | None:
     if not get_work_item(db, task_id):
         return None
 
-    statement = select(models.TimeLog).where(models.TimeLog.work_item_id == task_id)
+    statement = (
+        select(models.TimeLog)
+        .where(models.TimeLog.work_item_id == task_id)
+        .order_by(models.TimeLog.created_at.asc(), models.TimeLog.id.asc())
+    )
     return list(db.scalars(statement).all())

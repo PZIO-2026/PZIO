@@ -17,6 +17,10 @@ export interface TokenResponse {
   expiresIn: number;
 }
 
+export interface MessageResponse {
+  message: string;
+}
+
 export interface JwtClaims {
   sub: string;
   role: UserRole;

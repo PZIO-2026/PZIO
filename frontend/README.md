@@ -16,12 +16,30 @@ reachable at `VITE_API_BASE_URL` (default `http://localhost:8000`) — see
 
 ## Available scripts
 
-| Command           | Purpose                                  |
-| ----------------- | ---------------------------------------- |
-| `npm run dev`     | Vite dev server with HMR                 |
-| `npm run build`   | Type-check (`tsc -b`) + production build |
-| `npm run lint`    | ESLint over the whole project            |
-| `npm run preview` | Serve the production build locally       |
+| Command              | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `npm run dev`        | Vite dev server with HMR                 |
+| `npm run build`      | Type-check (`tsc -b`) + production build |
+| `npm run lint`       | ESLint over the whole project            |
+| `npm run preview`    | Serve the production build locally       |
+| `npm test`           | Vitest in watch mode (local dev)         |
+| `npm run test:run`   | Vitest single-pass run (used by CI)      |
+
+## Testing
+
+The frontend uses **Vitest** with the **jsdom** environment. Test files
+colocate with the source they cover (`foo.test.ts` next to `foo.ts`).
+
+The current scope is unit tests for the pure-logic modules behind the auth
+flows:
+
+- `src/modules/auth/schemas.test.ts` — zod validators (login, register, edit profile).
+- `src/modules/auth/storage.test.ts` — JWT persistence + localStorage key contract.
+- `src/api/client.test.ts` — `apiFetch`, `ApiError`, and the `pzio:auth-expired` event rules.
+
+Component and end-to-end tests (Testing Library, Playwright) are tracked as
+follow-ups. The suite runs on every push and pull request via the
+`npm-build` GitHub Actions workflow.
 
 ## Module structure
 
@@ -36,15 +54,18 @@ frontend/src/
 │                                # global 401 interceptor (pzio:auth-expired event)
 ├── modules/
 │   └── auth/                    # Identity & Authorization (FR01, FR02, FR21)
-│       ├── api.ts               # register(), login(), getMe(), updateMe()
+│       ├── api.ts               # register(), login(), getMe(), updateMe(),
+│       │                        # requestPasswordReset(), confirmPasswordReset()
 │       ├── AuthProvider.tsx     # fetches /me on token change, listens for 401 events
-│       ├── components/          # LoginForm, RegisterForm, EditProfileForm
+│       ├── components/          # LoginForm, RegisterForm, EditProfileForm,
+│       │                        # ForgotPasswordForm, ResetPasswordConfirmForm
 │       ├── context.ts           # AuthContext + types
 │       ├── hooks.ts             # useAuth()
-│       ├── pages/               # LoginPage, RegisterPage, ProfilePage
+│       ├── pages/               # LoginPage, RegisterPage, ProfilePage,
+│       │                        # ForgotPasswordPage, ResetPasswordPage
 │       ├── schemas.ts           # zod validators
 │       ├── storage.ts           # access token persistence
-│       └── types.ts             # User, TokenResponse, JwtClaims, UserRole
+│       └── types.ts             # User, TokenResponse, MessageResponse, JwtClaims, UserRole
 ├── pages/
 │   └── HomePage.tsx             # landing page after login
 ├── routes/
@@ -57,13 +78,21 @@ frontend/src/
 
 ## Auth module — what is implemented
 
-| Route        | Access     | What it does                                                              |
-| ------------ | ---------- | ------------------------------------------------------------------------- |
-| `/login`     | public     | Email + password → `POST /api/auth/login`                                 |
-| `/register`  | public     | Form → `POST /api/auth/register` → redirects to `/login`                  |
-| `/`          | protected  | Welcome screen with the logged-in user's name                             |
-| `/profile`   | protected  | View and edit the current user's profile (`GET` / `PATCH /api/users/me`)  |
-| `*` (other)  | redirect   | Falls back to `/`, which then bounces to `/login` if needed               |
+| Route                       | Access     | What it does                                                                       |
+| --------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| `/login`                    | public     | Email + password → `POST /api/auth/login`                                          |
+| `/register`                 | public     | Form → `POST /api/auth/register` → redirects to `/login`                           |
+| `/forgot-password`          | public     | Email → `POST /api/auth/reset-password` → shows a generic "link sent" message      |
+| `/reset-password?token=...` | public     | New password + confirm → `POST /api/auth/reset-password/confirm` → redirects to `/login` |
+| `/`                         | protected  | Welcome screen with the logged-in user's name                                      |
+| `/profile`                  | protected  | View and edit the current user's profile (`GET` / `PATCH /api/users/me`)           |
+| `*` (other)                 | redirect   | Falls back to `/`, which then bounces to `/login` if needed                        |
+
+The password-reset flow uses the SMTP service from the `communication` backend
+module. **In local development the backend ships a `MockEmailService` that
+records messages in memory instead of sending them** — to grab a reset token
+locally, inspect the relevant table in the dev database after submitting the
+forgot-password form.
 
 The access token is kept in `localStorage` (`pzio_auth_token`) so the session
 survives a page reload. On app start (and after every login) `AuthProvider`
