@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     # Directory where forced database backups (SAD §4.5 — POST /api/admin/backups) are stored.
     backup_dir: str = "./backups"
 
+    max_file_size: int = 10 * 1024 * 1024  # 10 MB
+
     google_client_id: str | None = None
     google_client_secret: str | None = None
     

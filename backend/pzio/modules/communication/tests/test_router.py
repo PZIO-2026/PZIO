@@ -19,10 +19,10 @@ def test_mime_type_validation() -> None:
     # Disallowed types
     assert _is_mime_type_allowed("application/x-msdownload") is False
     assert _is_mime_type_allowed("application/x-executable") is False
-    # Plain text is allowed by the whitelist used in upload tests
+    # Plain text, html and json are now allowed by the relaxed whitelist
     assert _is_mime_type_allowed("text/plain") is True
-    assert _is_mime_type_allowed("text/html") is False
-    assert _is_mime_type_allowed("application/json") is False
+    assert _is_mime_type_allowed("text/html") is True
+    assert _is_mime_type_allowed("application/json") is True
     assert _is_mime_type_allowed(None) is False
     assert _is_mime_type_allowed("") is False
 

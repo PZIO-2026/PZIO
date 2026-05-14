@@ -1,10 +1,14 @@
 import { Download, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { toast } from "react-hot-toast";
+
+import { useConfirm } from "../../../components/ConfirmProvider";
 import { deleteAttachment, downloadAttachment, fetchAttachments, uploadAttachment } from "../api";
 import type { Attachment } from "../types";
 import AttachmentPreview from "./AttachmentPreview";
 export default function AttachmentsSection({ taskId }: { taskId: number }) {
+  const confirmDialog = useConfirm();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -31,13 +35,31 @@ export default function AttachmentsSection({ taskId }: { taskId: number }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Plik jest za duży. Maksymalny rozmiar to 10 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const isAllowedType =
+      file.type.startsWith("image/") ||
+      file.type.startsWith("text/") ||
+      file.type === "application/pdf" ||
+      file.type === "application/json";
+
+    if (!isAllowedType) {
+      toast.error("Niedozwolony typ pliku. Dozwolone: obraz, PDF, tekst, JSON.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setIsUploading(true);
     try {
       await uploadAttachment(taskId, file);
       await refreshAttachments();
     } catch (err) {
       console.error(err);
-      alert("Nie udało się wgrać pliku.");
+      toast.error("Nie udało się wgrać pliku.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -45,13 +67,14 @@ export default function AttachmentsSection({ taskId }: { taskId: number }) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Czy na pewno chcesz usunąć ten załącznik?")) return;
+    if (!(await confirmDialog("Czy na pewno chcesz usunąć ten załącznik?"))) return;
     try {
       await deleteAttachment(id);
       setAttachments((prev) => prev.filter((a) => a.attachmentId !== id));
+      toast.success("Załącznik został usunięty.");
     } catch (err) {
       console.error(err);
-      alert("Nie udało się usunąć załącznika.");
+      toast.error("Nie udało się usunąć załącznika.");
     }
   };
 
@@ -60,7 +83,7 @@ export default function AttachmentsSection({ taskId }: { taskId: number }) {
       await downloadAttachment(id, filename);
     } catch (err) {
       console.error(err);
-      alert("Błąd podczas pobierania pliku.");
+      toast.error("Błąd podczas pobierania pliku.");
     }
   };
 
@@ -118,7 +141,7 @@ export default function AttachmentsSection({ taskId }: { taskId: number }) {
             </div>
           ))}
 
-          {/* Jira style upload placeholder */}
+          {/* Upload placeholder */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
@@ -130,7 +153,7 @@ export default function AttachmentsSection({ taskId }: { taskId: number }) {
               <>
                 <Plus className="w-10 h-10 text-slate-400 mb-3" />
                 <span className="text-sm text-center px-4 text-slate-500 leading-tight">
-                  Przeciągnij pliki lub kliknij aby wgrać
+                  Kliknij aby wgrać pliki
                 </span>
               </>
             )}
