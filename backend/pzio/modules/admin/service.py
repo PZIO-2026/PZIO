@@ -35,7 +35,7 @@ def create_task_type(db: Session, payload: TaskTypeCreate) -> TaskType:
     db.add(task_type)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError:  # pragma: no cover -- should be prevented by the pre-check
         # Race-condition fallback: a parallel request committed the same name first.
         db.rollback()
         raise TaskTypeAlreadyExistsError(name)

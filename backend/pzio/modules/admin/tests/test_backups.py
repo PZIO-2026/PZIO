@@ -88,3 +88,31 @@ def test_force_backup_when_db_file_missing_returns_500(
 
     assert response.status_code == 500
     assert "Backup failed" in response.json()["detail"]
+
+
+def test_force_backup_with_real_test_engine(
+    client: TestClient,
+    db_session: Session,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test backup using the actual DB backend (SQLite in-memory or Postgres)."""
+    real_url = str(db_session.get_bind().url)  # type: ignore
+
+    backup_dir = tmp_path / "backups"
+    monkeypatch.setattr(settings, "backup_dir", str(backup_dir))
+
+    admin = seed_user(db_session, email="admin_real@example.com", role=UserRole.ADMINISTRATOR)
+    response = client.post("/api/admin/backups", headers=auth_header(admin))
+
+    if real_url.startswith("sqlite"):  # pragma: no cover
+        assert response.status_code == 500  # Can't backup an in-memory DB
+        assert "Backup failed" in response.json()["detail"]
+    else:  # pragma: no cover
+        assert response.status_code == 201
+        body = response.json()
+        assert body["status"] == "completed"
+
+        files = list(backup_dir.iterdir())
+        assert len(files) == 1
+        assert files[0].suffix == ".zip"
