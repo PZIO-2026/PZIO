@@ -48,8 +48,9 @@ export default function App() {
                 <Route path="/admin" element={<AdminPanelPage />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
         </AuthProvider>
       </ConfirmProvider>
     </BrowserRouter>
