@@ -9,10 +9,16 @@ import RegisterPage from "../modules/auth/pages/RegisterPage";
 import ResetPasswordPage from "../modules/auth/pages/ResetPasswordPage";
 import OAuthCallbackPage from "../modules/auth/pages/OAuthCallbackPage";
 import ProjectsListPage from "../modules/projects/pages/ProjectsListPage";
-import ProjectDetailsLayout  from "../modules/projects/layouts/ProjectDetailsLayout";
+import ProjectDetailsLayout from "../modules/projects/layouts/ProjectDetailsLayout";
 import ProjectsOverviewPage from "../modules/projects/pages/ProjectsOverviewPage";
 import ProjectsMembersPage from "../modules/projects/pages/ProjectsMembersPage";
 import ProjectsSprintsPage from "../modules/projects/pages/ProjectsSprintsPage";
+import ProjectsBacklogPage from "../modules/projects/pages/ProjectsBacklogPage";
+import ProjectsBoardPage from "../modules/projects/pages/ProjectsBoardPage";
+import TasksListPage from "../modules/tasks/pages/TasksListPage";
+import TaskDetailPage from "../modules/tasks/pages/TaskDetailPage";
+
+
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import AppLayout from "./AppLayout";
@@ -34,13 +40,15 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/projects" element={<ProjectsListPage />} />
-              <Route path="/projects/:projectId" element={<ProjectDetailsLayout  />}>
+              <Route path="/projects/:projectId" element={<ProjectDetailsLayout />}>
                 <Route index element={<ProjectsOverviewPage />} />
                 <Route path="members" element={<ProjectsMembersPage />} />
                 <Route path="sprints" element={<ProjectsSprintsPage />} />
-                <Route path="backlog" element={<div>Backlog view</div>} />
-                <Route path="board" element={<div>Board view</div>} />
+                <Route path="backlog" element={<ProjectsBacklogPage />} />
+                <Route path="board" element={<ProjectsBoardPage />} />
               </Route>
+              <Route path="/tasks" element={<TasksListPage />} />
+              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
             </Route>
             <Route element={<ProtectedRoute requiredRole="Administrator" />}>
               <Route element={<AppLayout />}>

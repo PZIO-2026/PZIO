@@ -30,6 +30,9 @@ export default function AppLayout() {
               <NavLink to="/projects" className={navLinkClass}>
                 Projekty
               </NavLink>
+              <NavLink to="/tasks" className={navLinkClass}>
+                Zadania
+              </NavLink>
               {user.role === "Administrator" && (
                 <NavLink to="/admin" className={navLinkClass}>
                   Panel administracyjny

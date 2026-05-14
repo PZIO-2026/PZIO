@@ -11,9 +11,9 @@ export const statusLabels: Record<
   SprintStatus,
   string
 > = {
-  planned: "Planned",
-  active: "Active",
-  completed: "Completed",
+  planned: "Zaplanowany",
+  active: "Aktywny",
+  completed: "Ukończony",
 };
 
 export const statusStyles: Record<

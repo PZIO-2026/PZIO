@@ -124,6 +124,20 @@ export type SprintFormInput = z.infer<
   typeof sprintFormSchema
 >;
 
+// ============================================================
+// Zadania (Work Items)
+// ============================================================
+
+export const taskFormSchema = z.object({
+  title: z.string().min(1, "Tytuł jest wymagany").max(500, "Tytuł może mieć maksymalnie 500 znaków"),
+  description: z.string().max(5000, "Opis może mieć maksymalnie 5000 znaków").optional(),
+  type: z.string().min(1, "Typ jest wymagany"),
+  priority: z.enum(["Low", "Medium", "High"], { error: "Wybierz priorytet" }),
+  storyPoints: z.coerce.number().int().nonnegative().optional(),
+  parentId: z.number().nullable().optional(),
+});
+
+export type TaskFormInput = z.infer<typeof taskFormSchema>;
 // Returns today's local date as an ISO-style yyyy-mm-dd string. Local time is
 // used on purpose so the comparison matches what the user sees in the native
 // date picker (which is also local).

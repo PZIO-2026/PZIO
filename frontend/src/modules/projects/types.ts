@@ -82,6 +82,28 @@ export interface Sprint {
   goal?: string;
 }
 
+// ============================================================
+// Zadania (Work Items)
+// ============================================================
+
+export type WorkItemStatus = "ToDo" | "InProgress" | "Done";
+
+export interface WorkItem {
+  id: number;
+  projectId: number;
+  title: string;
+  description: string | null;
+  type: string;
+  priority: string;
+  storyPoints: number | null;
+  parentId: number | null;
+  assigneeId: number | null;
+  sprintId: number | null;
+  status: WorkItemStatus;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export interface BurndownDay {
   date: string;
   remainingPoints: number;
