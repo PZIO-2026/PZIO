@@ -363,7 +363,7 @@ export default function ProjectsBoardPage() {
       acc[col.id] = tasks.filter((t) => t.status === col.id);
       return acc;
     },
-    { Backlog: [], ToDo: [], InProgress: [], Done: [] },
+    { ToDo: [], InProgress: [], Done: [] } as Record<WorkItemStatus, WorkItem[]>,
   );
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
