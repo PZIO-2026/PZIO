@@ -100,6 +100,78 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 - Dostęp nawigacyjny do reszty ekosystemu (Navbar i Outlet)
 - [... uzupełnij: inne funkcje dla tego widoku ...]
 
+### Projekty (`/projects`)
+
+![Zrzut ekranu listy projektów](assets/projects.png)
+
+- Wyświetlanie listy wszystkich projektów, do których użytkownik ma dostęp.
+- Możliwość tworzenia nowych projektów przez użytkowników z rolą systemową Administratora lub Managera.
+- Możliwość filtrowania i sortowania projektów według różnych kryteriów.
+
+### Szczegóły projektu (`/projects/:id`)
+
+Widok ten jest podzielony na wiele sekcji, które udokumentowano poniżej.
+
+**Sekcja informacji o projekcie**:
+
+![Zrzut ekranu sekcji informacji o projekcie](assets/project-details.png)
+
+- Zawiera podstawowe informacje o projekcie, takie jak jego nazwa, opis i data utworzenia.
+- Pozwala na edycję tych informacji przez użytkowników z odpowiednimi uprawnieniami.
+
+**Sekcja członków projektu**:
+
+![Zrzut ekranu sekcji członków projektu](assets/project-members.png)
+
+- Wyświetla listę wszystkich członków projektu wraz z ich rolami.
+- Umożliwia dodawanie nowych członków do projektu oraz zarządzanie ich rolami poprzez przycisk "Edytuj" obok każdego członka.
+- Umożliwia usuwanie członków z projektu, jeśli użytkownik ma odpowiednie uprawnienia.
+- Dostępne jest także wyszukiwanie członków oraz filtrowanie po rolach, a także paginacja.
+
+**Sekcja sprintów**:
+
+![Zrzut ekranu sekcji sprintów](assets/project-sprints.png)
+
+- Pozwala na zarządzanie sprintami w ramach projektu, w tym tworzenie nowych sprintów, edycję istniejących oraz usuwanie sprintów.
+- Każdy sprint ma swój opis oraz daty rozpoczęcia i zakończenia.
+- Dostępny jest także przycisk "Burndown", służący do wizualizacji postępu sprintu w formie wykresu burndown.
+
+**Sekcja zadań (backlog)**:
+
+![Zrzut ekranu sekcji zadań (backlog)](assets/project-backlog.png)
+
+- Ta sekcja zawiera listę wszystkich zadań w danym projekcie, które nie zostały jeszcze przypisane do sprintu.
+- Umożliwia tworzenie nowych zadań, edycję istniejących oraz usuwanie zadań.
+- Zadania można przypisywać do sprintów, klikając w przycisk "Przypisz".
+- Wyświetlane są podstawowe informacje o zadaniu, takie jak jego tytuł, typ, priorytet oraz story points.
+
+**Tablica zadań (kanban)**:
+
+![Zrzut ekranu tablicy zadań (kanban)](assets/project-kanban.png)
+
+- Tablica zadań w stylu kanban, podzielona na kolumny reprezentujące różne statusy zadań ("Do zrobienia", "W trakcie", "Ukończone").
+- Umożliwia przeciąganie i upuszczanie zadań między kolumnami, co automatycznie aktualizuje ich status.
+- Wyświetlane są również informacje o sprincie, dla którego widoczna jest aktualnie tablica.
+- Kliknięcie na zadanie przenosi do jego szczegółowego widoku, gdzie można zobaczyć więcej informacji oraz edytować zadanie.
+
+### Zadania (`/tasks`)
+
+![Zrzut ekranu listy zadań](assets/tasks.png)
+
+- Jest to widok zbiorczy, który wyświetla wszystkie zadania, do których użytkownik ma dostęp, niezależnie od projektu.
+- Umożliwia filtrowanie zadań według statusu i priorytetu oraz wyszukiwanie zadań po tytule.
+- Kliknięcie na zadanie przenosi do jego szczegółowego widoku.
+
+### Szczegóły zadania (`/tasks/:id`)
+
+![Zrzut ekranu szczegółów zadania (część 1)](assets/task-details-1.png)
+![Zrzut ekranu szczegółów zadania (część 2)](assets/task-details-2.png)
+
+- Wyświetla wszystkie informacje o zadaniu, takie jak: tytuł, opis, typ, priorytet, story points, status, przypisany sprint, identyfikator wewnętrzny oraz zadanie nadrzędne.
+- Umożliwia edycję tych informacji przez użytkowników z odpowiednimi uprawnieniami.
+- Pozwala na dodawanie komentarzy do zadania, co jest szczególnie przydatne do komunikacji między członkami zespołu.
+- Dostępna jest również dedykowana sekcja na załączniki, gdzie można dodawać i przeglądać pliki powiązane z zadaniem. Zdjęcia dodane jako załączniki są wyświetlane bezpośrednio w tej sekcji, co ułatwia ich przeglądanie.
+
 ### Profil Użytkownika (`/profile`)
 
 ![Zrzut ekranu strony profilu użytkownika](assets/profile.png)
