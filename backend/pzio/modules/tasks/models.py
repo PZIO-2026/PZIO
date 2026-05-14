@@ -1,10 +1,11 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, foreign, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ...db import Base
+from pzio.modules.admin.models import ActivityLog
 
 
 class WorkItem(Base):
@@ -31,6 +32,15 @@ class WorkItem(Base):
         DateTime(timezone=True), onupdate=func.now()
     )
 
+    time_logs: Mapped[list["TimeLog"]] = relationship(
+        "TimeLog", back_populates="work_item", cascade="all, delete-orphan"
+    )
+    activity_logs: Mapped[list[ActivityLog]] = relationship(
+        ActivityLog,
+        primaryjoin=lambda: WorkItem.id == foreign(ActivityLog.task_id),
+        viewonly=True,
+    )
+
 
 class TimeLog(Base):
     __tablename__: str = "time_logs"
@@ -49,21 +59,4 @@ class TimeLog(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-
-class ActivityLog(Base):
-    __tablename__: str = "activity_logs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    work_item_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("work_items.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    action: Mapped[str] = mapped_column(String, nullable=False)
-    old_status: Mapped[str | None] = mapped_column(String, nullable=True)
-    new_status: Mapped[str | None] = mapped_column(String, nullable=True)
-
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    work_item: Mapped["WorkItem"] = relationship("WorkItem", back_populates="time_logs")
