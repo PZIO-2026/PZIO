@@ -102,16 +102,19 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 
 ### Profil Użytkownika (`/profile`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU PROFILU ]
+![Zrzut ekranu strony profilu użytkownika](assets/profile.png)
 
-- Wyświetlanie aktualnych informacji na swój temat (GET `me`)
-- Formularz edycji i aktualizacji wybranych danych przypisanych do Twojego konta
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Wyświetlanie aktualnych informacji na swój temat.
+- Możliwość edycji danych osobowych, takich jak imię, nazwisko i adres URL awatara.
 
 ### Panel Administratora (`/admin`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU PANELU ZARZĄDZANIA (ADMIN) ]
+![Zrzut ekranu panelu administratora (część 1)](assets/admin-1.png)
+![Zrzut ekranu panelu administratora (część 2)](assets/admin-2.png)
 
-- Panel dedykowany do zarządzania kontami w przestrzeni (Users) przestrzeni
-- Umożliwia zmianę ról innym kontom pomiędzy `TeamMember`, `Manager` oraz `Administrator` (zabezpieczenie uniemożliwiające zmianę ról samemu sobie).
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Panel dedykowany do zarządzania kontami użytkowników, backupami bazy danych i innymi funkcjami administracyjnymi.
+- Dostęp do tego panelu mają tylko użytkownicy z rolą Administratora.
+- Pierwsza sekcja umożliwia przeglądanie listy wszystkich zarejestrowanych użytkowników, wraz z ich rolami i możliwością edycji tychże ról.
+- Druga sekcja pozwala na rozszerzanie dostępnych typów zadań projektowych o nowe definicje.
+- Trzecia sekcja służy do wymuszania stworzenia kopii zapasowej bazy danych.
+- Czwarta sekcja pozwala na przeglądanie logów powiązanych z konkretnym zadaniem projektowym, co jest szczególnie przydatne do celów debugowania i monitorowania.
