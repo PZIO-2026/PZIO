@@ -5,6 +5,7 @@ import AuthProvider from "../modules/auth/AuthProvider";
 import LoginPage from "../modules/auth/pages/LoginPage";
 import ProfilePage from "../modules/auth/pages/ProfilePage";
 import RegisterPage from "../modules/auth/pages/RegisterPage";
+import OAuthCallbackPage from "../modules/auth/pages/OAuthCallbackPage";
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import AppLayout from "./AppLayout";
@@ -16,6 +17,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<HomePage />} />

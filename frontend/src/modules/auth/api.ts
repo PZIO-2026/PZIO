@@ -32,3 +32,15 @@ export function updateMe(input: UpdateMeInput): Promise<User> {
     body: input,
   });
 }
+
+export interface OAuthLoginInput {
+  provider: string;
+  oauthToken: string;
+}
+
+export function oauthLogin(input: OAuthLoginInput): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>("/api/auth/oauth", {
+    method: "POST",
+    body: input,
+  });
+}
