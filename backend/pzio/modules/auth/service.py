@@ -2,7 +2,7 @@ import secrets
 import httpx
 from typing import Sequence
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from pzio.modules.auth.models import User, UserRole
@@ -48,6 +48,12 @@ class SelfRoleChangeError(Exception):
     """Raised when an admin attempts to change their own role (→ 400)."""
 
 
+# Arbitrary 64-bit constant identifying the "first-admin bootstrap" critical
+# section for PostgreSQL's `pg_advisory_xact_lock`. Any int fits as long as it
+# is unique to this purpose within the application.
+_ADMIN_BOOTSTRAP_LOCK_KEY = 0x707A696F61646D31  # "pzioadm1" as ASCII bytes
+
+
 def _get_user_by_email(db: Session, email: str) -> User | None:
     return db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
@@ -63,6 +69,24 @@ def _admin_exists(db: Session) -> bool:
     ).first() is not None
 
 
+def _pick_role_for_new_user(db: Session) -> UserRole:
+    """Return the role for a freshly registered user (zero-config bootstrap).
+
+    The first user to register on an empty database becomes Administrator;
+    every subsequent registration defaults to TeamMember. To prevent two
+    concurrent first-time registrations from both observing "no admin yet"
+    and both being promoted, on PostgreSQL we acquire a transaction-scoped
+    advisory lock around the check. SQLite already serialises writes via the
+    database-level lock, so no extra synchronisation is required there.
+    """
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:k)"),
+            {"k": _ADMIN_BOOTSTRAP_LOCK_KEY},
+        )
+    return UserRole.ADMINISTRATOR if not _admin_exists(db) else UserRole.TEAM_MEMBER
+
+
 def create_user(db: Session, payload: UserCreate) -> User:
     """Register a new user. Raises EmailAlreadyExistsError on duplicate email.
 
@@ -72,7 +96,7 @@ def create_user(db: Session, payload: UserCreate) -> User:
     if _get_user_by_email(db, payload.email) is not None:
         raise EmailAlreadyExistsError(payload.email)
 
-    role = UserRole.ADMINISTRATOR if not _admin_exists(db) else UserRole.TEAM_MEMBER
+    role = _pick_role_for_new_user(db)
 
     user = User(
         email=payload.email,
@@ -325,7 +349,7 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
 
     if not user:
         # Same zero-config bootstrap as `create_user`: first user becomes Administrator.
-        role = UserRole.ADMINISTRATOR if not _admin_exists(db) else UserRole.TEAM_MEMBER
+        role = _pick_role_for_new_user(db)
         user = User(
             email=user_email,
             password_hash=hash_password(secrets.token_urlsafe(32)),

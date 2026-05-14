@@ -158,6 +158,8 @@ def update_user_status(
     description="Promotes or demotes a user to another role. Requires Administrator role. Admin cannot change their own role.",
     responses={
         400: {"description": "Cannot change own role"},
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden - Administrator role required"},
         404: {"description": "User not found"},
     },
 )
