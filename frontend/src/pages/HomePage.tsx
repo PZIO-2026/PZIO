@@ -1,6 +1,4 @@
 import { useAuth } from "../modules/auth/hooks";
-import AttachmentsSection from "../modules/communication/components/AttachmentsSection";
-import CommentsSection from "../modules/communication/components/CommentsSection";
 
 export default function HomePage() {
   const { user } = useAuth();
