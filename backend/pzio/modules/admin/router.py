@@ -81,6 +81,7 @@ def get_task_types(
         201: {"description": "Backup created"},
         401: {"description": "Missing or invalid token"},
         403: {"description": "Insufficient privileges"},
+        409: {"description": "Backup already in progress or exists"},
         500: {"description": "Backup failed"},
     },
 )
@@ -90,6 +91,16 @@ def force_backup(
 ) -> BackupRead:
     try:
         record = service.create_backup(db, settings.database_url, settings.backup_dir)
+    except service.BackupInProgressError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+    except service.BackupAlreadyExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
     except service.BackupFailedError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

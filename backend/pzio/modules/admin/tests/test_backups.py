@@ -73,6 +73,54 @@ def test_force_backup_without_token_returns_401(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_force_backup_in_progress_returns_409(
+    client: TestClient,
+    db_session: Session,
+    fake_sqlite_db: Path,
+) -> None:
+    from datetime import datetime, timezone
+
+    admin = seed_user(db_session, email="admin2@example.com", role=UserRole.ADMINISTRATOR)
+
+    # Manually insert an "in_progress" record
+    record = Backup(file_path="", status="in_progress", created_at=datetime.now(timezone.utc))
+    db_session.add(record)
+    db_session.commit()
+
+    response = client.post("/api/admin/backups", headers=auth_header(admin))
+    assert response.status_code == 409
+    assert "in progress" in response.json()["detail"].lower()
+
+
+def test_force_backup_already_exists_returns_409(
+    client: TestClient,
+    db_session: Session,
+    fake_sqlite_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import datetime
+    from pzio.modules.admin import service
+
+    admin = seed_user(db_session, email="admin3@example.com", role=UserRole.ADMINISTRATOR)
+
+    # Mock datetime so created_at time is identical for multiple calls, leading to the same generated filename
+    class MockDatetime(datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.datetime(2026, 5, 14, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+    monkeypatch.setattr(service, "datetime", MockDatetime)
+
+    # First backup should succeed
+    response1 = client.post("/api/admin/backups", headers=auth_header(admin))
+    assert response1.status_code == 201
+
+    # Second backup identical timing should return 409
+    response2 = client.post("/api/admin/backups", headers=auth_header(admin))
+    assert response2.status_code == 409
+    assert "already exists" in response2.json()["detail"].lower()
+
+
 def test_force_backup_when_db_file_missing_returns_500(
     client: TestClient,
     db_session: Session,

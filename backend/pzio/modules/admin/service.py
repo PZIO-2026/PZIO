@@ -24,6 +24,14 @@ class BackupFailedError(Exception):
     """Raised when the database file cannot be copied (→ 500)."""
 
 
+class BackupInProgressError(Exception):
+    """Raised when a backup is already running (→ 409)."""
+
+
+class BackupAlreadyExistsError(Exception):
+    """Raised when a backup with same name already exists (→ 409)."""
+
+
 def create_task_type(db: Session, payload: TaskTypeCreate) -> TaskType:
     """Add a new task type to the system dictionary (Admin only)."""
     name = payload.name.strip()
@@ -160,10 +168,23 @@ def create_backup(db: Session, database_url: str, backup_dir: str) -> Backup:
     A `Backup` row is recorded in either case ("completed" / "failed") so admins can
     audit attempts. On failure, we still raise - the router maps that to HTTP 500.
     """
+    in_progress = db.execute(select(Backup).where(Backup.status == "in_progress")).first()
+    if in_progress is not None:
+        raise BackupInProgressError("A backup is already in progress.")
+
     timestamp = datetime.now(timezone.utc)
     target_dir = Path(backup_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     base_filename = f"pzio_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}"
+
+    existing_db = db.execute(select(Backup).where(Backup.file_path.like(f"%{base_filename}%"))).first()
+    if existing_db is not None:
+        raise BackupAlreadyExistsError(f"Backup with name {base_filename} already exists.")
+
+    record = Backup(file_path="", status="in_progress", created_at=timestamp)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
 
     is_postgres = database_url.startswith(("postgresql://", "postgresql+", "postgres://"))
 
@@ -181,7 +202,8 @@ def create_backup(db: Session, database_url: str, backup_dir: str) -> Backup:
         success = False
         error_msg = str(exc)
 
-    record = Backup(file_path=destination, status="completed" if success else "failed", created_at=timestamp)
+    record.file_path = destination
+    record.status = "completed" if success else "failed"
     db.add(record)
     db.commit()
     db.refresh(record)
