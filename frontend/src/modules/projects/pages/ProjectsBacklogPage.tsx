@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useOutletContext } from "react-router-dom";
 
@@ -53,6 +53,17 @@ export default function ProjectsBacklogPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<WorkItem | null>(null);
   const [assigningTask, setAssigningTask] = useState<WorkItem | null>(null);
+  const [sprintFilter, setSprintFilter] = useState<"all" | "none" | number>("all");
+
+  // ============================================================
+  // Derived state
+  // ============================================================
+
+  const filteredTasks = useMemo(() => {
+    if (sprintFilter === "all") return tasks;
+    if (sprintFilter === "none") return tasks.filter((t) => t.sprintId === null);
+    return tasks.filter((t) => t.sprintId === sprintFilter);
+  }, [tasks, sprintFilter]);
 
   // ============================================================
   // Handlers
@@ -128,15 +139,45 @@ export default function ProjectsBacklogPage() {
             )}
           </div>
 
-          <span className="text-sm text-gray-500">Łącznie: {tasks.length}</span>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-gray-500">
+              Wyświetlane: {filteredTasks.length} / {tasks.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <label htmlFor="sprint-filter" className="text-sm text-gray-600 shrink-0">
+                Filtruj sprint:
+              </label>
+              <select
+                id="sprint-filter"
+                value={sprintFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "all") setSprintFilter("all");
+                  else if (val === "none") setSprintFilter("none");
+                  else setSprintFilter(Number(val));
+                }}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+              >
+                <option value="all">Wszystkie</option>
+                <option value="none">Bez sprintu</option>
+                {sprints.map((s) => (
+                  <option key={s.sprintId} value={s.sprintId}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           {isLoading ? (
             <div className="py-10 text-center text-sm text-gray-500">Ładowanie backlogu...</div>
           ) : loadError !== null ? (
             <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
-          ) : tasks.length === 0 ? (
+          ) : filteredTasks.length === 0 ? (
             <div className="rounded-md border border-dashed border-gray-300 px-6 py-10 text-center">
-              <p className="text-sm text-gray-500">Backlog jest pusty.</p>
+              <p className="text-sm text-gray-500">
+                {tasks.length === 0 ? "Backlog jest pusty." : "Brak zadań pasujących do filtra."}
+              </p>
             </div>
           ) : (
             <div className="mt-4 overflow-x-auto">
@@ -147,64 +188,75 @@ export default function ProjectsBacklogPage() {
                     <th className="pb-2 pr-4">Typ</th>
                     <th className="pb-2 pr-4">Priorytet</th>
                     <th className="pb-2 pr-4">Story Points</th>
+                    <th className="pb-2 pr-4">Sprint</th>
                     {canManageTasks && <th className="pb-2" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {tasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50">
-                      <td className="py-3 pr-4 font-medium text-gray-900">
-                        {task.title}
-                        {task.parentId !== null && (
-                          <span className="ml-2 text-xs text-gray-400">
-                            (#{task.parentId})
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                          {task.type}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-600"}`}
-                        >
-                          {task.priority}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-gray-600">
-                        {task.storyPoints !== null ? task.storyPoints : <span className="text-gray-400">—</span>}
-                      </td>
-                      {canManageTasks && (
-                        <td className="py-3 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setAssigningTask(task)}
-                              className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Przypisz
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingTask(task)}
-                              className="rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
-                            >
-                              Edytuj
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(task.id)}
-                              className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 cursor-pointer"
-                            >
-                              Usuń
-                            </button>
-                          </div>
+                  {filteredTasks.map((task) => {
+                    const sprint = sprints.find((s) => s.sprintId === task.sprintId);
+                    return (
+                      <tr key={task.id} className="hover:bg-gray-50">
+                        <td className="py-3 pr-4 font-medium text-gray-900">
+                          {task.title}
+                          {task.parentId !== null && (
+                            <span className="ml-2 text-xs text-gray-400">
+                              (#{task.parentId})
+                            </span>
+                          )}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="py-3 pr-4">
+                          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                            {task.type}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${PRIORITY_STYLES[task.priority] ?? "bg-gray-100 text-gray-600"}`}
+                          >
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4 text-gray-600">
+                          {task.storyPoints !== null ? task.storyPoints : <span className="text-gray-400">—</span>}
+                        </td>
+                        <td className="py-3 pr-4 text-gray-600">
+                          {sprint ? (
+                            <span className="text-gray-800">{sprint.name}</span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                        {canManageTasks && (
+                          <td className="py-3 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setAssigningTask(task)}
+                                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                              >
+                                Przypisz
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingTask(task)}
+                                className="rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
+                              >
+                                Edytuj
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(task.id)}
+                                className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                              >
+                                Usuń
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -238,7 +290,7 @@ export default function ProjectsBacklogPage() {
         task={assigningTask}
         sprints={sprints}
         onAssigned={(updated) => {
-          setTasks((current) => current.filter((t) => t.id !== updated.id));
+          setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
           setAssigningTask(null);
         }}
       />
