@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     backup_dir: str = "./backups"
     upload_dir: str = "./uploads"
 
+    max_file_size: int = 10 * 1024 * 1024  # 10 MB
+
     google_client_id: str | None = None
     google_client_secret: str | None = None
     

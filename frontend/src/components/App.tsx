@@ -16,10 +16,12 @@ import ProjectsSprintsPage from "../modules/projects/pages/ProjectsSprintsPage";
 import HomePage from "../pages/HomePage";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import AppLayout from "./AppLayout";
+import { ConfirmProvider } from "./ConfirmProvider";
 
 export default function App() {
   return (
     <BrowserRouter>
+      <ConfirmProvider>          
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -40,15 +42,16 @@ export default function App() {
                 <Route path="board" element={<div>Board view</div>} />
               </Route>
             </Route>
-          </Route>
-          <Route element={<ProtectedRoute requiredRole="Administrator" />}>
-            <Route element={<AppLayout />}>
-              <Route path="/admin" element={<AdminPanelPage />} />
+            <Route element={<ProtectedRoute requiredRole="Administrator" />}>
+              <Route element={<AppLayout />}>
+                <Route path="/admin" element={<AdminPanelPage />} />
+              </Route>
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </AuthProvider>
+        </AuthProvider>
+      </ConfirmProvider>
     </BrowserRouter>
   );
 }

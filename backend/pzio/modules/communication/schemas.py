@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pzio.modules.auth.schemas import UserRead
+
 COMMENT_CONTENT_MAX_LENGTH = 10000
 
 
@@ -40,6 +42,7 @@ class CommentRead(BaseModel):
     task_id: int = Field(serialization_alias="taskId")
     author_id: int = Field(serialization_alias="authorId")
     content: str
+    user: UserRead | None = None
     created_at: datetime = Field(serialization_alias="createdAt")
     updated_at: datetime | None = Field(default=None, serialization_alias="updatedAt")
 

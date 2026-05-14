@@ -28,6 +28,7 @@ logs/
 *.db-journal
 *.sqlite
 *.sqlite3
+uploads/
 local/
 
 # DB backups and uploads

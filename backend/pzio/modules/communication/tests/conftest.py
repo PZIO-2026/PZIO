@@ -21,6 +21,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         password: str = "s3cret-pass",
         first_name: str = "Ada",
         last_name: str = "Lovelace",
+        avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
     ) -> User:
         user = User(
@@ -28,6 +29,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
             password_hash=hash_password(password),
             first_name=first_name,
             last_name=last_name,
+            avatar=avatar,
             role=role,
             is_active=True,
         )

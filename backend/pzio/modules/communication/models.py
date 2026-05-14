@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from pzio.db import Base
+from pzio.modules.auth.models import User
 
 
 def _utcnow() -> datetime:
@@ -24,6 +25,7 @@ class Comment(Base):
         nullable=False,
     )
     content: Mapped[str] = mapped_column("content", Text, nullable=False)
+    user: Mapped[User] = relationship("User")
     created_at: Mapped[datetime] = mapped_column(
         "created_at",
         DateTime(timezone=True),
