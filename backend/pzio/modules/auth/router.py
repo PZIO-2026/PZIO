@@ -13,6 +13,7 @@ from pzio.modules.auth.schemas import (
     TokenResponse,
     UserCreate,
     UserRead,
+    UserRoleUpdate,
     UserStatusUpdate,
     UserUpdate,
     MessageResponse,
@@ -145,7 +146,44 @@ def update_user_status(
         updated_user = service.update_user_status(db, id, payload.is_active)
     except service.UserNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    
+
+    return UserRead.model_validate(updated_user)
+
+
+@router.patch(
+    "/api/users/{id}/role",
+    response_model=UserRead,
+    response_model_by_alias=True,
+    summary="Change user role (Admin)",
+    description="Promotes or demotes a user to another role. Requires Administrator role. Admin cannot change their own role.",
+    responses={
+        400: {"description": "Cannot change own role"},
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden - Administrator role required"},
+        404: {"description": "User not found"},
+    },
+)
+def update_user_role(
+    id: int,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+) -> UserRead:
+    try:
+        updated_user = service.update_user_role(
+            db,
+            target_user_id=id,
+            new_role=payload.role,
+            current_user=admin,
+        )
+    except service.SelfRoleChangeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin cannot change their own role",
+        )
+    except service.UserNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
     return UserRead.model_validate(updated_user)
 
 

@@ -1,7 +1,22 @@
+import type { User } from "../auth/types";
+
 export interface TaskType {
   taskTypeId: number;
   name: string;
   createdAt: string;
+}
+
+export interface ListUsersParams {
+  search?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface PaginatedUsersResponse {
+  items: User[];
+  total: number;
+  page: number;
+  size: number;
 }
 
 export interface BackupResponse {
