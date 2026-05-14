@@ -98,13 +98,17 @@ All `4xx` responses follow a single shape: `{"detail": "<message>"}`. The applic
 
 Settings come from environment variables (or a local `.env` file — see `.env.example`).
 
-| Variable          | Default                                | Notes                                                          |
-| ----------------- | -------------------------------------- | -------------------------------------------------------------- |
-| `DATABASE_URL`    | `sqlite:///./pzio.db`                  | Override with a Postgres URL in production.                    |
-| `JWT_SECRET`      | `dev-secret-change-me-in-production`   | **Must** be overridden in production.                          |
-| `JWT_ALGORITHM`   | `HS256`                                |                                                                |
-| `JWT_EXPIRES_MIN` | `60`                                   | Access token lifetime in minutes.                              |
-| `CORS_ORIGINS`    | `http://localhost:5173`                | Comma-separated list of allowed origins.                       |
+| Variable               | Default                              | Notes                                       |
+| ---------------------- | ------------------------------------ | ------------------------------------------- |
+| `DATABASE_URL`         | `sqlite:///./pzio.db`                | Override with a Postgres URL in production. |
+| `JWT_SECRET`           | `dev-secret-change-me-in-production` | **Must** be overridden in production.       |
+| `JWT_ALGORITHM`        | `HS256`                              |                                             |
+| `JWT_EXPIRES_MIN`      | `60`                                 | Access token lifetime in minutes.           |
+| `CORS_ORIGINS`         | `http://localhost:5173`              | Comma-separated list of allowed origins.    |
+| `GOOGLE_CLIENT_ID`     |                                      | Google OAuth Client ID.                     |
+| `GOOGLE_CLIENT_SECRET` |                                      | Google OAuth Client Secret.                 |
+| `GITHUB_CLIENT_ID`     |                                      | GitHub OAuth Client ID.                     |
+| `GITHUB_CLIENT_SECRET` |                                      | GitHub OAuth Client Secret.                 |
 
 ## Tech stack
 
@@ -114,3 +118,4 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 - **Pydantic** / **pydantic-settings** — request/response validation, env-driven config
 - **pytest** + **pytest-cov** + **httpx** — tests
 - **SQLite** locally; **PostgreSQL** in production
+- **Authlib** — OAuth 2.0 integration

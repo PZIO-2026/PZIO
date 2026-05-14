@@ -108,9 +108,11 @@ out of the form.
 
 Settings come from environment variables (or `.env`, see `.env.example`).
 
-| Variable             | Default                  | Notes                                            |
-| -------------------- | ------------------------ | ------------------------------------------------ |
-| `VITE_API_BASE_URL`  | `http://localhost:8000`  | Base URL of the PZIO backend.                    |
+| Variable                | Default                  | Notes                                            |
+| ----------------------- | ------------------------ | ------------------------------------------------ |
+| `VITE_API_BASE_URL`     | `http://localhost:8000`  | Base URL of the PZIO backend.                    |
+| `VITE_GOOGLE_CLIENT_ID` | (none)                   | Client ID for Google OAuth login.                |
+| `VITE_GITHUB_CLIENT_ID` | (none)                   | Client ID for GitHub OAuth login.                |
 
 ## Tech stack
 
