@@ -21,7 +21,7 @@ router = APIRouter(tags=["Communication"])
 
 # File upload security constraints
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-ALLOWED_MIME_TYPES = ["image/*", "application/pdf"]
+ALLOWED_MIME_TYPES = ["image/*", "application/pdf", "text/plain"]
 
 
 def _is_mime_type_allowed(content_type: str | None) -> bool:
