@@ -75,14 +75,23 @@ export default function AddProjectMemberModal({
 
       onClose();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.detail);
+      if (err instanceof ApiError && err.status === 404) {
+        setSubmitError("Użytkownik o podanym adresie email nie istnieje.");
         return;
       }
-
-      setSubmitError(
-        "Nie udało się dodać użytkownika do projektu.",
-      );
+      if (err instanceof ApiError && err.status === 409) {
+        setSubmitError("Ten użytkownik jest już członkiem projektu.");
+        return;
+      }
+      if (err instanceof ApiError && err.status === 403) {
+        setSubmitError("Nie masz uprawnień do dodawania członków projektu.");
+        return;
+      }
+      if (err instanceof ApiError) {
+        setSubmitError("Nie udało się dodać użytkownika do projektu.");
+        return;
+      }
+      setSubmitError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
     }
   }
 

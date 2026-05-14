@@ -191,12 +191,16 @@ export default function ProjectsMembersPage() {
 
       setTotal((current) => Math.max(0, current - 1));
     } catch (err) {
-      if (err instanceof ApiError) {
-        alert(err.detail);
+      if (err instanceof ApiError && err.status === 400) {
+        alert("Nie można usunąć Project Ownera z projektu.");
+      } else if (err instanceof ApiError && err.status === 403) {
+        alert("Nie masz uprawnień do usunięcia tego użytkownika z projektu.");
+      } else if (err instanceof ApiError && err.status === 404) {
+        alert("Ten użytkownik nie jest już członkiem projektu.");
+      } else if (err instanceof ApiError) {
+        alert("Nie udało się usunąć użytkownika z projektu.");
       } else {
-        alert(
-          "Nie udało się usunąć użytkownika z projektu.",
-        );
+        alert("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
       }
     } finally {
       setRemoveLoadingId(null);
