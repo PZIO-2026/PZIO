@@ -19,12 +19,18 @@ interface Props {
   errors: FieldErrors<SprintFormInput>;
 
   showStatus?: boolean;
+
+  // Earliest selectable startDate (yyyy-mm-dd). When set, the native picker
+  // disables earlier dates. Leave undefined to allow any date — used by the
+  // edit flow where an existing sprint may legitimately start in the past.
+  minStartDate?: string;
 }
 
 export default function SprintFormFields({
   register,
   errors,
   showStatus = false,
+  minStartDate,
 }: Props) {
   return (
     <div className="grid gap-5">
@@ -56,6 +62,7 @@ export default function SprintFormFields({
           <input
             type="date"
             className={inputClass}
+            min={minStartDate}
             {...register("startDate")}
           />
 

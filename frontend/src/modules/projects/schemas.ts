@@ -124,3 +124,25 @@ export type SprintFormInput = z.infer<
   typeof sprintFormSchema
 >;
 
+// Returns today's local date as an ISO-style yyyy-mm-dd string. Local time is
+// used on purpose so the comparison matches what the user sees in the native
+// date picker (which is also local).
+export function todayLocalISO(): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Used when creating a new sprint. Editing an existing sprint stays on the
+// looser `sprintFormSchema`, since an already-started sprint legitimately has
+// a startDate in the past and we don't want to block edits of its name/goal.
+export const createSprintFormSchema = sprintFormSchema.refine(
+  (values) => values.startDate >= todayLocalISO(),
+  {
+    message: "Sprint nie może rozpocząć się w przeszłości",
+    path: ["startDate"],
+  },
+);
+
