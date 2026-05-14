@@ -62,21 +62,23 @@ describe("CreateProjectModal", () => {
     expect(await screen.findByText("Projekt został utworzony.")).toBeInTheDocument();
   });
 
-  it("powinien wyświetlić błąd z backendu (ApiError), gdy utworzenie się nie powiedzie", async () => {
+  it("powinien wyświetlić przyjazny komunikat po stronie UI dla 403 z backendu", async () => {
     const user = userEvent.setup();
-    
+
     vi.mocked(api.createProject).mockRejectedValueOnce(
-      new ApiError(400, "Taka nazwa projektu już istnieje.")
+      new ApiError(403, "Insufficient privileges")
     );
 
     render(<CreateProjectModal onCreated={mockOnCreated} />);
 
-    await user.type(screen.getByLabelText(/Nazwa projektu/i), "Duplikat");
-    
+    await user.type(screen.getByLabelText(/Nazwa projektu/i), "Bez uprawnień");
+
     const submitButton = screen.getByRole("button", { name: /Utwórz projekt/i });
     await user.click(submitButton);
 
-    expect(await screen.findByText("Taka nazwa projektu już istnieje.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nie masz uprawnień do tworzenia projektów."),
+    ).toBeInTheDocument();
 
     expect(mockOnCreated).not.toHaveBeenCalled();
   });

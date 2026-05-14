@@ -105,10 +105,14 @@ export default function ProjectsSprintsPage() {
         setIsBurndownModalOpen(false);
       }
     } catch (err) {
-      if (err instanceof ApiError) {
-        alert(err.detail);
-      } else {
+      if (err instanceof ApiError && err.status === 403) {
+        alert("Nie masz uprawnień do usunięcia tego sprintu.");
+      } else if (err instanceof ApiError && err.status === 404) {
+        alert("Sprint nie istnieje lub został już usunięty.");
+      } else if (err instanceof ApiError) {
         alert("Nie udało się usunąć sprintu.");
+      } else {
+        alert("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
       }
     }
   }
@@ -125,12 +129,14 @@ export default function ProjectsSprintsPage() {
 
       setBurndown(data);
     } catch (err) {
-      if (err instanceof ApiError) {
-        alert(err.detail);
+      if (err instanceof ApiError && err.status === 403) {
+        alert("Nie masz dostępu do danych burndown dla tego sprintu.");
+      } else if (err instanceof ApiError && err.status === 404) {
+        alert("Sprint nie istnieje lub został usunięty.");
+      } else if (err instanceof ApiError) {
+        alert("Nie udało się pobrać danych burndown.");
       } else {
-        alert(
-          "Nie udało się pobrać danych burndown.",
-        );
+        alert("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
       }
     } finally {
       setBurndownLoading(false);
@@ -163,11 +169,13 @@ export default function ProjectsSprintsPage() {
       } catch (err) {
         if (cancelled) return;
 
-        setLoadError(
-          err instanceof ApiError
-            ? err.detail
-            : "Nie udało się pobrać sprintów.",
-        );
+        if (err instanceof ApiError && err.status === 403) {
+          setLoadError("Nie masz dostępu do listy sprintów tego projektu.");
+        } else if (err instanceof ApiError) {
+          setLoadError("Nie udało się pobrać sprintów.");
+        } else {
+          setLoadError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);

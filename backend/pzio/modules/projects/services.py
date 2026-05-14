@@ -435,13 +435,13 @@ def update_member_roles(
     if is_editing_owner and not is_current_user_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tylko obecny Owner może edytować role innego Ownera."
+            detail="Only the current Owner can edit roles of another Owner."
         )
-        
+
     if is_trying_to_add_owner and not is_current_user_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tylko obecny Owner może nadać komuś rolę Właściciela Projektu."
+            detail="Only the current Owner can grant the Project Owner role."
         )
 
     if is_trying_to_remove_owner:
@@ -463,7 +463,7 @@ def update_member_roles(
         if owner_count <= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nie możesz usunąć tej roli. Projekt musi mieć co najmniej jednego Właściciela (Ownera)."
+                detail="Cannot remove the Owner role: a project must have at least one Owner."
             )
 
     membership_to_be_updated.roles = payload.roles

@@ -60,12 +60,19 @@ export default function CreateProjectModal({
       setSuccessMessage("Projekt został utworzony.");
       reset();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.detail);
+      if (err instanceof ApiError && err.status === 403) {
+        setSubmitError("Nie masz uprawnień do tworzenia projektów.");
         return;
       }
-
-      setSubmitError("Nie udało się utworzyć projektu. Spróbuj ponownie.");
+      if (err instanceof ApiError && err.status === 422) {
+        setSubmitError("Podane dane projektu są nieprawidłowe.");
+        return;
+      }
+      if (err instanceof ApiError) {
+        setSubmitError("Nie udało się utworzyć projektu. Spróbuj ponownie.");
+        return;
+      }
+      setSubmitError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
     }
   }
 

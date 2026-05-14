@@ -49,14 +49,34 @@ export default function EditProjectMemberModal({
       onSuccess();
       onClose();
     } catch (error) {
-      if (error instanceof ApiError) {
-        setError("roles", { message: error.detail });
-      } else {
-        setError("root", { 
-          type: "manual", 
-          message: "Wystąpił nieoczekiwany błąd podczas zapisywania ról." 
+      if (error instanceof ApiError && error.status === 403) {
+        setError("roles", {
+          message: "Tylko Project Owner może edytować role innego Ownera lub nadawać tę rolę.",
         });
+        return;
       }
+      if (error instanceof ApiError && error.status === 400) {
+        setError("roles", {
+          message: "Projekt musi mieć co najmniej jednego Project Ownera — nie można usunąć tej roli ostatniemu właścicielowi.",
+        });
+        return;
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        setError("roles", {
+          message: "Użytkownik nie jest już członkiem tego projektu.",
+        });
+        return;
+      }
+      if (error instanceof ApiError) {
+        setError("roles", {
+          message: "Nie udało się zaktualizować ról członka.",
+        });
+        return;
+      }
+      setError("root", {
+        type: "manual",
+        message: "Nie udało się połączyć z serwerem. Spróbuj ponownie.",
+      });
     }
   };
 

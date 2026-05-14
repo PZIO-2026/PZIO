@@ -119,24 +119,28 @@ describe("AddProjectSprintModal", () => {
     const user = userEvent.setup();
     
     vi.mocked(api.createSprint).mockRejectedValueOnce(
-      new ApiError(409, "W tym projekcie jest już trwający sprint.")
+      new ApiError(400, "endDate must be after startDate.")
     );
 
     render(<AddProjectSprintModal {...defaultProps} />);
 
     const inputs = screen.getAllByRole('textbox');
-    const nameInput = inputs[0]; 
+    const nameInput = inputs[0];
     const startDateInput = document.querySelector('input[name="startDate"]') as HTMLInputElement;
     const endDateInput = document.querySelector('input[name="endDate"]') as HTMLInputElement;
 
     await user.type(nameInput, "Sprint");
     await user.type(startDateInput, "2026-10-10");
     await user.type(endDateInput, "2026-10-20");
-    
+
     await user.click(screen.getByRole("button", { name: /Utwórz sprint/i }));
 
-    expect(await screen.findByText("W tym projekcie jest już trwający sprint.")).toBeInTheDocument();
-    
+    expect(
+      await screen.findByText(
+        "Data zakończenia sprintu musi być późniejsza niż data rozpoczęcia.",
+      ),
+    ).toBeInTheDocument();
+
     expect(mockOnSprintCreated).not.toHaveBeenCalled();
     expect(mockOnClose).not.toHaveBeenCalled();
   });

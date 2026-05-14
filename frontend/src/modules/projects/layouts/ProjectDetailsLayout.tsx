@@ -56,11 +56,15 @@ export default function ProjectDetailsLayout() {
       .catch((err) => {
         if (cancelled) return;
 
-        setError(
-          err instanceof ApiError
-            ? err.detail
-            : "Nie udało się pobrać szczegółów projektu.",
-        );
+        if (err instanceof ApiError && err.status === 403) {
+          setError("Nie masz dostępu do tego projektu.");
+        } else if (err instanceof ApiError && err.status === 404) {
+          setError("Projekt nie istnieje lub został usunięty.");
+        } else if (err instanceof ApiError) {
+          setError("Nie udało się pobrać szczegółów projektu.");
+        } else {
+          setError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
+        }
       })
       .finally(() => {
         if (!cancelled) {
