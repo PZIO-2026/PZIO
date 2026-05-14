@@ -35,6 +35,7 @@ describe("registerSchema", () => {
   const valid = {
     email: "user@example.com",
     password: "password1",
+    confirmPassword: "password1",
     firstName: "Anna",
     lastName: "Kowalska",
   };
@@ -49,7 +50,8 @@ describe("registerSchema", () => {
   });
 
   it("accepts a password exactly 8 characters long", () => {
-    const result = registerSchema.safeParse({ ...valid, password: "a".repeat(8) });
+    const password = "a".repeat(8);
+    const result = registerSchema.safeParse({ ...valid, password, confirmPassword: password });
     expect(result.success).toBe(true);
   });
 
@@ -63,7 +65,8 @@ describe("registerSchema", () => {
   });
 
   it("accepts a password exactly 128 characters long", () => {
-    const result = registerSchema.safeParse({ ...valid, password: "a".repeat(128) });
+    const password = "a".repeat(128);
+    const result = registerSchema.safeParse({ ...valid, password, confirmPassword: password });
     expect(result.success).toBe(true);
   });
 
@@ -119,6 +122,24 @@ describe("registerSchema", () => {
     if (!result.success) {
       const issue = result.error.issues.find((i) => i.path[0] === "lastName");
       expect(issue?.message).toBe("Nazwisko jest za długie");
+    }
+  });
+
+  it("rejects an empty confirmPassword", () => {
+    const result = registerSchema.safeParse({ ...valid, confirmPassword: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "confirmPassword");
+      expect(issue?.message).toBe("Powtórz hasło");
+    }
+  });
+
+  it("rejects when confirmPassword does not match password", () => {
+    const result = registerSchema.safeParse({ ...valid, confirmPassword: "different1" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "confirmPassword");
+      expect(issue?.message).toBe("Hasła nie są zgodne");
     }
   });
 });
