@@ -13,6 +13,7 @@ import AddProjectMemberModal from "../components/members/AddProjectMemberModal";
 import EditProjectMemberModal from "../components/members/EditProjectMemberModal";
 
 import { ApiError } from "../../../api/client";
+import { useAuth } from "../../auth/hooks";
 
 import {
   fetchProjectMembers,
@@ -33,6 +34,7 @@ import { hasProjectRole } from "../helpers/permissions";
 
 interface OutletContext {
   project: ProjectDetail;
+  refreshProject: () => Promise<void>;
 }
 
 // ============================================================
@@ -50,7 +52,9 @@ const inputClass =
 const PAGE_SIZE = 10;
 
 export default function ProjectsMembersPage() {
-  const { project } = useOutletContext<OutletContext>();
+  const { project, refreshProject } =
+    useOutletContext<OutletContext>();
+  const { user: currentUser } = useAuth();
 
   const canManageMembers = hasProjectRole(
     project.currentUserRoles,
@@ -190,6 +194,10 @@ export default function ProjectsMembersPage() {
       );
 
       setTotal((current) => Math.max(0, current - 1));
+
+      if (currentUser !== null && userId === currentUser.userId) {
+        await refreshProject();
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         alert(err.detail);
@@ -461,6 +469,12 @@ export default function ProjectsMembersPage() {
           onClose={() => setEditingMember(null)}
           onSuccess={() => {
             setRefreshKey((prev) => prev + 1);
+            if (
+              currentUser !== null &&
+              editingMember.userId === currentUser.userId
+            ) {
+              refreshProject();
+            }
           }}
         />
       )}
