@@ -15,6 +15,8 @@ import ProjectsMembersPage from "../modules/projects/pages/ProjectsMembersPage";
 import ProjectsSprintsPage from "../modules/projects/pages/ProjectsSprintsPage";
 import ProjectsBacklogPage from "../modules/projects/pages/ProjectsBacklogPage";
 import ProjectsBoardPage from "../modules/projects/pages/ProjectsBoardPage";
+import TasksListPage from "../modules/tasks/pages/TasksListPage";
+import TaskDetailPage from "../modules/tasks/pages/TaskDetailPage";
 
 
 import HomePage from "../pages/HomePage";
@@ -45,6 +47,8 @@ export default function App() {
                 <Route path="backlog" element={<ProjectsBacklogPage />} />
                 <Route path="board" element={<ProjectsBoardPage />} />
               </Route>
+              <Route path="/tasks" element={<TasksListPage />} />
+              <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
             </Route>
             <Route element={<ProtectedRoute requiredRole="Administrator" />}>
               <Route element={<AppLayout />}>
