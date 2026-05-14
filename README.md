@@ -21,8 +21,8 @@ manual SQL scripts. The first user registered through
 subsequent account defaults to **TeamMember**.
 
 After logging in, an admin manages the other accounts from the `/admin`
-panel — the *Users* section lets them change the role (`Guest`,
-`TeamMember`, `Manager`, `Administrator`) of any user except themselves.
+panel — the *Users* section lets them change the role (`TeamMember`,
+`Manager`, `Administrator`) of any user except themselves.
 Under the hood this calls `PATCH /api/users/{id}/role`.
 
 ### Running with Docker

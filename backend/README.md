@@ -100,7 +100,7 @@ The auth module exposes one endpoint beyond the table in SAD §4.1 to support ad
 
 - **Method / path:** `PATCH /api/users/{id}/role`
 - **Auth:** Administrator role required.
-- **Request body:** `{ "role": "Administrator" }` — one of `Guest`, `TeamMember`, `Manager`, `Administrator`.
+- **Request body:** `{ "role": "Administrator" }` — one of `TeamMember`, `Manager`, `Administrator`.
 - **Response 200 OK:** updated `User` object.
 - **Errors:**
   - `400` — admin tries to change their own role, or the body fails validation,
