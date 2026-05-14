@@ -2,7 +2,7 @@
 # Slim base keeps the image small; psycopg[binary] ships its own libpq so we don't
 # need build tools in the final image.
 
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -10,6 +10,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
+
+# Install pg_dump for database backups
+RUN apk add --no-cache postgresql-client
 
 # Install the package by copying the source first (setuptools needs the `pzio`
 # package present at install time because pyproject.toml uses `find` + include).
