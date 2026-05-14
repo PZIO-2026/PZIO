@@ -21,6 +21,25 @@ export const editProfileSchema = z.object({
   avatar: z.string().max(255, "URL awatara jest za długi"),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.email("Nieprawidłowy format adresu email"),
+});
+
+export const resetPasswordConfirmSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(8, "Hasło musi mieć co najmniej 8 znaków")
+      .max(128, "Hasło nie może przekraczać 128 znaków"),
+    confirmPassword: z.string().min(1, "Powtórz nowe hasło"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Hasła nie są zgodne",
+    path: ["confirmPassword"],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type EditProfileInput = z.infer<typeof editProfileSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordConfirmInput = z.infer<typeof resetPasswordConfirmSchema>;
