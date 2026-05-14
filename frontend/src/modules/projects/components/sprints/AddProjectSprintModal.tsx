@@ -15,7 +15,8 @@ import type { Sprint } from "../../types";
 import SprintFormFields from "./SprintFormFields";
 
 import {
-  sprintFormSchema,
+  createSprintFormSchema,
+  todayLocalISO,
   type SprintFormInput,
 } from "../../schemas";
 
@@ -45,7 +46,7 @@ export default function AddProjectSprintModal({
     reset,
     formState: { errors, isSubmitting },
   } = useForm<SprintFormInput>({
-    resolver: zodResolver(sprintFormSchema),
+    resolver: zodResolver(createSprintFormSchema),
 
     defaultValues: {
       name: "",
@@ -105,6 +106,7 @@ export default function AddProjectSprintModal({
         <SprintFormFields
           register={register}
           errors={errors}
+          minStartDate={todayLocalISO()}
         />
 
         {submitError && (
