@@ -31,29 +31,36 @@ export default function UsersPanel() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
 
-  const [isLoading, setIsLoading] = useState(true);
+  // `loadedKey` records which (page, search) combination the current `users` /
+  // `loadError` reflect. Deriving `isLoading` from it (instead of toggling a
+  // separate setter inside the effect) means the spinner reappears immediately
+  // on every refetch without violating react-hooks/set-state-in-effect.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [pendingUserId, setPendingUserId] = useState<number | null>(null);
 
+  const currentKey = `${page}|${appliedSearch}`;
+  const isLoading = loadedKey !== currentKey;
+
   useEffect(() => {
     let cancelled = false;
+    const requestKey = `${page}|${appliedSearch}`;
     fetchUsers({ page, size: PAGE_SIZE, search: appliedSearch || undefined })
       .then((response) => {
         if (cancelled) return;
         setUsers(response.items);
         setTotal(response.total);
         setLoadError(null);
+        setLoadedKey(requestKey);
       })
       .catch((err) => {
         if (cancelled) return;
         setLoadError(
           err instanceof ApiError ? err.detail : "Nie udało się pobrać listy użytkowników.",
         );
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        setLoadedKey(requestKey);
       });
     return () => {
       cancelled = true;
