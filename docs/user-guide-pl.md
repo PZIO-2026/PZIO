@@ -57,8 +57,6 @@ Domyślnie użyje on adresu `http://localhost:8000` dla backendu. Frontend ruszy
 
 ## 2. Baza danych i zasady środowiskowe
 
-Baza konfigurowana jest z biegu. Pamiętaj o zasobach ról:
-
 - **Pierwszy zarejestrowany użytkownik** uzyskuje automatycznie najwyższe uprawnienia: **Administrator**.
 - **Każdy kolejny** staje się domyślnie **Team Memberem**.
 
@@ -70,25 +68,29 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 
 ### Logowanie (`/login`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU LOGOWANIA ]
+![Zrzut ekranu logowania](assets/login.png)
 
-- Logowanie na już istniejące konto przy użyciu email i hasła
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Ta strona jest punktem startowym dla wszystkich użytkowników.
+- Umożliwia uwierzytelnienie się za pomocą adresu e-mail i hasła.
+- Po pomyślnym zalogowaniu następuje przekierowanie do strony głównej.
+- Można też przejść do ekranu rejestracji lub zapomnianego hasła, jeśli nie masz jeszcze konta lub potrzebujesz zresetować hasło.
+- Dostępna jest również opcja logowanie przez Google lub GitHub (OAuth2) - po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu następuje powrót do aplikacji z zalogowanym użytkownikiem. Oczywiście, aby skorzystać z tej funkcji, administrator musi wcześniej skonfigurować odpowiednie dane uwierzytelniające za pomocą zmiennych środowiskowych.
 
 ### Rejestracja (`/register`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU REJESTRACJI ]
+![Zrzut ekranu rejestracji](assets/register.png)
 
-- Założenie nowego konta użytkownika z przekierowaniem na panel logowania
-- Pierwsze założone w systemie konto otrzyma rolę Administrator
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Ta strona umożliwia tworzenie nowego konta w systemie.
+- Użytkownik musi podać swój adres e-mail, dane osobowe, hasło oraz potwierdzenie hasła.
+- Po pomyślnym zarejestrowaniu następuje przekierowanie do strony logowania, gdzie można się zalogować nowo utworzonym kontem.
+- Dostępna jest także opcja powrotu do ekranu logowania oraz rejestracji przez OAuth2.
 
 ### Zapomniane hasło (`/forgot-password` i `/reset-password`)
 
-[ TUTAJ UMIEŚĆ ZRZUT EKRANU EKRANU WYMIANY HASŁA ]
+![Zrzut ekranu widoku zapomnianego hasła](assets/forgot-password.png)
 
-- Konfigurowalny flow wymiany utraconego hasła (resetowanie linkiem)
-- [... uzupełnij: inne funkcje dla tego widoku ...]
+- Jest to prosty widok umożliwiający użytkownikom zainicjowanie procesu resetowania hasła poprzez podanie swojego adresu e-mail.
+- Po wysłaniu formularza, docelowo ma być wysyłany e-mail z linkiem do resetowania hasła. W obecnej implementacji, ze względu na użycie `MockEmailService`, żaden e-mail nie jest faktycznie wysyłany.
 
 ### Strona główna (`/`)
 
