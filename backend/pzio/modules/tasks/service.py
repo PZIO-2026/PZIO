@@ -1,9 +1,10 @@
 from typing import cast
 
+from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from pzio.modules.admin.models import ActivityLog
+from pzio.modules.admin.models import ActivityLog, TaskType
 from pzio.modules.tasks import models, schemas
 
 
@@ -11,11 +12,21 @@ def _normalize_status_value(value: str) -> str:
     return "".join(value.lower().split())
 
 
+def _validate_task_type(db: Session, task_type: str) -> None:
+    statement = select(TaskType).where(TaskType.name == task_type)
+    if db.execute(statement).scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid task type",
+        )
+
+
 def create_work_item(
     db: Session,
     project_id: int,
     task: schemas.WorkItemCreate,
 ) -> models.WorkItem:
+    _validate_task_type(db, task.type)
     db_item = models.WorkItem(
         **task.model_dump(exclude_unset=True), project_id=project_id
     )
@@ -67,6 +78,9 @@ def update_work_item(
     if not db_item:
         return None
     updates = cast(dict[str, object], update_data.model_dump(exclude_unset=True))
+    task_type = updates.get("type")
+    if isinstance(task_type, str):
+        _validate_task_type(db, task_type)
     for key, value in updates.items():
         setattr(db_item, key, value)
     db.commit()

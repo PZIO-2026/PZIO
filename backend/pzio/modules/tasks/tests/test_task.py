@@ -10,11 +10,22 @@ from pzio.modules.auth.deps import get_current_user
 from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import hash_password
 from pzio.modules.admin.models import ActivityLog as AdminActivityLog
+from pzio.modules.admin.models import TaskType
 from pzio.modules.tasks import models
 
 
 @pytest.fixture(autouse=True)
 def override_current_user(db_session: Session) -> None:
+    for task_type_name in ("Task", "Bug"):
+        task_type = (
+            db_session.query(TaskType)
+            .filter(TaskType.name == task_type_name)
+            .first()
+        )
+        if task_type is None:
+            db_session.add(TaskType(name=task_type_name))
+    db_session.commit()
+
     def _override_get_current_user() -> User:
         user = (
             db_session.query(User)
@@ -62,6 +73,60 @@ def test_create_task(client: TestClient):
     assert data["projectId"] == 1
 
 
+def test_create_task_rejects_type_outside_dictionary(client: TestClient):
+    response = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Nieznany typ", "type": "Anything", "priority": "High"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid task type"
+
+
+def test_create_task_rejects_invalid_status(client: TestClient):
+    response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Nieznany status",
+            "type": "Task",
+            "priority": "High",
+            "status": "Whatever",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "status" in response.json()["detail"]
+
+
+def test_create_task_rejects_invalid_priority(client: TestClient):
+    response = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Nieznany priorytet", "type": "Task", "priority": "Urgent"},
+    )
+
+    assert response.status_code == 400
+    assert "priority" in response.json()["detail"]
+
+
+def test_create_task_rejects_empty_title_and_negative_story_points(
+    client: TestClient,
+):
+    response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "   ",
+            "type": "Task",
+            "priority": "High",
+            "storyPoints": -1,
+        },
+    )
+
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "title" in detail
+    assert "storyPoints" in detail
+
+
 def test_get_tasks(client: TestClient):
     """Test pobierania listy zadań w projekcie z filtrowaniem."""
     # Tworzymy zadania o różnych kombinacjach pól filtrowania
@@ -71,7 +136,7 @@ def test_get_tasks(client: TestClient):
             "title": "Task 1",
             "type": "Bug",
             "priority": "Low",
-            "status": "Todo",
+            "status": "ToDo",
             "assigneeId": 10,
             "sprintId": 100,
         },
@@ -84,7 +149,7 @@ def test_get_tasks(client: TestClient):
             "title": "Task 2",
             "type": "Task",
             "priority": "High",
-            "status": "In Progress",
+            "status": "InProgress",
             "assigneeId": 20,
             "sprintId": 200,
         },
@@ -97,7 +162,7 @@ def test_get_tasks(client: TestClient):
             "title": "Task 3",
             "type": "Bug",
             "priority": "Medium",
-            "status": "Todo",
+            "status": "ToDo",
             "assigneeId": 10,
             "sprintId": 200,
         },
@@ -213,6 +278,24 @@ def test_update_task(client: TestClient):
     assert data["priority"] == "Medium"  # Niezmienione pole
 
 
+def test_update_task_rejects_type_outside_dictionary(client: TestClient):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Poprawny typ", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+
+    response = client.patch(
+        f"/api/tasks/{task_id_value}",
+        json={"type": "Anything"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid task type"
+
+
 def test_update_task_status(client: TestClient, db_session: Session):
     """Test zmiany statusu (Kanban drag & drop) - (UC7)."""
     create_resp = client.post(
@@ -245,6 +328,24 @@ def test_update_task_status(client: TestClient, db_session: Session):
     assert log.old_value == "ToDo"
     assert log.new_value == "InProgress"
     assert log.user_id == user.user_id
+
+
+def test_update_task_status_rejects_invalid_status(client: TestClient):
+    create_resp = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Status validation", "type": "Task", "priority": "Medium"},
+    )
+    created_task = cast(dict[str, object], create_resp.json())
+    task_id_value = created_task["id"]
+    assert isinstance(task_id_value, int)
+
+    response = client.patch(
+        f"/api/tasks/{task_id_value}/status",
+        json={"status": "Whatever"},
+    )
+
+    assert response.status_code == 400
+    assert "status" in response.json()["detail"]
 
 
 def test_update_task_status_does_not_log_when_status_is_unchanged(
