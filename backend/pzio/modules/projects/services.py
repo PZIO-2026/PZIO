@@ -12,7 +12,7 @@ from typing import Optional
 
 from fastapi import HTTPException, status
 from pzio.modules.tasks.models import (
-    ActivityLog,
+    TimeLog,
     WorkItem,
 )
 from sqlalchemy import func, or_, String, cast
@@ -613,13 +613,13 @@ def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownO
     )
 
     logs = (
-        db.query(ActivityLog)
+        db.query(TimeLog)
         .join(
             WorkItem,
-            WorkItem.id == ActivityLog.work_item_id,
+            WorkItem.id == TimeLog.work_item_id,
         )
         .filter(WorkItem.sprint_id == sprint_id)
-        .order_by(ActivityLog.timestamp.asc())
+        .order_by(TimeLog.created_at.asc())
         .all()
     )
 
@@ -653,10 +653,10 @@ def get_burndown(db: Session, sprint_id: int, current_user_id: int) -> BurndownO
 def _generate_burndown_data(
     sprint: Sprint,
     tasks: list[WorkItem],
-    logs: list[ActivityLog],
+    logs: list[TimeLog],
 ) -> tuple[int, list[tuple[datetime, int]]]:
     """
-    Generates historical burndown data using ActivityLog
+    Generates historical burndown data using TimeLog
     status transitions.
     """
 
@@ -688,7 +688,7 @@ def _generate_burndown_data(
             continue
 
         completed_points_by_day[
-            log.timestamp.date()
+            log.created_at.date()
         ] += task_points.get(
             log.work_item_id,
             0,
