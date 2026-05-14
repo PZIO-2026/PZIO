@@ -7,11 +7,10 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from pzio.config import settings
 from pzio.modules.admin import service as admin_service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
-
-UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "uploads"))
 
 
 class CommentNotFoundError(Exception):
@@ -90,8 +89,9 @@ def delete_comment(db: Session, comment_id: int, user_id: int) -> None:
 
 
 def _ensure_upload_dir() -> Path:
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    return UPLOAD_DIR
+    upload_dir = Path(settings.upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
 
 
 def save_attachment(

@@ -5,6 +5,7 @@ import io
 import pytest
 from sqlalchemy.orm import Session
 
+from pzio.config import settings
 from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import create_access_token, hash_password
 from pzio.modules.communication import service
@@ -50,7 +51,7 @@ def auth_headers() -> Callable[[User], dict[str, str]]:
 @pytest.fixture
 def upload_dir(tmp_path, monkeypatch) -> Path:
     upload_root = tmp_path / "uploads"
-    monkeypatch.setattr(service, "UPLOAD_DIR", upload_root)
+    monkeypatch.setattr(settings, "upload_dir", str(upload_root))
     return upload_root
 
 
