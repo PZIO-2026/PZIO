@@ -124,7 +124,6 @@ export type SprintFormInput = z.infer<
   typeof sprintFormSchema
 >;
 
-<<<<<<< feature/frontend-tasks
 // ============================================================
 // Zadania (Work Items)
 // ============================================================
@@ -139,7 +138,6 @@ export const taskFormSchema = z.object({
 });
 
 export type TaskFormInput = z.infer<typeof taskFormSchema>;
-=======
 // Returns today's local date as an ISO-style yyyy-mm-dd string. Local time is
 // used on purpose so the comparison matches what the user sees in the native
 // date picker (which is also local).
@@ -161,5 +159,4 @@ export const createSprintFormSchema = sprintFormSchema.refine(
     path: ["startDate"],
   },
 );
->>>>>>> master
 
