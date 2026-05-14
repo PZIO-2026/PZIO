@@ -8,9 +8,12 @@ from pzio.db import Base
 
 
 class UserRole(StrEnum):
-    """Roles per System Analysis Document §4 (UML class diagram)."""
+    """Roles per System Analysis Document §4 (UML class diagram).
 
-    GUEST = "Guest"
+    "Guest" from the SRS actor table is intentionally omitted: it describes the
+    unauthenticated visitor and has no corresponding row in the users table.
+    """
+
     TEAM_MEMBER = "TeamMember"
     MANAGER = "Manager"
     ADMINISTRATOR = "Administrator"
