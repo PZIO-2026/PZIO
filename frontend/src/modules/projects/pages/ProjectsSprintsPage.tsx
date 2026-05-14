@@ -77,6 +77,8 @@ export default function ProjectsSprintsPage() {
   const [isBurndownModalOpen, setIsBurndownModalOpen] =
     useState(false);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // ============================================================
   // Handlers
   // ============================================================
@@ -178,7 +180,7 @@ export default function ProjectsSprintsPage() {
     return () => {
       cancelled = true;
     };
-  }, [project.projectId]);
+  }, [project.projectId, refreshKey]);
 
   // ============================================================
   // Memo
@@ -280,11 +282,8 @@ export default function ProjectsSprintsPage() {
           setIsAddModalOpen(false)
         }
         projectId={project.projectId}
-        onSprintCreated={(sprint) => {
-          setSprints((current) => [
-            sprint,
-            ...current,
-          ]);
+        onSprintCreated={() => {
+          setRefreshKey((prev) => prev + 1);
         }}
       />
 
@@ -296,20 +295,8 @@ export default function ProjectsSprintsPage() {
           setIsEditModalOpen(false)
         }
         sprint={selectedEditSprint}
-        onSprintUpdated={(updatedSprint) => {
-          setSprints((current) =>
-            current.map((sprint) =>
-              sprint.sprintId ===
-              updatedSprint.sprintId
-                ? updatedSprint
-                : sprint,
-            ),
-          );
-
-          setSelectedEditSprint(
-            updatedSprint,
-          );
-
+        onSprintUpdated={() => {
+          setRefreshKey((prev) => prev + 1);
           setIsEditModalOpen(false);
         }}
       />

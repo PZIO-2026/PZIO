@@ -448,13 +448,8 @@ export default function ProjectsMembersPage() {
           setIsAddModalOpen(false)
         }
         projectId={project.projectId}
-        onMemberAdded={(member) => {
-          setMembers((current) => [
-            member,
-            ...current,
-          ]);
-
-          setTotal((current) => current + 1);
+        onMemberAdded={() => {
+          setRefreshKey((prev) => prev + 1);
         }}
       />
       {editingMember && (

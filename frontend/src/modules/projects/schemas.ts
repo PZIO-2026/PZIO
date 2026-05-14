@@ -8,10 +8,10 @@ export const createProjectSchema = z.object({
   name: z
     .string()
     .min(1, "Nazwa projektu jest wymagana")
-    .max(200, "Nazwa projektu nie może przekraczać 200 znaków"),
+    .max(255, "Nazwa projektu nie może przekraczać 255 znaków"),
   description: z
     .string()
-    .max(2000, "Opis nie może przekraczać 2000 znaków")
+    .max(5000, "Opis nie może przekraczać 5000 znaków")
     .default(""),
 });
 
@@ -21,11 +21,11 @@ export const updateProjectSchema = z.object({
   name: z
     .string()
     .min(1, "Nazwa projektu jest wymagana")
-    .max(200, "Nazwa projektu nie może przekraczać 200 znaków")
+    .max(255, "Nazwa projektu nie może przekraczać 255 znaków")
     .optional(),
   description: z
     .string()
-    .max(2000, "Opis nie może przekraczać 2000 znaków")
+    .max(5000, "Opis nie może przekraczać 5000 znaków")
     .optional(),
   status: z
     .enum(["active", "archived"], {
@@ -113,13 +113,11 @@ export const sprintFormSchema = z
   })
   .refine(
     (values) =>
-      new Date(values.endDate).getTime() >=
-      new Date(values.startDate).getTime(),
+      new Date(values.endDate).getTime() > new Date(values.startDate).getTime(),
     {
-      message:
-        "Data zakończenia nie może być wcześniejsza niż rozpoczęcie",
+      message: "Data zakończenia musi być późniejsza niż data rozpoczęcia",
       path: ["endDate"],
-    },
+    }
   );
 
 export type SprintFormInput = z.infer<

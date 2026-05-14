@@ -35,6 +35,8 @@ export default function ProjectsListPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const page = Number(searchParams.get("page") ?? "1");
   const search = searchParams.get("search") ?? "";
   const status = (searchParams.get("status") as ProjectStatus | null) ?? "";
@@ -87,7 +89,7 @@ export default function ProjectsListPage() {
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, refreshKey]);
 
   function updateFilters(next: {
     search?: string;
@@ -117,10 +119,9 @@ export default function ProjectsListPage() {
     setSearchParams(params);
   }
 
-  function handleProjectCreated(project: Project) {
-    setProjects((current) => [project, ...current]);
-    setTotal((current) => current + 1);
+  function handleProjectCreated() {
     setIsCreateModalOpen(false);
+    setRefreshKey((prev) => prev + 1);
   }
 
   return (
