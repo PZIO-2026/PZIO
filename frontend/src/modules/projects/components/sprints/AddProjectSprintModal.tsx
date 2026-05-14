@@ -72,13 +72,23 @@ export default function AddProjectSprintModal({
 
       onClose();
     } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.detail);
-      } else {
-        setSubmitError(
-          "Nie udało się utworzyć sprintu.",
-        );
+      if (err instanceof ApiError && err.status === 400) {
+        setSubmitError("Data zakończenia sprintu musi być późniejsza niż data rozpoczęcia.");
+        return;
       }
+      if (err instanceof ApiError && err.status === 403) {
+        setSubmitError("Nie masz uprawnień do tworzenia sprintów w tym projekcie.");
+        return;
+      }
+      if (err instanceof ApiError && err.status === 422) {
+        setSubmitError("Podane dane sprintu są nieprawidłowe.");
+        return;
+      }
+      if (err instanceof ApiError) {
+        setSubmitError("Nie udało się utworzyć sprintu.");
+        return;
+      }
+      setSubmitError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
     }
   }
 

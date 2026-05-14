@@ -72,11 +72,11 @@ export default function ProjectsListPage() {
       } catch (err) {
         if (cancelled) return;
 
-        setError(
-          err instanceof ApiError
-            ? err.detail
-            : "Nie udało się pobrać listy projektów.",
-        );
+        if (err instanceof ApiError) {
+          setError("Nie udało się pobrać listy projektów.");
+        } else {
+          setError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);

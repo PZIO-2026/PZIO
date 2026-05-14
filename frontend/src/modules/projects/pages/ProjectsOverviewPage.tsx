@@ -89,11 +89,23 @@ export default function ProjectOverviewPage() {
       onProjectUpdated(updatedProject);
       setIsEditing(false);
     } catch (err) {
-      setSubmitError(
-        err instanceof ApiError
-          ? err.detail
-          : "Nie udało się zaktualizować projektu.",
-      );
+      if (err instanceof ApiError && err.status === 403) {
+        setSubmitError("Tylko Project Owner może edytować ten projekt.");
+        return;
+      }
+      if (err instanceof ApiError && err.status === 404) {
+        setSubmitError("Projekt nie istnieje lub został usunięty.");
+        return;
+      }
+      if (err instanceof ApiError && err.status === 422) {
+        setSubmitError("Podane dane projektu są nieprawidłowe.");
+        return;
+      }
+      if (err instanceof ApiError) {
+        setSubmitError("Nie udało się zaktualizować projektu.");
+        return;
+      }
+      setSubmitError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
     }
   }
 

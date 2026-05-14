@@ -121,11 +121,13 @@ export default function ProjectsMembersPage() {
       } catch (err) {
         if (cancelled) return;
 
-        setLoadError(
-          err instanceof ApiError
-            ? err.detail
-            : "Nie udało się pobrać członków projektu.",
-        );
+        if (err instanceof ApiError && err.status === 403) {
+          setLoadError("Nie masz dostępu do listy członków tego projektu.");
+        } else if (err instanceof ApiError) {
+          setLoadError("Nie udało się pobrać członków projektu.");
+        } else {
+          setLoadError("Nie udało się połączyć z serwerem. Spróbuj ponownie.");
+        }
       } finally {
         if (!cancelled) {
           setIsLoading(false);
