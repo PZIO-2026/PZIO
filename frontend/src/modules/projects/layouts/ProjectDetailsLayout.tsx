@@ -1,7 +1,7 @@
 // src/modules/projects/layouts/ProjectDetailsLayout.tsx
 
 import { NavLink, Outlet, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../../../api/client";
 import { fetchProject } from "../api";
@@ -71,6 +71,26 @@ export default function ProjectDetailsLayout() {
     return () => {
       cancelled = true;
     };
+  }, [projectId]);
+
+  // Re-fetches the current project on demand. Used by child routes when an
+  // action they perform may have changed the caller's own membership/roles
+  // (e.g. editing or removing your own member entry) — without this, the
+  // sidebar "Twoje role" and the visibility of action buttons would stay stale
+  // until the next full page load.
+  const refreshProject = useCallback(async () => {
+    if (projectId === undefined) return;
+    try {
+      const response = await fetchProject(Number(projectId));
+      setProject(response);
+      setError(null);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.detail
+          : "Nie udało się pobrać szczegółów projektu.",
+      );
+    }
   }, [projectId]);
 
   if (isLoading) {
@@ -157,7 +177,13 @@ export default function ProjectDetailsLayout() {
 
         {/* Content */}
         <main className="min-w-0">
-          <Outlet context={{ project, onProjectUpdated: handleProjectUpdated }} />
+          <Outlet
+            context={{
+              project,
+              onProjectUpdated: handleProjectUpdated,
+              refreshProject,
+            }}
+          />
         </main>
       </div>
     </div>
