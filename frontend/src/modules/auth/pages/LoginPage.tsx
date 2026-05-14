@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 
 import LoginForm from "../components/LoginForm";
+import OAuthButtons from "../components/OAuthButtons";
 
 function readRegisteredEmail(state: unknown): string | null {
   if (typeof state === "object" && state !== null && "registeredEmail" in state) {
@@ -46,6 +47,8 @@ export default function LoginPage() {
             Zapomniałeś hasła?
           </Link>
         </p>
+
+        <OAuthButtons />
 
         <p className="mt-6 text-center text-sm text-gray-600">
           Nie masz konta?{" "}

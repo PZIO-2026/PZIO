@@ -33,6 +33,17 @@ export function updateMe(input: UpdateMeInput): Promise<User> {
   });
 }
 
+export interface OAuthLoginInput {
+  provider: string;
+  oauthToken: string;
+}
+
+export function oauthLogin(input: OAuthLoginInput): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>("/api/auth/oauth", {
+    method: "POST",
+    body: input,
+  });
+}
 export function requestPasswordReset(email: string): Promise<MessageResponse> {
   return apiFetch<MessageResponse>("/api/auth/reset-password", {
     method: "POST",
