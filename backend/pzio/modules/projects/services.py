@@ -15,7 +15,7 @@ from pzio.modules.tasks.models import (
     ActivityLog,
     WorkItem,
 )
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, String, cast
 from sqlalchemy.orm import Session
 from pzio.modules.auth.models import User
 
@@ -315,7 +315,13 @@ def list_members(
     )
 
     if params.role:
-        query = query.filter(ProjectMember.roles.like(f"%{params.role.value}%"))
+        # check if the underlying database supports array operations (e.g. Postgres)
+        dialect = db.bind.dialect.name if db.bind else db.get_bind().dialect.name
+        if dialect == "postgresql":
+            query = query.filter(ProjectMember.roles.contains([params.role.value]))            
+        else:
+            search_term = f'%"{params.role.value}"%'
+            query = query.filter(cast(ProjectMember.roles, String).like(search_term))
 
     if params.search:
         search_term = f"%{params.search.strip()}%"
@@ -422,10 +428,20 @@ def update_member_roles(
         )
 
     if is_trying_to_remove_owner:
-        owner_count = db.query(ProjectMember).filter(
-            ProjectMember.project_id == project_id,
-            ProjectMember.roles.like(f"%{ProjectRole.PROJECT_OWNER.value}%")
-        ).count()
+        
+        # check dialect for array support
+        dialect = db.get_bind().dialect.name
+        if dialect == "postgresql":
+            owner_count = db.query(ProjectMember).filter(
+                ProjectMember.project_id == project_id,
+                ProjectMember.roles.contains([ProjectRole.PROJECT_OWNER.value])
+            ).count()
+        else:
+            search_term = f'%"{ProjectRole.PROJECT_OWNER.value}"%'
+            owner_count = db.query(ProjectMember).filter(
+                ProjectMember.project_id == project_id,
+                cast(ProjectMember.roles, String).like(search_term)
+            ).count()
         
         if owner_count <= 1:
             raise HTTPException(
