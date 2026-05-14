@@ -573,11 +573,8 @@ class TestProjectMembers:
         proj = _create_project(client)
         pid = proj["projectId"]
 
-        # user_id=9999 does not exist as a member → _get_membership_or_403 raises 403,
-        # but the service raises 404 via the project lookup path; adjust if your
-        # service raises 403 instead when the target user is not a member.
         res = client.delete(f"/api/projects/{pid}/members/9999")
-        assert res.status_code in (403, 404)
+        assert res.status_code == 404
 
     def test_non_member_cannot_remove_member(self, client: TestClient):
         """Użytkownik spoza projektu nie może usunąć członka."""

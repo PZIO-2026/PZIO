@@ -110,6 +110,23 @@ def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Option
 
     return membership
 
+def _get_membership_or_404(db: Session, project_id: int, user_id: int) -> ProjectMember:
+    """Return the ProjectMember row for the target user, or raise 404."""
+    membership = db.query(ProjectMember)\
+        .filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user_id,
+        )\
+        .first()
+    
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{user_id}' is not a member of this project.",
+        )
+
+    return membership
+
 
 def _project_out(project: Project, roles: list[ProjectRole]) -> ProjectOut:
     data = ProjectOut.model_validate(project).model_dump(
@@ -376,7 +393,7 @@ def remove_member(
     _require_project_roles(db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER})
 
     membership = _get_membership_or_403(db, project_id, current_user_id)
-    membership_to_be_removed = _get_membership_or_403(db, project_id, user_id)
+    membership_to_be_removed = _get_membership_or_404(db, project_id, user_id)
     
     if ProjectRole.PROJECT_OWNER in membership_to_be_removed.roles:
         raise HTTPException(
@@ -408,7 +425,7 @@ def update_member_roles(
         db, project_id, current_user_id, allowed_roles={ProjectRole.PROJECT_OWNER, ProjectRole.SCRUM_MASTER}
     )
 
-    membership_to_be_updated = _get_membership_or_403(db, project_id, user_id)
+    membership_to_be_updated = _get_membership_or_404(db, project_id, user_id)
 
     is_editing_owner = ProjectRole.PROJECT_OWNER in membership_to_be_updated.roles
     is_current_user_owner = ProjectRole.PROJECT_OWNER in current_membership.roles
