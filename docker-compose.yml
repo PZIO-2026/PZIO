@@ -22,13 +22,15 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://pzio:pzio@db:5432/pzio
-      JWT_SECRET: dev-secret-change-me-in-production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set — copy .env.example to .env or export it}
       CORS_ORIGINS: http://localhost:5173
       FRONTEND_URL: http://localhost:5173
+      UPLOAD_DIR: /app/uploads
     ports:
       - "8000:8000"
     volumes:
       - backend-backups:/app/backups
+      - backend-uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -46,3 +48,4 @@ services:
 volumes:
   postgres-data:
   backend-backups:
+  backend-uploads:
