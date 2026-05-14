@@ -127,6 +127,7 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 | `JWT_ALGORITHM`        | `HS256`                              |                                             |
 | `JWT_EXPIRES_MIN`      | `60`                                 | Access token lifetime in minutes.           |
 | `CORS_ORIGINS`         | `http://localhost:5173`              | Comma-separated list of allowed origins.    |
+| `UPLOAD_DIR`           | `./uploads`                          | Directory for uploaded task attachments.    |
 | `GOOGLE_CLIENT_ID`     |                                      | Google OAuth Client ID.                     |
 | `GOOGLE_CLIENT_SECRET` |                                      | Google OAuth Client Secret.                 |
 | `GITHUB_CLIENT_ID`     |                                      | GitHub OAuth Client ID.                     |
