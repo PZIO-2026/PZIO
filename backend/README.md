@@ -108,7 +108,7 @@ The auth module exposes one endpoint beyond the table in SAD §4.1 to support ad
   - `403` — caller is not an administrator,
   - `404` — target user does not exist.
 
-## Pierwsze uruchomienie (zero configuration)
+## First run (zero configuration)
 
 If no user with role `Administrator` exists in the database, the next
 account registered through `POST /api/auth/register` is automatically

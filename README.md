@@ -12,34 +12,38 @@ Main repository: [GitHub - PZIO](https://github.com/PZIO-2026/PZIO)
 
 For more details on one of the components, check out the respective README file in the `backend` and `frontend` directories.
 
-## Pierwsze uruchomienie
+## First run
 
-Aplikacja działa według zasady *zero configuration* — po uruchomieniu backendu
-i frontendu baza jest tworzona automatycznie, bez ręcznych skryptów SQL.
-Pierwszy użytkownik zarejestrowany przez `POST /api/auth/register` otrzymuje
-rolę **Administrator**. Każde kolejne konto domyślnie dostaje rolę
-**TeamMember**.
+The application follows a *zero configuration* approach — once the backend
+and frontend are running, the database is created automatically with no
+manual SQL scripts. The first user registered through
+`POST /api/auth/register` receives the **Administrator** role. Every
+subsequent account defaults to **TeamMember**.
 
-Po zalogowaniu admin zarządza pozostałymi kontami z panelu `/admin` —
-sekcja *Użytkownicy* pozwala zmienić rolę (`Guest`, `TeamMember`, `Manager`,
-`Administrator`) dowolnego użytkownika poza sobą. Pod spodem wywoływany jest
-endpoint `PATCH /api/users/{id}/role`.
+After logging in, an admin manages the other accounts from the `/admin`
+panel — the *Users* section lets them change the role (`Guest`,
+`TeamMember`, `Manager`, `Administrator`) of any user except themselves.
+Under the hood this calls `PATCH /api/users/{id}/role`.
 
-### Uruchomienie z Dockerem
+### Running with Docker
 
-Cały stos (PostgreSQL + backend + frontend) startuje jednym poleceniem:
+The full stack (PostgreSQL + backend + frontend) starts with a single
+command, but you first need to provide a JWT secret. Copy the example
+environment file and start the stack:
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
 
-Po wystartowaniu wszystkich kontenerów:
+Once all containers are up:
 
 - frontend — http://localhost:5173
 - backend (Swagger) — http://localhost:8000/docs
 
-`JWT_SECRET` zdefiniowany w `docker-compose.yml` to wartość deweloperska — przed
-wdrożeniem produkcyjnym należy ją nadpisać własnym, losowym sekretem.
+The `JWT_SECRET` in `.env.example` is a development value — before any
+production deployment, override it with a long, random secret (the
+backend container refuses to start without `JWT_SECRET` being set).
 
 ## Authors
 
