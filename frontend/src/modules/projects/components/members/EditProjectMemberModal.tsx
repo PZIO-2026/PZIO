@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { projectMemberUpdateSchema } from "../../schemas";
+import { projectMemberUpdateSchema, type ProjectMemberUpdateFormValues } from "../../schemas";
 import { updateProjectMemberRoles } from "../../api";
 import { ApiError } from "../../../../api/client";
 
@@ -13,10 +13,6 @@ interface EditProjectMemberModalProps {
   currentRoles: string[];
   onClose: () => void;
   onSuccess: () => void;
-}
-
-interface FormValues {
-  roles: string[];
 }
 
 const AVAILABLE_ROLES = [
@@ -38,25 +34,28 @@ export default function EditProjectMemberModal({
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(projectMemberUpdateSchema) as any,
+  } = useForm<ProjectMemberUpdateFormValues>({
+    resolver: zodResolver(projectMemberUpdateSchema),
     defaultValues: {
-      roles: currentRoles, 
+      roles: currentRoles as ProjectMemberUpdateFormValues["roles"], 
     },
   });
 
-  const onSubmit = async (data: FormValues) => {
+  const onSubmit = async (data: ProjectMemberUpdateFormValues) => {
     try {
       await updateProjectMemberRoles(projectId, userId, data.roles);
       onSuccess();
       onClose();
     } catch (error) {
-      console.error("Błąd edycji ról:", error);
       if (error instanceof ApiError) {
-        alert(error.detail);
+        setError("roles", { message: error.detail });
       } else {
-        alert("Nie udało się zaktualizować ról użytkownika.");
+        setError("root", { 
+          type: "manual", 
+          message: "Wystąpił nieoczekiwany błąd podczas zapisywania ról." 
+        });
       }
     }
   };
@@ -68,6 +67,13 @@ export default function EditProjectMemberModal({
       onClose={onClose}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        
+        {errors.root && (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+            {errors.root.message}
+          </div>
+        )}
+
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Role w projekcie *</label>
             <div className="space-y-2 bg-gray-50 p-3 rounded border border-gray-200">
