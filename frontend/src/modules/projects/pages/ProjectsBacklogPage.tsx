@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
 
@@ -198,7 +198,12 @@ export default function ProjectsBacklogPage() {
                     return (
                       <tr key={task.id} className="hover:bg-gray-50">
                         <td className="py-3 pr-4 font-medium text-gray-900">
-                          {task.title}
+                          <Link
+                            to={`/tasks/${task.id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {task.title}
+                          </Link>
                           {task.parentId !== null && (
                             <span className="ml-2 text-xs text-gray-400">
                               (#{task.parentId})

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
 import {
   DndContext,
@@ -139,6 +139,7 @@ interface TaskCardProps {
 
 function TaskCard({ task, isDragging }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id });
+  const navigate = useNavigate();
 
   const style = transform
     ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
@@ -150,6 +151,7 @@ function TaskCard({ task, isDragging }: TaskCardProps) {
       style={style}
       {...listeners}
       {...attributes}
+      onClick={() => navigate(`/tasks/${task.id}`)}
       className={`cursor-grab rounded-lg border border-gray-200 bg-white p-3 shadow-sm select-none active:cursor-grabbing ${isDragging ? "opacity-40" : ""}`}
     >
       <p className="text-sm font-medium text-gray-900">{task.title}</p>
