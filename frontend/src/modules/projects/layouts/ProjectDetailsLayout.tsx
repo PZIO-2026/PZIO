@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../../../api/client";
 import { fetchProject } from "../api";
-import type { Project, ProjectDetail } from "../types";
+import type { Project, ProjectDetail, ProjectRole } from "../types";
 import ProjectRoleBadge from "../components/ProjectRoleBadge";
 
 const navigationItems = [
@@ -31,6 +31,13 @@ const navigationItems = [
   },
 ];
 
+const ROLE_WEIGHTS: Record<ProjectRole, number> = {
+  project_owner: 1,
+  scrum_master: 2,
+  developer: 3,
+  qa: 4,
+  maintainer: 5,
+};
 
 export default function ProjectDetailsLayout() {
   const { projectId } = useParams();
@@ -149,12 +156,14 @@ export default function ProjectDetailsLayout() {
                 Twoje role:
               </span>
 
-              {project.currentUserRoles.map((role) => (
-                <ProjectRoleBadge
-                  key={role}
-                  role={role}
-                />
-              ))}
+              {[...project.currentUserRoles]
+                .sort((a, b) => ROLE_WEIGHTS[a] - ROLE_WEIGHTS[b])
+                .map((role) => (
+                  <ProjectRoleBadge
+                    key={role}
+                    role={role}
+                  />
+                ))}
             </div>
           </div>
 

@@ -94,7 +94,9 @@ def _require_project_roles(
 
 
 def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
-    """Return the ProjectMember row for user in project, or None."""
+    """Return the ProjectMember row for user in project, or None. Administrators bypass this and get a virtual ProjectOwner membership."""
+    user = db.get(User, user_id)
+    is_admin = user and getattr(user, "role", "") == "Administrator"
     membership = db.query(ProjectMember)\
         .filter(
             ProjectMember.project_id == project_id,
@@ -103,6 +105,12 @@ def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Option
         .first()
     
     if membership is None:
+        if is_admin:
+            return ProjectMember(
+                project_id=project_id,
+                user_id=user_id,
+                roles=[ProjectRole.PROJECT_OWNER]
+            )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not a member of this project.",
@@ -138,15 +146,32 @@ def _project_out(project: Project, roles: list[ProjectRole]) -> ProjectOut:
 # Projects
 # ---------------------------------------------------------------------------
 def create_project(db: Session, payload: ProjectCreate, current_user_id: int) -> ProjectOut:
+    existing_projects = (
+        db.query(Project.name)
+        .join(ProjectMember)
+        .filter(
+            ProjectMember.user_id == current_user_id,
+            Project.name.like(f"{payload.name}%")
+        )
+        .all()
+    )
+    
+    existing_names = {row[0] for row in existing_projects}
+    
+    final_name = payload.name
+    if final_name in existing_names:
+        counter = 1
+        while f"{payload.name} ({counter})" in existing_names:
+            counter += 1
+        final_name = f"{payload.name} ({counter})"
+
     project = Project(
-        name=payload.name,
+        name=final_name,
         description=payload.description,
         status=ProjectStatus.ACTIVE,
     )
     db.add(project)
     db.flush()
-    
-    # Automatyczne dodanie twórcy
     owner = ProjectMember(
         project_id=project.project_id,
         user_id=current_user_id,
@@ -161,13 +186,21 @@ def create_project(db: Session, payload: ProjectCreate, current_user_id: int) ->
 def list_projects(
     db: Session, params: ProjectListParams, current_user_id: int
 ) -> Page[ProjectOut]:
-    # Users can only see projects they are a member of
+    user = db.get(User, current_user_id)
+    is_admin = user and getattr(user, "role", "") == "Administrator"
+
     query = (
         db.query(Project, ProjectMember)
-        .join(ProjectMember)
-        .filter(ProjectMember.user_id == current_user_id)
+        .outerjoin(
+            ProjectMember,
+            (ProjectMember.project_id == Project.project_id) &
+            (ProjectMember.user_id == current_user_id)
+        )
     )
-    
+
+    if not is_admin:
+        query = query.filter(ProjectMember.user_id == current_user_id)
+
     if params.status is not None:
         query = query.filter(Project.status == params.status)
 
@@ -190,7 +223,7 @@ def list_projects(
 
     return Page(
         items=[
-            _project_out(project, membership.roles)
+            _project_out(project, membership.roles if membership else [])
             for project, membership in rows
         ],
         total=total,
@@ -503,6 +536,12 @@ def create_sprint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="endDate must be after startDate.",
         )
+    
+    if (payload.end_date - payload.start_date).days > 60:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
+        )
 
     sprint = Sprint(
         project_id=project_id,
@@ -546,8 +585,6 @@ def update_sprint(
             detail="No fields provided for update.",
         )
     
-    # check if there is already active sprint
-    # if there is - and user tries to set this sprint as active - throw 409 
     new_status = changes.get("status")
     if new_status == SprintStatus.ACTIVE:
         existing_active = (
@@ -573,6 +610,12 @@ def update_sprint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="endDate must be after startDate.",
+        )
+    
+    if (sprint.end_date - sprint.start_date).days > 60:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
         )
 
     sprint.updated_at = datetime.now(timezone.utc)

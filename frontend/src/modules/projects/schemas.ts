@@ -118,6 +118,18 @@ export const sprintFormSchema = z
       message: "Data zakończenia musi być późniejsza niż data rozpoczęcia",
       path: ["endDate"],
     }
+  )
+  .refine(
+    (values) => {
+      const start = new Date(values.startDate).getTime();
+      const end = new Date(values.endDate).getTime();
+      const diffInDays = (end - start) / (1000 * 60 * 60 * 24);
+      return diffInDays <= 60;
+    },
+    {
+      message: "Sprint nie może trwać dłużej niż 60 dni",
+      path: ["endDate"],
+    }
   );
 
 export type SprintFormInput = z.infer<
