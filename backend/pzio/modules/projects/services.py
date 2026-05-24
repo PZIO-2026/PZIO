@@ -542,10 +542,28 @@ def create_sprint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
         )
+    
+    existing_sprints = (
+        db.query(Sprint.name)
+        .filter(
+            Sprint.project_id == project_id,
+            Sprint.name.like(f"{payload.name}%")
+        )
+        .all()
+    )
+    
+    existing_names = {row[0] for row in existing_sprints}
+    
+    final_name = payload.name
+    if final_name in existing_names:
+        counter = 1
+        while f"{payload.name} ({counter})" in existing_names:
+            counter += 1
+        final_name = f"{payload.name} ({counter})"
 
     sprint = Sprint(
         project_id=project_id,
-        name=payload.name,
+        name=final_name,
         status=SprintStatus.PLANNED,
         start_date=payload.start_date,
         goal=payload.goal,
@@ -602,6 +620,29 @@ def update_sprint(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="There is already an active sprint in this project.",
             )
+        
+    new_name = changes.get("name")
+    if new_name is not None and new_name != sprint.name:
+        existing_sprints = (
+            db.query(Sprint.name)
+            .filter(
+                Sprint.project_id == sprint.project_id,
+                Sprint.name.like(f"{new_name}%"),
+                Sprint.sprint_id != sprint.sprint_id
+            )
+            .all()
+        )
+        
+        existing_names = {row[0] for row in existing_sprints}
+        
+        final_name = new_name
+        if final_name in existing_names:
+            counter = 1
+            while f"{new_name} ({counter})" in existing_names:
+                counter += 1
+            final_name = f"{new_name} ({counter})"
+            
+        changes["name"] = final_name
 
     for field, value in changes.items():
         setattr(sprint, field, value)

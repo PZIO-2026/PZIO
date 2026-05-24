@@ -46,7 +46,13 @@ export default function EditProjectSprintModal({
     formState: { errors, isSubmitting },
   } = useForm<SprintFormInput>({
     resolver: zodResolver(sprintFormSchema),
-
+    values: sprint ? {
+      name: sprint.name,
+      startDate: sprint.startDate.split("T")[0],
+      endDate: sprint.endDate.split("T")[0],
+      goal: sprint.goal ?? "",
+      status: sprint.status,
+    } : undefined,
     defaultValues: {
       name: "",
       startDate: "",
@@ -58,16 +64,11 @@ export default function EditProjectSprintModal({
 
   useEffect(() => {
     if (!sprint) return;
-
-    reset({
-      name: sprint.name,
-      // for proper formatting
-      startDate: sprint.startDate.split("T")[0],
-      endDate: sprint.endDate.split("T")[0],
-      goal: sprint.goal ?? "",
-      status: sprint.status,
-    });
-  }, [sprint, reset]);
+    if (!isOpen) {
+      setSubmitError(null);
+      reset();
+    }
+  }, [isOpen, reset]);
 
   async function onSubmit(
     values: SprintFormInput,
