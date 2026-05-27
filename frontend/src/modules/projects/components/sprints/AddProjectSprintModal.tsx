@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useForm } from "react-hook-form";
 
@@ -44,6 +44,7 @@ export default function AddProjectSprintModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SprintFormInput>({
     resolver: zodResolver(createSprintFormSchema),
@@ -55,6 +56,20 @@ export default function AddProjectSprintModal({
       goal: "",
     },
   });
+
+  const startDate = watch("startDate");
+
+  const minEndDate = useMemo(() => {
+    const today = todayLocalISO();
+
+    if (!startDate) return today;
+
+    const nextDay = new Date(startDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayStr = nextDay.toISOString().split("T")[0];
+
+    return nextDayStr > today ? nextDayStr : today;
+  }, [startDate]);
 
   async function onSubmit(
     values: SprintFormInput,
@@ -107,6 +122,7 @@ export default function AddProjectSprintModal({
           register={register}
           errors={errors}
           minStartDate={todayLocalISO()}
+          minEndDate={minEndDate}
         />
 
         {submitError && (

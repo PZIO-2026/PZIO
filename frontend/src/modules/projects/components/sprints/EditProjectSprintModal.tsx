@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useForm } from "react-hook-form";
 
@@ -16,6 +16,7 @@ import SprintFormFields from "./SprintFormFields";
 
 import {
   sprintFormSchema,
+  todayLocalISO,
   type SprintFormInput,
 } from "../../schemas";
 
@@ -43,6 +44,7 @@ export default function EditProjectSprintModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SprintFormInput>({
     resolver: zodResolver(sprintFormSchema),
@@ -69,6 +71,20 @@ export default function EditProjectSprintModal({
       reset();
     }
   }, [isOpen, reset]);
+
+  const startDate = watch("startDate");
+
+  const minEndDate = useMemo(() => {
+    const today = todayLocalISO();
+
+    if (!startDate) return today;
+
+    const nextDay = new Date(startDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextDayStr = nextDay.toISOString().split("T")[0];
+
+    return nextDayStr > today ? nextDayStr : today;
+  }, [startDate]);
 
   async function onSubmit(
     values: SprintFormInput,
@@ -135,6 +151,7 @@ export default function EditProjectSprintModal({
           register={register}
           errors={errors}
           showStatus
+          minEndDate={minEndDate}
         />
 
         {submitError && (
