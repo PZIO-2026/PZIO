@@ -13,13 +13,29 @@ vi.mock("../../api", () => ({
 
 const mockUpdateSprint = vi.mocked(updateSprint);
 
+function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
+function localDateFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+const startDateLocal = localDateFromNow(1);
+const endDateLocal = localDateFromNow(14);
+const farFutureDate = localDateFromNow(62);
+
 const mockSprint: Sprint = {
   sprintId: 10,
   projectId: 5,
   name: "Sprint Testowy",
   goal: "Stworzenie testów",
-  startDate: "2026-05-01T00:00:00.000Z",
-  endDate: "2026-05-14T00:00:00.000Z",
+  startDate: daysFromNow(1),
+  endDate: daysFromNow(14),
   status: "planned",
 };
 
@@ -46,8 +62,8 @@ describe("EditProjectSprintModal", () => {
 
     expect(container.querySelector('[name="name"]')).toHaveValue("Sprint Testowy");
     expect(container.querySelector('[name="goal"]')).toHaveValue("Stworzenie testów");
-    expect(container.querySelector('[name="startDate"]')).toHaveValue("2026-05-01");
-    expect(container.querySelector('[name="endDate"]')).toHaveValue("2026-05-14");
+    expect(container.querySelector('[name="startDate"]')).toHaveValue(startDateLocal);
+    expect(container.querySelector('[name="endDate"]')).toHaveValue(endDateLocal);
     expect(container.querySelector('[name="status"]')).toHaveValue("planned");
   });
 
@@ -92,7 +108,7 @@ describe("EditProjectSprintModal", () => {
 
     const endDateInput = container.querySelector('[name="endDate"]') as HTMLInputElement;
     await user.clear(endDateInput);
-    await user.type(endDateInput, "2026-08-01"); 
+    await user.type(endDateInput, farFutureDate); 
     
     await user.click(screen.getByRole("button", { name: /zapisz zmiany/i }));
 
@@ -117,8 +133,8 @@ describe("EditProjectSprintModal", () => {
     await waitFor(() => {
       expect(mockUpdateSprint).toHaveBeenCalledWith(10, {
         name: "Zmieniona Nazwa",
-        startDate: "2026-05-01",
-        endDate: "2026-05-14",
+        startDate: startDateLocal,
+        endDate: endDateLocal,
         goal: "Stworzenie testów",
         status: "planned",
       });
