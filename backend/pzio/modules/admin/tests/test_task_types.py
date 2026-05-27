@@ -28,9 +28,7 @@ def test_add_task_type_as_admin_returns_201(client: TestClient, db_session: Sess
     assert stored.name == "Spike"
 
 
-def test_add_task_type_rejects_duplicate_name_with_409(
-    client: TestClient, db_session: Session
-) -> None:
+def test_add_task_type_rejects_duplicate_name_with_409(client: TestClient, db_session: Session) -> None:
     admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
     headers = auth_header(admin)
 
@@ -72,19 +70,31 @@ def test_add_task_type_rejects_empty_name_with_400(client: TestClient, db_sessio
     assert response.status_code == 400
 
 
-def test_get_task_types_returns_inserted_items(client: TestClient, db_session: Session) -> None:
+def test_get_task_types_has_default_entry(client: TestClient, db_session: Session) -> None:
     admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
     headers = auth_header(admin)
-
-    client.post("/api/admin/task-types", json={"name": "Spike"}, headers=headers)
-    client.post("/api/admin/task-types", json={"name": "Bug"}, headers=headers)
 
     response = client.get("/api/task-types", headers=headers)
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body, list)
     names = [item["name"] for item in body]
-    assert names == ["Spike", "Bug"]
+    assert names == ["Bug"]
+
+
+def test_get_task_types_returns_inserted_items(client: TestClient, db_session: Session) -> None:
+    admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
+    headers = auth_header(admin)
+
+    client.post("/api/admin/task-types", json={"name": "Epic"}, headers=headers)
+    client.post("/api/admin/task-types", json={"name": "Spike"}, headers=headers)
+
+    response = client.get("/api/task-types", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    names = [item["name"] for item in body]
+    assert names == ["Bug", "Epic", "Spike"]
 
 
 def test_get_task_types_without_token_returns_401(client: TestClient) -> None:
