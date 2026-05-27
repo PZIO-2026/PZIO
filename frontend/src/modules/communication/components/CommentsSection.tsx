@@ -1,5 +1,5 @@
 import { Loader2, MessageSquare } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import { useConfirm } from "../../../components/ConfirmProvider";
@@ -17,14 +17,14 @@ export default function CommentsSection({ taskId }: { taskId: number }) {
   const [isLoading, setIsLoading] = useState(true);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
-  const refreshAttachments = async () => {
+  const refreshAttachments = useCallback(async () => {
     try {
       const data = await fetchAttachments(taskId);
-      setAttachments(data.filter((a) => a.contentType?.startsWith("image/")));
+      setAttachments(data);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [taskId]);
 
   const refreshComments = async () => {
     try {
