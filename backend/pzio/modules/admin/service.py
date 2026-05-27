@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,14 @@ from pzio.modules.admin.schemas import TaskTypeCreate
 
 class TaskTypeAlreadyExistsError(Exception):
     """Raised when adding a task type whose name already exists (→ 409)."""
+
+
+class TaskTypeNotFoundError(Exception):
+    """Raised when a task type is not found (→ 404)."""
+
+
+class CannotDeleteLastTaskTypeError(Exception):
+    """Raised when attempting to delete the last remaining task type (→ 400)."""
 
 
 class BackupFailedError(Exception):
@@ -55,6 +63,22 @@ def list_task_types(db: Session) -> Sequence[TaskType]:
     """Return all task types ordered by id (insertion order)."""
     stmt = select(TaskType).order_by(TaskType.task_type_id.asc())
     return db.scalars(stmt).all()
+
+
+def delete_task_type(db: Session, task_type_id: int) -> None:
+    """Delete a task type, as long as it isn't the last one."""
+    task_type = db.execute(select(TaskType).where(TaskType.task_type_id == task_type_id)).scalar_one_or_none()
+    if task_type is None:
+        raise TaskTypeNotFoundError(f"Task type {task_type_id} not found.")
+
+    count = db.scalar(select(func.count()).select_from(TaskType))
+    if count is None:
+        raise RuntimeError("Failed to count task types.")
+    if count < 2:
+        raise CannotDeleteLastTaskTypeError("Cannot delete the last task type in the system.")
+
+    db.delete(task_type)
+    db.commit()
 
 
 _SQLITE_PREFIXES = ("sqlite:///", "sqlite+pysqlite:///")

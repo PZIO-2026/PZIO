@@ -100,3 +100,61 @@ def test_get_task_types_returns_inserted_items(client: TestClient, db_session: S
 def test_get_task_types_without_token_returns_401(client: TestClient) -> None:
     response = client.get("/api/task-types")
     assert response.status_code == 401
+
+
+def test_remove_task_type_success(client: TestClient, db_session: Session) -> None:
+    admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
+    headers = auth_header(admin)
+
+    # Note: "Bug" is created automatically as the default first element.
+    # Add one more to have 2 elements, otherwise we can't remove
+    added = client.post("/api/admin/task-types", json={"name": "Spike"}, headers=headers)
+    task_type_id = added.json()["taskTypeId"]
+
+    delete_resp = client.delete(f"/api/admin/task-types/{task_type_id}", headers=headers)
+    assert delete_resp.status_code == 204
+
+    # Verify it was removed
+    get_resp = client.get("/api/task-types", headers=headers)
+    assert len(get_resp.json()) == 1
+
+
+def test_remove_last_task_type_returns_400(client: TestClient, db_session: Session) -> None:
+    admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
+    headers = auth_header(admin)
+
+    # Just one default item exists at this point
+    get_resp = client.get("/api/task-types", headers=headers)
+    items = get_resp.json()
+    assert len(items) == 1
+    task_type_id = items[0]["taskTypeId"]
+
+    delete_resp = client.delete(f"/api/admin/task-types/{task_type_id}", headers=headers)
+    assert delete_resp.status_code == 400
+
+
+def test_remove_task_type_not_found(client: TestClient, db_session: Session) -> None:
+    admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
+    headers = auth_header(admin)
+
+    # Add second task type so it passes count check
+    client.post("/api/admin/task-types", json={"name": "Spike"}, headers=headers)
+
+    delete_resp = client.delete("/api/admin/task-types/9999", headers=headers)
+    assert delete_resp.status_code == 404
+
+
+def test_remove_task_type_as_non_admin_returns_403(client: TestClient, db_session: Session) -> None:
+    admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
+    member = seed_user(db_session, email="member@example.com", role=UserRole.TEAM_MEMBER)
+
+    added = client.post("/api/admin/task-types", json={"name": "Spike"}, headers=auth_header(admin))
+    task_type_id = added.json()["taskTypeId"]
+
+    response = client.delete(f"/api/admin/task-types/{task_type_id}", headers=auth_header(member))
+    assert response.status_code == 403
+
+
+def test_remove_task_type_without_token_returns_401(client: TestClient) -> None:
+    response = client.delete("/api/admin/task-types/1")
+    assert response.status_code == 401

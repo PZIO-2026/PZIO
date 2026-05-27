@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { ApiError } from "../../../api/client";
-import { createTaskType, fetchTaskTypes } from "../api";
+import { createTaskType, deleteTaskType, fetchTaskTypes } from "../api";
 import { createTaskTypeSchema } from "../schemas";
 import type { CreateTaskTypeFormInput } from "../schemas";
 import type { TaskType } from "../types";
@@ -41,9 +41,7 @@ export default function TaskTypesPanel() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setLoadError(
-          err instanceof ApiError ? err.detail : "Nie udało się pobrać listy typów zadań.",
-        );
+        setLoadError(err instanceof ApiError ? err.detail : "Nie udało się pobrać listy typów zadań.");
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -61,12 +59,26 @@ export default function TaskTypesPanel() {
       setValue("name", "");
     } catch (err) {
       if (err instanceof ApiError) {
-        setSubmitError(
-          err.status === 409 ? "Typ zadania o tej nazwie już istnieje." : err.detail,
-        );
+        setSubmitError(err.status === 409 ? "Typ zadania o tej nazwie już istnieje." : err.detail);
         return;
       }
       setSubmitError("Nie udało się dodać typu zadania. Spróbuj ponownie.");
+    }
+  }
+
+  async function onDelete(taskTypeId: number) {
+    if (!window.confirm("Czy na pewno chcesz usunąć ten typ zadania?")) return;
+
+    setLoadError(null);
+    try {
+      await deleteTaskType(taskTypeId);
+      setTaskTypes((current) => current.filter((t) => t.taskTypeId !== taskTypeId));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setLoadError(err.detail);
+        return;
+      }
+      setLoadError("Nie udało się usunąć typu zadania. Spróbuj ponownie.");
     }
   }
 
@@ -96,9 +108,7 @@ export default function TaskTypesPanel() {
           )}
         </div>
 
-        {submitError !== null && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p>
-        )}
+        {submitError !== null && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p>}
 
         <div className="flex justify-end">
           <button
@@ -123,10 +133,21 @@ export default function TaskTypesPanel() {
           <ul className="divide-y divide-gray-200">
             {taskTypes.map((type) => (
               <li key={type.taskTypeId} className="flex items-center justify-between py-2">
-                <span className="font-medium text-gray-900">{type.name}</span>
-                <span className="text-xs text-gray-500">
-                  dodano {new Date(type.createdAt).toLocaleDateString("pl-PL")}
-                </span>
+                <div>
+                  <span className="font-medium text-gray-900">{type.name}</span>
+                  <span className="ml-3 text-xs text-gray-500">
+                    dodano {new Date(type.createdAt).toLocaleDateString("pl-PL")}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDelete(type.taskTypeId)}
+                  disabled={taskTypes.length < 2}
+                  className="rounded px-2 py-1 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={taskTypes.length < 2 ? "Nie można usunąć ostatniego typu zadania" : "Usuń typ zadania"}
+                >
+                  Usuń
+                </button>
               </li>
             ))}
           </ul>

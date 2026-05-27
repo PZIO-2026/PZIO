@@ -187,6 +187,6 @@ Widok ten jest podzielony na wiele sekcji, które udokumentowano poniżej.
 - Panel dedykowany do zarządzania kontami użytkowników, backupami bazy danych i innymi funkcjami administracyjnymi.
 - Dostęp do tego panelu mają tylko użytkownicy z rolą Administratora.
 - Pierwsza sekcja umożliwia przeglądanie listy wszystkich zarejestrowanych użytkowników, wraz z ich rolami i możliwością edycji tychże ról.
-- Druga sekcja pozwala na rozszerzanie dostępnych typów zadań projektowych o nowe definicje.
+- Druga sekcja pozwala na rozszerzanie dostępnych typów zadań projektowych o nowe definicje, a także usuwanie istniejących typów zadań, o ile nie jest to ostatni pozostały typ.
 - Trzecia sekcja służy do wymuszania stworzenia kopii zapasowej bazy danych.
 - Czwarta sekcja pozwala na przeglądanie logów powiązanych z konkretnym zadaniem projektowym, co jest szczególnie przydatne do celów debugowania i monitorowania.
