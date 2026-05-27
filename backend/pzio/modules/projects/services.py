@@ -161,9 +161,12 @@ def create_project(db: Session, payload: ProjectCreate, current_user_id: int) ->
     final_name = payload.name
     if final_name in existing_names:
         counter = 1
-        while f"{payload.name} ({counter})" in existing_names:
+        suffix = f" ({counter})"
+        final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
+        while final_name in existing_names:
             counter += 1
-        final_name = f"{payload.name} ({counter})"
+            suffix = f" ({counter})"
+            final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
 
     project = Project(
         name=final_name,
@@ -223,7 +226,10 @@ def list_projects(
 
     return Page(
         items=[
-            _project_out(project, membership.roles if membership else [])
+            _project_out(
+                project, 
+                membership.roles if membership else ([ProjectRole.PROJECT_OWNER] if is_admin else [])
+            )
             for project, membership in rows
         ],
         total=total,
@@ -273,6 +279,34 @@ def update_project(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update.",
         )
+    
+    new_name = changes.get("name")
+    if new_name is not None and new_name != project.name:
+        existing_projects = (
+            db.query(Project.name)
+            .join(ProjectMember)
+            .filter(
+                ProjectMember.user_id == current_user_id,
+                Project.name.like(f"{new_name}%"),
+                Project.project_id != project.project_id
+            )
+            .all()
+        )
+        
+        existing_names = {row[0] for row in existing_projects}
+        
+        final_name = new_name
+        if final_name in existing_names:
+            counter = 1
+            suffix = f" ({counter})"
+            final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+            
+            while final_name in existing_names:
+                counter += 1
+                suffix = f" ({counter})"
+                final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+                
+        changes["name"] = final_name
 
     for field, value in changes.items():
         setattr(project, field, value)
@@ -537,7 +571,7 @@ def create_sprint(
             detail="endDate must be after startDate.",
         )
     
-    if (payload.end_date - payload.start_date).days > 60:
+    if (payload.end_date - payload.start_date) > timedelta(days=60):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
@@ -557,9 +591,12 @@ def create_sprint(
     final_name = payload.name
     if final_name in existing_names:
         counter = 1
-        while f"{payload.name} ({counter})" in existing_names:
+        suffix = f" ({counter})"
+        final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
+        while final_name in existing_names:
             counter += 1
-        final_name = f"{payload.name} ({counter})"
+            suffix = f" ({counter})"
+            final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
 
     sprint = Sprint(
         project_id=project_id,
@@ -638,9 +675,12 @@ def update_sprint(
         final_name = new_name
         if final_name in existing_names:
             counter = 1
-            while f"{new_name} ({counter})" in existing_names:
+            suffix = f" ({counter})"
+            final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+            while final_name in existing_names:
                 counter += 1
-            final_name = f"{new_name} ({counter})"
+                suffix = f" ({counter})"
+                final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
             
         changes["name"] = final_name
 
@@ -653,7 +693,7 @@ def update_sprint(
             detail="endDate must be after startDate.",
         )
     
-    if (sprint.end_date - sprint.start_date).days > 60:
+    if (sprint.end_date - sprint.start_date) > timedelta(days=60):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
