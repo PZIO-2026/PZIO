@@ -1,7 +1,13 @@
-import { Check, Edit2, Loader2, Trash2, X } from "lucide-react";
+import { Check, Edit2, FileText, Loader2, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { Comment, Attachment } from "../types";
 import AttachmentPreview from "./AttachmentPreview";
+import { downloadAttachment } from "../api";
+
+function getFileExtension(filename: string): string {
+  const dot = filename.lastIndexOf(".");
+  return dot >= 0 ? filename.slice(dot + 1).toUpperCase() : "";
+}
 
 function renderCommentContent(content: string, attachments: Attachment[]) {
   const regex = /\[attachment:(\d+)\]/g;
@@ -16,11 +22,39 @@ function renderCommentContent(content: string, attachments: Attachment[]) {
     const id = parseInt(match[1], 10);
     const attachment = attachments.find((a) => a.attachmentId === id);
     if (attachment) {
-      parts.push(
-        <span key={`att-${id}-${match.index}`} className="block my-2">
-          <AttachmentPreview attachment={attachment} className="max-w-sm max-h-64 object-contain rounded-lg border border-slate-200 shadow-sm" />
-        </span>
-      );
+      const isImage = attachment.contentType?.startsWith("image/");
+      if (isImage) {
+        parts.push(
+          <span key={`att-${id}-${match.index}`} className="block my-2">
+            <AttachmentPreview attachment={attachment} className="max-w-sm max-h-64 object-contain rounded-lg border border-slate-200 shadow-sm" />
+          </span>
+        );
+      } else {
+        const ext = getFileExtension(attachment.filename);
+        parts.push(
+          <button
+            key={`att-${id}-${match.index}`}
+            type="button"
+            onClick={() => downloadAttachment(attachment.attachmentId, attachment.filename)}
+            className="inline-flex items-center gap-2.5 my-1.5 px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors group cursor-pointer"
+            title={`Pobierz ${attachment.filename}`}
+          >
+            <div className="flex-shrink-0 w-9 h-9 rounded-md bg-blue-50 border border-blue-100 flex items-center justify-center">
+              <FileText className="w-4.5 h-4.5 text-blue-500" />
+            </div>
+            <div className="flex flex-col items-start min-w-0">
+              <span className="text-sm font-medium text-slate-700 group-hover:text-blue-600 truncate max-w-[200px] transition-colors">
+                {attachment.filename}
+              </span>
+              {ext && (
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  {ext}
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      }
     } else {
       parts.push(`[attachment:${id}]`);
     }
@@ -32,6 +66,7 @@ function renderCommentContent(content: string, attachments: Attachment[]) {
 
   return parts;
 }
+
 
 interface CommentItemProps {
   comment: Comment;
