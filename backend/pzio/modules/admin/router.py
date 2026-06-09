@@ -69,6 +69,32 @@ def get_task_types(
     return [TaskTypeRead.model_validate(item) for item in items]
 
 
+@router.delete(
+    "/api/admin/task-types/{task_type_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a task type (Admin)",
+    description="Removes a task type from the system. Requires Administrator role. Cannot remove the last task type.",
+    responses={
+        204: {"description": "Task type deleted successfully"},
+        400: {"description": "Cannot delete the last task type"},
+        401: {"description": "Missing or invalid token"},
+        403: {"description": "Insufficient privileges"},
+        404: {"description": "Task type not found"},
+    },
+)
+def remove_task_type(
+    task_type_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> None:
+    try:
+        service.delete_task_type(db, task_type_id)
+    except service.TaskTypeNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task type not found")
+    except service.CannotDeleteLastTaskTypeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
 @router.post(
     "/api/admin/backups",
     response_model=BackupRead,

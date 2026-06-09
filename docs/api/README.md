@@ -223,6 +223,7 @@ Poniższa tabela jest mapą orientacyjną.
 |--------|-------------------------------|------------------|
 | GET    | `/api/task-types`             | zalogowany       |
 | POST   | `/api/admin/task-types`       | `Administrator`  |
+| DELETE | `/api/admin/task-types/{id}`  | `Administrator`  |
 | POST   | `/api/admin/backups`          | `Administrator`  |
 
 ---

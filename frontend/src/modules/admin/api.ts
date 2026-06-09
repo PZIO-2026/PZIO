@@ -23,6 +23,12 @@ export function createTaskType(input: CreateTaskTypeInput): Promise<TaskType> {
   });
 }
 
+export function deleteTaskType(taskTypeId: number): Promise<void> {
+  return apiFetch<void>(`/api/admin/task-types/${taskTypeId}`, {
+    method: "DELETE",
+  });
+}
+
 export function createBackup(): Promise<BackupResponse> {
   return apiFetch<BackupResponse>("/api/admin/backups", {
     method: "POST",

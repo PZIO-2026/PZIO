@@ -1341,7 +1341,8 @@ paths:
       tags:
       - Communication
       summary: Upload an attachment
-      description: Uploads a file attachment to the specified task. Request must use `multipart/form-data`.
+      description: 'Uploads a file attachment to the specified task. Request must use `multipart/form-data`.
+        Max file size: 10 MB. Allowed types: images, PDFs.'
       operationId: upload_attachment_api_tasks__task_id__attachments_post
       security:
       - HTTPBearer: []
@@ -1365,6 +1366,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttachmentRead'
+        '400':
+          description: File too large or unsupported file type
         '401':
           description: Missing or invalid token
         '422':
@@ -1527,6 +1530,40 @@ paths:
           description: Missing or invalid token
       security:
       - HTTPBearer: []
+  /api/admin/task-types/{task_type_id}:
+    delete:
+      tags:
+      - Admin
+      summary: Remove a task type (Admin)
+      description: Removes a task type from the system. Requires Administrator role. Cannot remove the
+        last task type.
+      operationId: remove_task_type_api_admin_task_types__task_type_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_type_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Type Id
+      responses:
+        '204':
+          description: Task type deleted successfully
+        '400':
+          description: Cannot delete the last task type
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Insufficient privileges
+        '404':
+          description: Task type not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/admin/backups:
     post:
       tags:
@@ -1714,7 +1751,7 @@ components:
       properties:
         file:
           type: string
-          contentMediaType: application/octet-stream
+          format: binary
           title: File
       type: object
       required:
@@ -1796,6 +1833,10 @@ components:
         content:
           type: string
           title: Content
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/UserRead'
+          - type: 'null'
         createdAt:
           type: string
           format: date-time
@@ -2713,11 +2754,6 @@ components:
         type:
           type: string
           title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
       type: object
       required:
       - loc
