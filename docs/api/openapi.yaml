@@ -935,6 +935,8 @@ paths:
                 $ref: '#/components/schemas/WorkItemResponse'
         '403':
           description: Caller is not a member of the project
+        '404':
+          description: Project not found
         '422':
           description: Validation Error
           content:
@@ -1000,6 +1002,8 @@ paths:
                 title: Response Get Tasks Api Projects  Id  Tasks Get
         '403':
           description: Caller is not a member of the project
+        '404':
+          description: Project not found
         '422':
           description: Validation Error
           content:

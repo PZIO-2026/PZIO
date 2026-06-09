@@ -100,7 +100,13 @@ def require_project_member(db: Session, project_id: int, user_id: int) -> Option
     project-scoped resources on membership. Administrators bypass the
     membership requirement (they may access every project), in which case the
     function returns None as there is no membership row to hand back.
+
+    The project must exist: a missing project raises 404 (rather than a
+    misleading "not a member" 403) and stops administrators from creating
+    tasks under an arbitrary, non-existent project_id (work_items has no FK).
     """
+    _get_project_or_404(db, project_id)
+
     user = db.get(User, user_id)
     if user is not None and user.role == UserRole.ADMINISTRATOR:
         return None

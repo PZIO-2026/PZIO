@@ -634,6 +634,50 @@ def test_admin_can_access_tasks_without_membership(client: TestClient, db_sessio
         app.dependency_overrides.pop(get_current_user, None)
 
 
+def test_tasks_for_nonexistent_project_return_404(client: TestClient):
+    """Nieistniejący projekt daje 404, a nie mylące 403 'nie jesteś członkiem'."""
+    assert client.get("/api/projects/999/tasks").status_code == 404
+    create_response = client.post(
+        "/api/projects/999/tasks",
+        json={"title": "Zadanie widmo", "type": "Task", "priority": "Medium"},
+    )
+    assert create_response.status_code == 404
+
+
+def test_admin_cannot_create_task_for_nonexistent_project(
+    client: TestClient, db_session: Session
+):
+    """Bypass admina nie może tworzyć osieroconych zadań pod nieistniejącym projektem."""
+    admin = User(
+        email="admin-orphan@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Adam",
+        last_name="Admin",
+        role=UserRole.ADMINISTRATOR,
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+
+    app.dependency_overrides[get_current_user] = lambda: admin
+    try:
+        create_response = client.post(
+            "/api/projects/999/tasks",
+            json={"title": "Sierota", "type": "Task", "priority": "Medium"},
+        )
+        assert create_response.status_code == 404
+        # Żadne zadanie nie powstało.
+        assert (
+            db_session.query(models.WorkItem)
+            .filter(models.WorkItem.project_id == 999)
+            .count()
+            == 0
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
 def test_protected_endpoints_require_auth(client: TestClient):
     create_resp = client.post(
         "/api/projects/1/tasks",

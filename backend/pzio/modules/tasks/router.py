@@ -38,7 +38,10 @@ def _require_member_for_task(db: Session, task_id: int, user_id: int) -> models.
     "/api/projects/{id}/tasks",
     response_model=schemas.WorkItemResponse,
     status_code=status.HTTP_201_CREATED,
-    responses={403: {"description": "Caller is not a member of the project"}},
+    responses={
+        403: {"description": "Caller is not a member of the project"},
+        404: {"description": "Project not found"},
+    },
 )
 def create_task(
     id: int,
@@ -54,7 +57,10 @@ def create_task(
 @router.get(
     "/api/projects/{id}/tasks",
     response_model=list[schemas.WorkItemResponse],
-    responses={403: {"description": "Caller is not a member of the project"}},
+    responses={
+        403: {"description": "Caller is not a member of the project"},
+        404: {"description": "Project not found"},
+    },
 )
 def get_tasks(
     id: int,
