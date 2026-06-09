@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchUsers, updateUserRole } from "./api";
+import { fetchUsers, updateUserRole, updateUserStatus } from "./api";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -93,6 +93,30 @@ describe("admin api", () => {
       expect(url).toBe("http://localhost:8000/api/users/42/role");
       expect((init as RequestInit).method).toBe("PATCH");
       expect((init as RequestInit).body).toBe(JSON.stringify({ role: "Manager" }));
+      expect(result).toEqual(user);
+    });
+  });
+
+  describe("updateUserStatus", () => {
+    it("PATCHes /api/users/{id}/status with a JSON isActive body", async () => {
+      const user = {
+        userId: 42,
+        email: "alice@example.com",
+        firstName: "Alice",
+        lastName: "Liddell",
+        avatar: null,
+        role: "Manager",
+        isActive: false,
+        createdAt: "2026-01-01T00:00:00Z",
+      };
+      fetchMock.mockImplementationOnce(() => Promise.resolve(jsonResponse(user)));
+
+      const result = await updateUserStatus(42, false);
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe("http://localhost:8000/api/users/42/status");
+      expect((init as RequestInit).method).toBe("PATCH");
+      expect((init as RequestInit).body).toBe(JSON.stringify({ isActive: false }));
       expect(result).toEqual(user);
     });
   });
