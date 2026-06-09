@@ -133,17 +133,27 @@ def list_users(
     response_model=UserRead,
     response_model_by_alias=True,
     summary="Change user status (Admin)",
-    description="Activates or deactivates a user account. Requires Administrator role.",
-    responses={404: {"description": "User not found"}},
+    description="Activates or deactivates a user account. Requires Administrator role. Admin cannot deactivate their own account.",
+    responses={
+        403: {"description": "Cannot deactivate own account"},
+        404: {"description": "User not found"},
+    },
 )
 def update_user_status(
     id: int,
     payload: UserStatusUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> UserRead:
     try:
-        updated_user = service.update_user_status(db, id, payload.is_active)
+        updated_user = service.update_user_status(
+            db, id, payload.is_active, current_user=admin
+        )
+    except service.SelfDeactivationError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin cannot deactivate their own account",
+        )
     except service.UserNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 

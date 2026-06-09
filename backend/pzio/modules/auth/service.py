@@ -48,6 +48,10 @@ class SelfRoleChangeError(Exception):
     """Raised when an admin attempts to change their own role (→ 400)."""
 
 
+class SelfDeactivationError(Exception):
+    """Raised when an admin attempts to deactivate their own account (→ 403)."""
+
+
 # Arbitrary 64-bit constant identifying the "first-admin bootstrap" critical
 # section for PostgreSQL's `pg_advisory_xact_lock`. Any int fits as long as it
 # is unique to this purpose within the application.
@@ -133,8 +137,22 @@ def update_user_profile(db: Session, user: User, payload: UserUpdate) -> User:
     return user
 
 
-def update_user_status(db: Session, user_id: int, is_active: bool) -> User:
-    """Activate or deactivate a user account (Admin only)."""
+def update_user_status(
+    db: Session,
+    user_id: int,
+    is_active: bool,
+    *,
+    current_user: User,
+) -> User:
+    """Activate or deactivate a user account (Admin only).
+
+    Raises SelfDeactivationError when the admin tries to deactivate their own
+    account (which would lock them out), UserNotFoundError when the target user
+    does not exist.
+    """
+    if user_id == current_user.user_id and not is_active:
+        raise SelfDeactivationError()
+
     user = get_user_by_id(db, user_id)
     if user is None:
         raise UserNotFoundError()
