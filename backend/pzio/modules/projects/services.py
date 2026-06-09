@@ -17,7 +17,7 @@ from pzio.modules.tasks.models import (
 )
 from sqlalchemy import func, or_, String, cast
 from sqlalchemy.orm import Session
-from pzio.modules.auth.models import User
+from pzio.modules.auth.models import User, UserRole
 
 from .models import (
     Project,
@@ -93,12 +93,17 @@ def _require_project_roles(
     return membership
 
 
-def require_project_member(db: Session, project_id: int, user_id: int) -> ProjectMember:
-    """Ensure the user belongs to the project, else raise 403.
+def require_project_member(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
+    """Ensure the user may access the project, else raise 403.
 
     Public entry point for other modules (e.g. tasks) that need to gate
-    project-scoped resources on membership.
+    project-scoped resources on membership. Administrators bypass the
+    membership requirement (they may access every project), in which case the
+    function returns None as there is no membership row to hand back.
     """
+    user = db.get(User, user_id)
+    if user is not None and user.role == UserRole.ADMINISTRATOR:
+        return None
     return _get_membership_or_403(db, project_id, user_id)
 
 

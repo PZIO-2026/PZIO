@@ -602,6 +602,38 @@ def test_non_member_cannot_access_project_tasks(client: TestClient, db_session: 
         app.dependency_overrides.pop(get_current_user, None)
 
 
+def test_admin_can_access_tasks_without_membership(client: TestClient, db_session: Session):
+    """Administrator ma dostęp do zadań każdego projektu, nawet bez członkostwa."""
+    admin = User(
+        email="admin-tasks@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Adam",
+        last_name="Admin",
+        role=UserRole.ADMINISTRATOR,
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+
+    task = models.WorkItem(project_id=1, title="W projekcie", type="Task", priority="Medium")
+    db_session.add(task)
+    db_session.commit()
+    db_session.refresh(task)
+
+    app.dependency_overrides[get_current_user] = lambda: admin
+    try:
+        assert client.get("/api/projects/1/tasks").status_code == 200
+        create_response = client.post(
+            "/api/projects/1/tasks",
+            json={"title": "Zadanie admina", "type": "Task", "priority": "Medium"},
+        )
+        assert create_response.status_code == 201
+        assert client.get(f"/api/tasks/{task.id}").status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
 def test_protected_endpoints_require_auth(client: TestClient):
     create_resp = client.post(
         "/api/projects/1/tasks",
