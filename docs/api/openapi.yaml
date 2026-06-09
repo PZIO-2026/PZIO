@@ -933,6 +933,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -996,6 +998,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/WorkItemResponse'
                 title: Response Get Tasks Api Projects  Id  Tasks Get
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1025,6 +1029,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1059,6 +1065,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1083,6 +1091,8 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1118,6 +1128,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1153,6 +1165,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TimeLogResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1184,6 +1198,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/TimeLogResponse'
                 title: Response Get Worklogs Api Tasks  Id  Worklogs Get
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:

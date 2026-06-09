@@ -93,6 +93,15 @@ def _require_project_roles(
     return membership
 
 
+def require_project_member(db: Session, project_id: int, user_id: int) -> ProjectMember:
+    """Ensure the user belongs to the project, else raise 403.
+
+    Public entry point for other modules (e.g. tasks) that need to gate
+    project-scoped resources on membership.
+    """
+    return _get_membership_or_403(db, project_id, user_id)
+
+
 def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
     """Return the ProjectMember row for user in project, or None."""
     membership = db.query(ProjectMember)\
