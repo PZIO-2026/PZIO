@@ -77,6 +77,8 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         '401':
           description: Invalid credentials
+        '403':
+          description: Account deactivated
         '422':
           description: Validation Error
           content:
@@ -372,6 +374,8 @@ paths:
           description: Unsupported provider
         '401':
           description: Invalid OAuth token
+        '403':
+          description: Account deactivated
         '422':
           description: Validation Error
           content:
