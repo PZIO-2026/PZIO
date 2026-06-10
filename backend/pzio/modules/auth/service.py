@@ -32,7 +32,11 @@ class EmailAlreadyExistsError(Exception):
 
 
 class InvalidCredentialsError(Exception):
-    """Raised when login credentials don't match any active user (→ 401)."""
+    """Raised when login credentials don't match any user (→ 401)."""
+
+
+class AccountDeactivatedError(Exception):
+    """Raised when valid credentials belong to a deactivated account (→ 403)."""
 
 
 class UserNotFoundError(Exception):
@@ -49,6 +53,10 @@ class OAuthProviderNotSupportedError(Exception):
 
 class SelfRoleChangeError(Exception):
     """Raised when an admin attempts to change their own role (→ 400)."""
+
+
+class SelfStatusChangeError(Exception):
+    """Raised when an admin attempts to change their own account status (→ 403)."""
 
 
 # Arbitrary 64-bit constant identifying the "first-admin bootstrap" critical
@@ -116,10 +124,19 @@ def create_user(db: Session, payload: UserCreate) -> User:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User:
-    """Verify credentials. Raises InvalidCredentialsError on any mismatch."""
+    """Verify credentials.
+
+    Raises InvalidCredentialsError when the email is unknown or the password is
+    wrong, and AccountDeactivatedError only once the credentials are confirmed
+    valid but the account is deactivated. Checking the password first means we
+    never reveal that an account is deactivated to someone who can't already
+    authenticate as that user.
+    """
     user = _get_user_by_email(db, email)
-    if user is None or not user.is_active or not verify_password(password, user.password_hash):
+    if user is None or not verify_password(password, user.password_hash):
         raise InvalidCredentialsError()
+    if not user.is_active:
+        raise AccountDeactivatedError()
     return user
 
 
@@ -136,8 +153,22 @@ def update_user_profile(db: Session, user: User, payload: UserUpdate) -> User:
     return user
 
 
-def update_user_status(db: Session, user_id: int, is_active: bool) -> User:
-    """Activate or deactivate a user account (Admin only)."""
+def update_user_status(
+    db: Session,
+    user_id: int,
+    is_active: bool,
+    *,
+    current_user: User,
+) -> User:
+    """Activate or deactivate a user account (Admin only).
+
+    Raises SelfStatusChangeError when the admin targets their own account
+    (deactivation would lock them out; any self-change is rejected as defense
+    in depth), UserNotFoundError when the target user does not exist.
+    """
+    if user_id == current_user.user_id:
+        raise SelfStatusChangeError()
+
     user = get_user_by_id(db, user_id)
     if user is None:
         raise UserNotFoundError()
@@ -365,8 +396,10 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
         db.commit()
         db.refresh(user)
 
-    return user
+    if not user.is_active:
+        raise AccountDeactivatedError()
 
+    return user
 
 def delete_user(db: Session, user: User) -> None:
     """Hard delete of the user account."""

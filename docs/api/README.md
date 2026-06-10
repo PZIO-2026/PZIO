@@ -322,6 +322,11 @@ curl -X PATCH http://localhost:8000/api/users/42/status \
 Zablokowany użytkownik dostaje `401 Unauthorized` z komunikatem `Invalid email
 or password` przy próbie logowania.
 
+Administrator nie może zmienić statusu własnego konta — każda taka próba
+(dowolne `isActive` na własnym `id`) kończy się `403 Forbidden`. Chroni to
+przede wszystkim przed zablokowaniem sobie dostępu do systemu, a blokada
+obejmuje też aktywację jako dodatkowa linia obrony.
+
 ---
 
 ## 6. Słowniki wartości enum

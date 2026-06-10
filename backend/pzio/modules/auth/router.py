@@ -32,6 +32,9 @@ from pzio.modules.communication.deps import provide_email_service
 # because the auth module owns multiple URL roots.
 router = APIRouter(tags=["Auth"])
 
+# User-facing message for a login attempt against a deactivated account.
+ACCOUNT_DEACTIVATED_DETAIL = "Konto zostało dezaktywowane. Skontaktuj się z administratorem."
+
 
 @router.post(
     "/api/auth/register",
@@ -64,6 +67,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> UserRead:
     responses={
         200: {"description": "Authenticated"},
         401: {"description": "Invalid credentials"},
+        403: {"description": "Account deactivated"},
     },
 )
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
@@ -71,6 +75,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         user = service.authenticate_user(db, payload.email, payload.password)
     except service.InvalidCredentialsError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    except service.AccountDeactivatedError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ACCOUNT_DEACTIVATED_DETAIL)
 
     token, expires_in = create_access_token(user.user_id, user.role)
     return TokenResponse(access_token=token, expires_in=expires_in)
@@ -135,17 +141,27 @@ def list_users(
     response_model=UserRead,
     response_model_by_alias=True,
     summary="Change user status (Admin)",
-    description="Activates or deactivates a user account. Requires Administrator role.",
-    responses={404: {"description": "User not found"}},
+    description="Activates or deactivates a user account. Requires Administrator role. Admin cannot change their own account status.",
+    responses={
+        403: {"description": "Cannot change own account status"},
+        404: {"description": "User not found"},
+    },
 )
 def update_user_status(
     id: int,
     payload: UserStatusUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> UserRead:
     try:
-        updated_user = service.update_user_status(db, id, payload.is_active)
+        updated_user = service.update_user_status(
+            db, id, payload.is_active, current_user=admin
+        )
+    except service.SelfStatusChangeError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin cannot change their own account status",
+        )
     except service.UserNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -237,6 +253,7 @@ def confirm_password_reset(
     responses={
         400: {"description": "Unsupported provider"},
         401: {"description": "Invalid OAuth token"},
+        403: {"description": "Account deactivated"},
     },
 )
 async def oauth_login(
@@ -249,6 +266,8 @@ async def oauth_login(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported provider: {exc}")
     except service.InvalidCredentialsError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OAuth token")
+    except service.AccountDeactivatedError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=ACCOUNT_DEACTIVATED_DETAIL)
 
     token, expires_in = create_access_token(user.user_id, user.role)
     return TokenResponse(access_token=token, expires_in=expires_in)

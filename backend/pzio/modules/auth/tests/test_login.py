@@ -67,7 +67,9 @@ def test_login_with_unknown_email_returns_401(client: TestClient) -> None:
     assert response.status_code == 401
 
 
-def test_login_for_inactive_user_returns_401(client: TestClient, db_session: Session) -> None:
+def test_login_for_inactive_user_returns_403_with_distinct_message(
+    client: TestClient, db_session: Session
+) -> None:
     user = _seed_user(db_session, is_active=False)
 
     response = client.post(
@@ -75,7 +77,25 @@ def test_login_for_inactive_user_returns_401(client: TestClient, db_session: Ses
         json={"email": user.email, "password": "s3cret-pass"},
     )
 
+    assert response.status_code == 403
+    assert response.json()["detail"] == (
+        "Konto zostało dezaktywowane. Skontaktuj się z administratorem."
+    )
+
+
+def test_login_for_inactive_user_with_wrong_password_returns_401(
+    client: TestClient, db_session: Session
+) -> None:
+    # A wrong password must not reveal that the account exists / is deactivated.
+    user = _seed_user(db_session, is_active=False)
+
+    response = client.post(
+        "/api/auth/login",
+        json={"email": user.email, "password": "totally-wrong"},
+    )
+
     assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid email or password"
 
 
 def test_login_rejects_invalid_email_format_with_400(client: TestClient) -> None:
