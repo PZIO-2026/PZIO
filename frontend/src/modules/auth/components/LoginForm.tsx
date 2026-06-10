@@ -8,6 +8,7 @@ import { login as loginApi } from "../api";
 import { useAuth } from "../hooks";
 import { loginSchema } from "../schemas";
 import type { LoginInput } from "../schemas";
+import PasswordInput from "./PasswordInput";
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
@@ -84,13 +85,11 @@ export default function LoginForm() {
         <label htmlFor="login-password" className={labelClass}>
           Hasło
         </label>
-        <input
+        <PasswordInput
           id="login-password"
-          type="password"
           autoComplete="current-password"
           aria-invalid={errors.password !== undefined}
           aria-describedby={errors.password ? "login-password-error" : undefined}
-          className={inputClass}
           {...register("password")}
         />
         {errors.password && (

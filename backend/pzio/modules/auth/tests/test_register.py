@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import verify_password
 
+from ._helpers import seed_user
+
 
 VALID_PAYLOAD = {
     "email": "ada@example.com",
@@ -15,6 +17,9 @@ VALID_PAYLOAD = {
 
 
 def test_register_creates_user_and_returns_201(client: TestClient, db_session: Session) -> None:
+    # Seed an admin first so the new registration falls through to the default role.
+    seed_user(db_session, email="root@example.com", role=UserRole.ADMINISTRATOR)
+
     response = client.post("/api/auth/register", json=VALID_PAYLOAD)
 
     assert response.status_code == 201
@@ -31,6 +36,37 @@ def test_register_creates_user_and_returns_201(client: TestClient, db_session: S
     assert user.role == UserRole.TEAM_MEMBER
     assert user.is_active is True
     assert verify_password(VALID_PAYLOAD["password"], user.password_hash) is True
+
+
+def test_first_user_becomes_admin_when_db_is_empty(
+    client: TestClient, db_session: Session
+) -> None:
+    response = client.post("/api/auth/register", json=VALID_PAYLOAD)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["role"] == UserRole.ADMINISTRATOR.value
+
+    user = db_session.execute(select(User).where(User.email == VALID_PAYLOAD["email"])).scalar_one()
+    assert user.role == UserRole.ADMINISTRATOR
+
+
+def test_inactive_admin_still_blocks_autopromotion(
+    client: TestClient, db_session: Session
+) -> None:
+    # A disabled administrator account still counts as "an admin exists",
+    # so the next registration must NOT be auto-promoted.
+    seed_user(
+        db_session,
+        email="root@example.com",
+        role=UserRole.ADMINISTRATOR,
+        is_active=False,
+    )
+
+    response = client.post("/api/auth/register", json=VALID_PAYLOAD)
+
+    assert response.status_code == 201
+    assert response.json()["role"] == UserRole.TEAM_MEMBER.value
 
 
 def test_register_response_never_includes_password_or_hash(client: TestClient) -> None:

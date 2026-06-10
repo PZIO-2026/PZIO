@@ -1,6 +1,7 @@
 import BackupsPanel from "../components/BackupsPanel";
 import TaskHistoryViewer from "../components/TaskHistoryViewer";
 import TaskTypesPanel from "../components/TaskTypesPanel";
+import UsersPanel from "../components/UsersPanel";
 
 export default function AdminPanelPage() {
   return (
@@ -8,10 +9,12 @@ export default function AdminPanelPage() {
       <header>
         <h1 className="text-3xl font-bold text-gray-900">Panel administracyjny</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Zarządzanie słownikami systemu, kopiami zapasowymi bazy i dziennikiem zmian zadań.
+          Zarządzanie użytkownikami, słownikami systemu, kopiami zapasowymi bazy i dziennikiem zmian
+          zadań.
         </p>
       </header>
 
+      <UsersPanel />
       <TaskTypesPanel />
       <BackupsPanel />
       <TaskHistoryViewer />

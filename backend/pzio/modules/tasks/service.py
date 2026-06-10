@@ -4,7 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from pzio.modules.admin.models import ActivityLog, TaskType
+from pzio.modules.admin import service as admin_service
+from pzio.modules.admin.models import TaskType
 from pzio.modules.tasks import models, schemas
 
 
@@ -25,6 +26,7 @@ def create_work_item(
     db: Session,
     project_id: int,
     task: schemas.WorkItemCreate,
+    user_id: int,
 ) -> models.WorkItem:
     _validate_task_type(db, task.type)
     db_item = models.WorkItem(
@@ -33,6 +35,12 @@ def create_work_item(
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+    admin_service.log_activity(
+        db,
+        task_id=db_item.id,
+        user_id=user_id,
+        action="CREATE_TASK",
+    )
     return db_item
 
 
@@ -47,10 +55,7 @@ def get_work_items(
     statement = select(models.WorkItem).where(models.WorkItem.project_id == project_id)
     if status is not None:
         normalized_status = _normalize_status_value(status)
-        statement = statement.where(
-            func.replace(func.lower(models.WorkItem.status), " ", "")
-            == normalized_status
-        )
+        statement = statement.where(func.replace(func.lower(models.WorkItem.status), " ", "") == normalized_status)
     if assignee_id is not None:
         statement = statement.where(models.WorkItem.assignee_id == assignee_id)
     if sprint_id is not None:
@@ -73,6 +78,7 @@ def update_work_item(
     db: Session,
     task_id: int,
     update_data: schemas.WorkItemUpdate,
+    user_id: int,
 ) -> models.WorkItem | None:
     db_item = get_work_item(db, task_id)
     if not db_item:
@@ -82,7 +88,19 @@ def update_work_item(
     if isinstance(task_type, str):
         _validate_task_type(db, task_type)
     for key, value in updates.items():
+        old_value = getattr(db_item, key, None)
+        if old_value == value:
+            continue
         setattr(db_item, key, value)
+        admin_service.log_activity(
+            db,
+            task_id=task_id,
+            user_id=user_id,
+            action="UPDATE_FIELD",
+            field_name=key,
+            old_value=str(old_value) if old_value is not None else None,
+            new_value=str(value) if value is not None else None,
+        )
     db.commit()
     db.refresh(db_item)
     return db_item
@@ -91,12 +109,19 @@ def update_work_item(
 def delete_work_item(
     db: Session,
     task_id: int,
+    user_id: int,
 ) -> bool:
     db_item = get_work_item(db, task_id)
     if not db_item:
         return False
     db.delete(db_item)
     db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="DELETE_TASK",
+    )
     return True
 
 
@@ -116,20 +141,19 @@ def update_work_item_status(
 
     db_item.status = new_status
 
-    # Rejestrowanie logu audytowego - UC7
     db.add(db_item)
-    db.add(
-        ActivityLog(
-            task_id=task_id,
-            user_id=user_id,
-            action="STATUS_CHANGE",
-            field_name="status",
-            old_value=old_status,
-            new_value=new_status,
-        )
-    )
     db.commit()
     db.refresh(db_item)
+    # Rejestrowanie logu audytowego - UC7
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="STATUS_CHANGE",
+        field_name="status",
+        old_value=old_status,
+        new_value=new_status,
+    )
     return db_item
 
 
@@ -142,12 +166,16 @@ def create_time_log(
     if not get_work_item(db, task_id):
         return None
 
-    db_log = models.TimeLog(
-        **log_data.model_dump(), work_item_id=task_id, user_id=user_id
-    )
+    db_log = models.TimeLog(**log_data.model_dump(), work_item_id=task_id, user_id=user_id)
     db.add(db_log)
     db.commit()
     db.refresh(db_log)
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="LOG_WORK",
+    )
     return db_log
 
 

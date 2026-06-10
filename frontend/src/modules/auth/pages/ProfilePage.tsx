@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import EditProfileForm from "../components/EditProfileForm";
@@ -32,9 +32,6 @@ export default function ProfilePage() {
     }
   }
 
-  const hasAvatar = user.avatar !== null && user.avatar !== "";
-  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
-
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 space-y-6">
       {/* Informacje o profilu i edycja */}
@@ -59,40 +56,7 @@ export default function ProfilePage() {
             onCancel={() => setIsEditing(false)}
           />
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              {hasAvatar ? (
-                <img
-                  src={user.avatar ?? ""}
-                  alt="Awatar"
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700">
-                  {initials}
-                </div>
-              )}
-              <div>
-                <p className="text-xl font-medium text-gray-900">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-sm text-gray-600">{user.email}</p>
-              </div>
-            </div>
-
-            <dl className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-6 sm:grid-cols-2">
-              <div>
-                <dt className="text-sm text-gray-500">Rola</dt>
-                <dd className="text-base font-medium text-gray-900">{user.role}</dd>
-              </div>
-              <div>
-                <dt className="text-sm text-gray-500">Status</dt>
-                <dd className="text-base font-medium text-gray-900">
-                  {user.isActive ? "Aktywne" : "Nieaktywne"}
-                </dd>
-              </div>
-            </dl>
-          </div>
+          <ProfileView user={user} />
         )}
       </div>
 
@@ -122,6 +86,68 @@ export default function ProfilePage() {
           Usuń konto
         </button>
       </div>
+    </div>
+  );
+}
+
+// Ten komponent pochodzi w 100% z kodu "incoming" z głównej gałęzi (main),
+// dzięki czemu zachowujemy poprawki współpracowników.
+function ProfileView({ user }: { user: User }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  
+  useEffect(() => {
+    setImageFailed(false);
+  }, [user.avatar]);
+  
+  const hasAvatar = user.avatar !== null && user.avatar !== "" && !imageFailed;
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        {hasAvatar ? (
+          <img
+            src={user.avatar ?? ""}
+            alt="Awatar"
+            onError={() => {
+              setImageFailed(true);
+            }}
+            className="h-16 w-16 rounded-full object-cover"
+          />
+        ) : (
+          <div
+            aria-label="Awatar zastępczy"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700"
+          >
+            {initials}
+          </div>
+        )}
+        <div>
+          <p className="text-xl font-medium text-gray-900">
+            {user.firstName} {user.lastName}
+          </p>
+          <p className="text-sm text-gray-600">{user.email}</p>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-6 sm:grid-cols-2">
+        <div>
+          <dt className="text-sm text-gray-500">Rola</dt>
+          <dd className="text-base font-medium text-gray-900">{user.role}</dd>
+        </div>
+        <div>
+          <dt className="text-sm text-gray-500">Status</dt>
+          <dd className="text-base font-medium text-gray-900">
+            {user.isActive ? "Aktywne" : "Nieaktywne"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm text-gray-500">Data utworzenia</dt>
+          <dd className="text-base font-medium text-gray-900">
+            {new Date(user.createdAt).toLocaleDateString("pl-PL")}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }

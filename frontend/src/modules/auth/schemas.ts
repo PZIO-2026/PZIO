@@ -5,20 +5,37 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Hasło jest wymagane"),
 });
 
-export const registerSchema = z.object({
-  email: z.email("Nieprawidłowy format adresu email"),
-  password: z
-    .string()
-    .min(8, "Hasło musi mieć co najmniej 8 znaków")
-    .max(128, "Hasło nie może przekraczać 128 znaków"),
-  firstName: z.string().min(1, "Imię jest wymagane").max(100, "Imię jest za długie"),
-  lastName: z.string().min(1, "Nazwisko jest wymagane").max(100, "Nazwisko jest za długie"),
-});
+export const registerSchema = z
+  .object({
+    email: z.email("Nieprawidłowy format adresu email"),
+    password: z
+      .string()
+      .min(8, "Hasło musi mieć co najmniej 8 znaków")
+      .max(128, "Hasło nie może przekraczać 128 znaków"),
+    confirmPassword: z.string().min(1, "Powtórz hasło"),
+    firstName: z.string().min(1, "Imię jest wymagane").max(100, "Imię jest za długie"),
+    lastName: z.string().min(1, "Nazwisko jest wymagane").max(100, "Nazwisko jest za długie"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Hasła nie są zgodne",
+    path: ["confirmPassword"],
+  });
 
 export const editProfileSchema = z.object({
   firstName: z.string().min(1, "Imię jest wymagane").max(100, "Imię jest za długie"),
   lastName: z.string().min(1, "Nazwisko jest wymagane").max(100, "Nazwisko jest za długie"),
-  avatar: z.string().max(255, "URL awatara jest za długi"),
+  avatar: z
+    .string()
+    .max(255, "URL awatara jest za długi")
+    .refine((value) => {
+      if (value === "") return true;
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "Podaj poprawny URL awatara (http:// lub https://)"),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -58,6 +75,7 @@ export const changePasswordSchema = z
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterPayload = Omit<RegisterInput, "confirmPassword">;
 export type EditProfileInput = z.infer<typeof editProfileSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordConfirmInput = z.infer<typeof resetPasswordConfirmSchema>;

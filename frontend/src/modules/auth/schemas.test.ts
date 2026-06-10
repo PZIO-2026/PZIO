@@ -35,6 +35,7 @@ describe("registerSchema", () => {
   const valid = {
     email: "user@example.com",
     password: "password1",
+    confirmPassword: "password1",
     firstName: "Anna",
     lastName: "Kowalska",
   };
@@ -49,7 +50,8 @@ describe("registerSchema", () => {
   });
 
   it("accepts a password exactly 8 characters long", () => {
-    const result = registerSchema.safeParse({ ...valid, password: "a".repeat(8) });
+    const password = "a".repeat(8);
+    const result = registerSchema.safeParse({ ...valid, password, confirmPassword: password });
     expect(result.success).toBe(true);
   });
 
@@ -63,7 +65,8 @@ describe("registerSchema", () => {
   });
 
   it("accepts a password exactly 128 characters long", () => {
-    const result = registerSchema.safeParse({ ...valid, password: "a".repeat(128) });
+    const password = "a".repeat(128);
+    const result = registerSchema.safeParse({ ...valid, password, confirmPassword: password });
     expect(result.success).toBe(true);
   });
 
@@ -121,6 +124,24 @@ describe("registerSchema", () => {
       expect(issue?.message).toBe("Nazwisko jest za długie");
     }
   });
+
+  it("rejects an empty confirmPassword", () => {
+    const result = registerSchema.safeParse({ ...valid, confirmPassword: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "confirmPassword");
+      expect(issue?.message).toBe("Powtórz hasło");
+    }
+  });
+
+  it("rejects when confirmPassword does not match password", () => {
+    const result = registerSchema.safeParse({ ...valid, confirmPassword: "different1" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "confirmPassword");
+      expect(issue?.message).toBe("Hasła nie są zgodne");
+    }
+  });
 });
 
 describe("editProfileSchema", () => {
@@ -139,17 +160,51 @@ describe("editProfileSchema", () => {
   });
 
   it("accepts an avatar exactly 255 characters long", () => {
-    const result = editProfileSchema.safeParse({ ...valid, avatar: "a".repeat(255) });
+    const prefix = "https://example.com/";
+    const url = prefix + "a".repeat(255 - prefix.length);
+    expect(url.length).toBe(255);
+    const result = editProfileSchema.safeParse({ ...valid, avatar: url });
     expect(result.success).toBe(true);
   });
 
   it("rejects an avatar longer than 255 characters", () => {
-    const result = editProfileSchema.safeParse({ ...valid, avatar: "a".repeat(256) });
+    const prefix = "https://example.com/";
+    const url = prefix + "a".repeat(256 - prefix.length);
+    const result = editProfileSchema.safeParse({ ...valid, avatar: url });
     expect(result.success).toBe(false);
     if (!result.success) {
       const issue = result.error.issues.find((i) => i.path[0] === "avatar");
       expect(issue?.message).toBe("URL awatara jest za długi");
     }
+  });
+
+  it("rejects an avatar that is not a URL", () => {
+    const result = editProfileSchema.safeParse({ ...valid, avatar: "not a url" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "avatar");
+      expect(issue?.message).toBe("Podaj poprawny URL awatara (http:// lub https://)");
+    }
+  });
+
+  it("rejects an avatar with a non-http(s) scheme", () => {
+    const result = editProfileSchema.safeParse({
+      ...valid,
+      avatar: "ftp://example.com/avatar.png",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "avatar");
+      expect(issue?.message).toBe("Podaj poprawny URL awatara (http:// lub https://)");
+    }
+  });
+
+  it("accepts an avatar with a plain http scheme", () => {
+    const result = editProfileSchema.safeParse({
+      ...valid,
+      avatar: "http://example.com/avatar.png",
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects an empty firstName", () => {

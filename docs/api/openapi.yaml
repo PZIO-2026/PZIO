@@ -1,0 +1,2987 @@
+openapi: 3.1.0
+info:
+  title: PZIO Task Management System
+  description: Backend REST API for the team-project task management system. See documents/4.pdf (SAD)
+    for the canonical API contract.
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      tags:
+      - Health
+      summary: Liveness probe
+      description: 'Operational liveness check used by Docker, Kubernetes and load balancers. Returns
+        `{"status": "ok"}` whenever the API process is reachable; no authentication required. Outside
+        the SAD business API surface on purpose.'
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /api/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Register a new user
+      description: Creates a user with role `TeamMember`. Returns the user without the password hash.
+      operationId: register_api_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '400':
+          description: Validation error
+        '409':
+          description: Email already in use
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Log in with email and password
+      description: 'Returns a JWT access token. Use it as `Authorization: Bearer <token>` on protected
+        routes.'
+      operationId: login_api_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/users/me:
+    get:
+      tags:
+      - Auth
+      summary: Get current user profile
+      description: Returns the profile of the currently authenticated user.
+      operationId: get_profile_api_users_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+      security:
+      - HTTPBearer: []
+    patch:
+      tags:
+      - Auth
+      summary: Update current user profile
+      description: Updates the profile of the currently authenticated user. All fields are optional.
+      operationId: update_profile_api_users_me_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/users:
+    get:
+      tags:
+      - Auth
+      summary: List users (Admin)
+      description: Returns a paginated list of users. Requires Administrator role.
+      operationId: list_users_api_users_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search by email, first name, or last name
+          title: Search
+        description: Search by email, first name, or last name
+      - name: isActive
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter by active status
+          title: Isactive
+        description: Filter by active status
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Field to sort by
+          title: Sortby
+        description: Field to sort by
+      - name: sortDirection
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Sort direction (asc or desc)
+          default: desc
+          title: Sortdirection
+        description: Sort direction (asc or desc)
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number
+          default: 1
+          title: Page
+        description: Page number
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Items per page
+          default: 50
+          title: Size
+        description: Items per page
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/users/{id}/status:
+    patch:
+      tags:
+      - Auth
+      summary: Change user status (Admin)
+      description: Activates or deactivates a user account. Requires Administrator role.
+      operationId: update_user_status_api_users__id__status_patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '404':
+          description: User not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/users/{id}/role:
+    patch:
+      tags:
+      - Auth
+      summary: Change user role (Admin)
+      description: Promotes or demotes a user to another role. Requires Administrator role. Admin cannot
+        change their own role.
+      operationId: update_user_role_api_users__id__role_patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '400':
+          description: Cannot change own role
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Administrator role required
+        '404':
+          description: User not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/reset-password:
+    post:
+      tags:
+      - Auth
+      summary: Request a password reset
+      description: Sends a password reset link to the provided email if the account exists.
+      operationId: request_password_reset_api_auth_reset_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/reset-password/confirm:
+    post:
+      tags:
+      - Auth
+      summary: Confirm password reset
+      description: Sets a new password using a valid reset token.
+      operationId: confirm_password_reset_api_auth_reset_password_confirm_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirm'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid or expired token
+        '404':
+          description: User not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/oauth:
+    post:
+      tags:
+      - Auth
+      summary: Log in with OAuth provider
+      description: Authenticates a user via external provider (Google/GitHub) and returns a JWT.
+      operationId: oauth_login_api_auth_oauth_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthLoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Unsupported provider
+        '401':
+          description: Invalid OAuth token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects:
+    post:
+      tags:
+      - Projects
+      summary: Create a new project
+      description: Creates a new project owned by the calling user. The caller is automatically added
+        as a member with the `project_owner` role. Any authenticated user can create projects.
+      operationId: create_project_api_projects_post
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Projects
+      summary: List projects the current user is a member of
+      description: Returns a paginated list of projects the caller is a member of. Supports filtering
+        by `status`, free-text `search` over the name, and sorting via `sortBy` (`created_at`, `name`,
+        `updated_at`) + `sortDirection` (`asc`/`desc`).
+      operationId: list_projects_api_projects_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          default: created_at
+          title: Sortby
+      - name: sortDirection
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortdirection
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Size
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ProjectOut_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects/{id}:
+    get:
+      tags:
+      - Projects
+      summary: Get a single project with member and sprint statistics
+      description: Returns the project together with embedded `stats` (member and sprint counts). The
+        caller must be a member of the project — otherwise the API returns `404 Not Found` (membership
+        is not leaked to outsiders).
+      operationId: get_project_api_projects__id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetailOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Projects
+      summary: Partially update a project
+      description: Partial update of a project's name, description or status. Empty body returns `400`.
+        Requires the caller to be a member of the project.
+      operationId: update_project_api_projects__id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Projects
+      summary: Archive (soft-delete) a project
+      description: Soft-deletes the project by transitioning its `status` to `archived`. The row stays
+        in the database so historical data (sprints, tasks, comments) remains queryable. Requires the
+        caller to be a project member.
+      operationId: delete_project_api_projects__id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects/{id}/members:
+    post:
+      tags:
+      - Projects
+      summary: Add a user to a project (requires project_owner or scrum_master role)
+      description: Adds an existing user (looked up by email) to the project with one or more project
+        roles. Returns `404` if the email is unknown, `409` if the user is already a member, `403` if
+        the caller does not have `project_owner` or `scrum_master`.
+      operationId: add_member_api_projects__id__members_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectMemberCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Projects
+      summary: List project members with optional role/search filtering
+      description: Paginated list of project members. Optional `role` filter narrows to a single project
+        role; optional `search` matches against first name, last name and email (case-insensitive). Only
+        project members may call this endpoint.
+      operationId: list_members_api_projects__id__members_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      - name: role
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Search
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Size
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Page_ProjectMemberOut_'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects/{id}/members/{user_id}:
+    delete:
+      tags:
+      - Projects
+      summary: Remove a user from a project (requires project_owner or scrum_master role)
+      description: Removes a member from the project. Requires `project_owner` or `scrum_master`. Returns
+        `404` if the membership does not exist.
+      operationId: remove_member_api_projects__id__members__user_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Projects
+      summary: Update roles of a project member (requires project_owner or scrum_master role)
+      description: Replaces the member's project roles with the supplied list (`roles`). At least one
+        role is required. Returns `403` for callers without `project_owner` or `scrum_master`.
+      operationId: update_member_roles_api_projects__id__members__user_id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectMemberUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects/{id}/sprints:
+    post:
+      tags:
+      - Projects
+      summary: Create a sprint in a project
+      description: Creates a sprint with `status=planned`. `endDate` must be strictly later than `startDate`,
+        otherwise the API returns `400`. Only project members can create sprints.
+      operationId: create_sprint_api_projects__id__sprints_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SprintCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SprintOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Projects
+      summary: List all sprints for a project ordered by start date
+      description: Returns every sprint belonging to the project, ordered by `startDate` ascending. Non-members
+        get `404`.
+      operationId: list_sprints_api_projects__id__sprints_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SprintOut'
+                title: Response List Sprints Api Projects  Id  Sprints Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/sprints/{id}:
+    patch:
+      tags:
+      - Projects
+      summary: Partially update a sprint
+      description: Partial update of a sprint (name, dates, goal, status). Use `status=active` to start
+        a sprint and `status=completed` to close it. Empty body returns `400`.
+      operationId: update_sprint_api_sprints__id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SprintUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SprintOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Projects
+      summary: Delete a sprint
+      description: Hard-deletes a sprint. Tasks previously linked to the sprint have their `sprintId`
+        cleared rather than being deleted.
+      operationId: delete_sprint_api_sprints__id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/sprints/{id}/burndown:
+    get:
+      tags:
+      - Projects
+      summary: Get burndown chart data for a sprint
+      description: Returns one data point per day between `startDate` and `endDate` (inclusive). Each
+        point reports the sum of story points of tasks not yet in `Done`, letting the frontend plot a
+        classic burndown chart.
+      operationId: get_burndown_api_sprints__id__burndown_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BurndownOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/projects/{id}/tasks:
+    post:
+      tags:
+      - Tasks
+      summary: Create Task
+      description: Utworzenie nowego zadania w backlogu.
+      operationId: create_task_api_projects__id__tasks_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkItemCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItemResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Tasks
+      summary: Get Tasks
+      description: Pobranie zadań w projekcie z opcjonalnym filtrowaniem.
+      operationId: get_tasks_api_projects__id__tasks_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: assigneeId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Assigneeid
+      - name: sprintId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sprintid
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkItemResponse'
+                title: Response Get Tasks Api Projects  Id  Tasks Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/tasks/{id}:
+    get:
+      tags:
+      - Tasks
+      summary: Get Task
+      description: Pobranie szczegółów zadania.
+      operationId: get_task_api_tasks__id__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItemResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Tasks
+      summary: Update Task
+      description: Edycja szczegółów zadania (metoda PATCH).
+      operationId: update_task_api_tasks__id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkItemUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItemResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Tasks
+      summary: Delete Task
+      description: Usunięcie zadania.
+      operationId: delete_task_api_tasks__id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/tasks/{id}/status:
+    patch:
+      tags:
+      - Tasks
+      summary: Update Task Status
+      description: Zmiana statusu zadania (Kanban drag & drop). Zapisuje log audytowy.
+      operationId: update_task_status_api_tasks__id__status_patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkItemResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/tasks/{id}/worklogs:
+    post:
+      tags:
+      - Tasks
+      summary: Create Worklog
+      description: Rejestrowanie czasu pracy (Worklog).
+      operationId: create_worklog_api_tasks__id__worklogs_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeLogCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeLogResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Tasks
+      summary: Get Worklogs
+      description: Pobranie historii logów czasu pracy.
+      operationId: get_worklogs_api_tasks__id__worklogs_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeLogResponse'
+                title: Response Get Worklogs Api Tasks  Id  Worklogs Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/tasks/{task_id}/comments:
+    post:
+      tags:
+      - Communication
+      summary: Add a comment to a task
+      description: Creates a new comment on the specified task. The system sends an e-mail notification
+        (SMTP) to observers.
+      operationId: add_comment_api_tasks__task_id__comments_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentRead'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Communication
+      summary: Get comment history for a task
+      description: Returns all comments for the task in chronological order.
+      operationId: get_comments_api_tasks__task_id__comments_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Id
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommentRead'
+                title: Response Get Comments Api Tasks  Task Id  Comments Get
+        '401':
+          description: Missing or invalid token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/comments/{comment_id}:
+    patch:
+      tags:
+      - Communication
+      summary: Edit a comment
+      description: Updates the content of an existing comment. Only the author may edit.
+      operationId: edit_comment_api_comments__comment_id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Comment Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentUpdate'
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentRead'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Not the comment author
+        '404':
+          description: Comment not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Communication
+      summary: Delete a comment
+      description: Removes a comment. Only the author may delete.
+      operationId: delete_comment_api_comments__comment_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: comment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Comment Id
+      responses:
+        '204':
+          description: Comment deleted
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Not the comment author
+        '404':
+          description: Comment not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/tasks/{task_id}/attachments:
+    post:
+      tags:
+      - Communication
+      summary: Upload an attachment
+      description: 'Uploads a file attachment to the specified task. Request must use `multipart/form-data`.
+        Max file size: 10 MB. Allowed types: images, PDFs.'
+      operationId: upload_attachment_api_tasks__task_id__attachments_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_attachment_api_tasks__task_id__attachments_post'
+      responses:
+        '201':
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentRead'
+        '400':
+          description: File too large or unsupported file type
+        '401':
+          description: Missing or invalid token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Communication
+      summary: List attachments for a task
+      description: Returns metadata for all attachments on the specified task.
+      operationId: list_attachments_api_tasks__task_id__attachments_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Id
+      responses:
+        '200':
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AttachmentRead'
+                title: Response List Attachments Api Tasks  Task Id  Attachments Get
+        '401':
+          description: Missing or invalid token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/attachments/{attachment_id}/download:
+    get:
+      tags:
+      - Communication
+      summary: Download an attachment file
+      description: Returns the binary file stream (`application/octet-stream`).
+      operationId: download_attachment_api_attachments__attachment_id__download_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: attachment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Attachment Id
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/json:
+              schema: {}
+            application/octet-stream: {}
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Attachment not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/attachments/{attachment_id}:
+    delete:
+      tags:
+      - Communication
+      summary: Delete an attachment
+      description: Removes the attachment record and its file from disk. Only the uploader may delete.
+      operationId: delete_attachment_api_attachments__attachment_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: attachment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Attachment Id
+      responses:
+        '204':
+          description: Attachment deleted
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Not the uploader
+        '404':
+          description: Attachment not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/admin/task-types:
+    post:
+      tags:
+      - Admin
+      summary: Add a task type (Admin)
+      description: Adds a new task type to the system dictionary. Requires Administrator role.
+      operationId: add_task_type_api_admin_task_types_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskTypeCreate'
+        required: true
+      responses:
+        '201':
+          description: Task type created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskTypeRead'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Insufficient privileges
+        '409':
+          description: Task type with this name already exists
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/task-types:
+    get:
+      tags:
+      - Admin
+      summary: Get task type dictionary
+      description: Returns the list of task types defined in the system.
+      operationId: get_task_types_api_task_types_get
+      responses:
+        '200':
+          description: List of task types
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TaskTypeRead'
+                type: array
+                title: Response Get Task Types Api Task Types Get
+        '401':
+          description: Missing or invalid token
+      security:
+      - HTTPBearer: []
+  /api/admin/task-types/{task_type_id}:
+    delete:
+      tags:
+      - Admin
+      summary: Remove a task type (Admin)
+      description: Removes a task type from the system. Requires Administrator role. Cannot remove the
+        last task type.
+      operationId: remove_task_type_api_admin_task_types__task_type_id__delete
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_type_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Type Id
+      responses:
+        '204':
+          description: Task type deleted successfully
+        '400':
+          description: Cannot delete the last task type
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Insufficient privileges
+        '404':
+          description: Task type not found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/admin/backups:
+    post:
+      tags:
+      - Admin
+      summary: Force a database backup (Admin)
+      description: Triggers a file-level copy of the SQLite database into the configured backup directory.
+        Requires Administrator role.
+      operationId: force_backup_api_admin_backups_post
+      responses:
+        '201':
+          description: Backup created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRead'
+        '401':
+          description: Missing or invalid token
+        '403':
+          description: Insufficient privileges
+        '409':
+          description: Backup already in progress or exists
+        '500':
+          description: Backup failed
+      security:
+      - HTTPBearer: []
+  /api/tasks/{task_id}/history:
+    get:
+      tags:
+      - Admin
+      summary: Get task change history
+      description: Returns the audit log entries for a task in chronological order.
+      operationId: get_task_history_api_tasks__task_id__history_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Id
+      responses:
+        '200':
+          description: List of audit entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLogRead'
+                title: Response Get Task History Api Tasks  Task Id  History Get
+        '401':
+          description: Missing or invalid token
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    ActivityLogRead:
+      properties:
+        activityLogId:
+          type: integer
+          title: Activitylogid
+        taskId:
+          type: integer
+          title: Taskid
+        userId:
+          type: integer
+          title: Userid
+        action:
+          type: string
+          title: Action
+        fieldName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fieldname
+        oldValue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Oldvalue
+        newValue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Newvalue
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - activityLogId
+      - taskId
+      - userId
+      - action
+      - createdAt
+      title: ActivityLogRead
+      description: Single audit entry returned by `GET /api/tasks/{id}/history` (SAD §4.5).
+      example:
+        action: STATUS_CHANGE
+        activityLogId: 87
+        createdAt: '2026-05-14T13:15:00Z'
+        fieldName: status
+        newValue: InProgress
+        oldValue: ToDo
+        taskId: 123
+        userId: 42
+    AttachmentRead:
+      properties:
+        attachmentId:
+          type: integer
+          title: Attachmentid
+        taskId:
+          type: integer
+          title: Taskid
+        uploaderId:
+          type: integer
+          title: Uploaderid
+        filename:
+          type: string
+          title: Filename
+        contentType:
+          type: string
+          title: Contenttype
+        fileSize:
+          type: integer
+          title: Filesize
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - attachmentId
+      - taskId
+      - uploaderId
+      - filename
+      - contentType
+      - fileSize
+      - createdAt
+      title: AttachmentRead
+      description: Public attachment representation (excludes internal file_path).
+      example:
+        attachmentId: 4
+        contentType: image/png
+        createdAt: '2026-05-14T18:00:00Z'
+        fileSize: 184302
+        filename: auth-flow.png
+        taskId: 123
+        uploaderId: 42
+    BackupRead:
+      properties:
+        backupId:
+          type: integer
+          title: Backupid
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - backupId
+      - timestamp
+      - status
+      title: BackupRead
+      description: 'Response for `POST /api/admin/backups` (SAD §4.5).
+
+
+        PDF specifies the response shape as `{backupId, timestamp, status}` —
+
+        `timestamp` is read from the ORM column `created_at` via `validation_alias`.'
+      example:
+        backupId: 12
+        status: completed
+        timestamp: '2026-05-14T03:00:00Z'
+    Body_upload_attachment_api_tasks__task_id__attachments_post:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_attachment_api_tasks__task_id__attachments_post
+    BurndownDay:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        remainingPoints:
+          type: integer
+          title: Remainingpoints
+      type: object
+      required:
+      - date
+      - remainingPoints
+      title: BurndownDay
+      description: Single data point on the burndown chart.
+      example:
+        date: '2026-05-15T00:00:00Z'
+        remainingPoints: 34
+    BurndownOut:
+      properties:
+        sprintId:
+          type: integer
+          title: Sprintid
+        totalPoints:
+          type: integer
+          title: Totalpoints
+        days:
+          items:
+            $ref: '#/components/schemas/BurndownDay'
+          type: array
+          title: Days
+      type: object
+      required:
+      - sprintId
+      - totalPoints
+      - days
+      title: BurndownOut
+      description: Response body for GET /api/sprints/{id}/burndown.
+      example:
+        days:
+        - date: '2026-05-15T00:00:00Z'
+          remainingPoints: 34
+        - date: '2026-05-16T00:00:00Z'
+          remainingPoints: 31
+        - date: '2026-05-17T00:00:00Z'
+          remainingPoints: 27
+        sprintId: 21
+        totalPoints: 34
+    CommentCreate:
+      properties:
+        content:
+          type: string
+          maxLength: 10000
+          minLength: 1
+          title: Content
+      type: object
+      required:
+      - content
+      title: CommentCreate
+      description: Body for POST /api/tasks/{id}/comments
+      example:
+        content: Pushed the fix to the feature branch — please review when you get a chance.
+    CommentRead:
+      properties:
+        commentId:
+          type: integer
+          title: Commentid
+        taskId:
+          type: integer
+          title: Taskid
+        authorId:
+          type: integer
+          title: Authorid
+        content:
+          type: string
+          title: Content
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/UserRead'
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updatedat
+      type: object
+      required:
+      - commentId
+      - taskId
+      - authorId
+      - content
+      - createdAt
+      title: CommentRead
+      description: Public comment representation.
+      example:
+        authorId: 42
+        commentId: 17
+        content: Pushed the fix to the feature branch — please review when you get a chance.
+        createdAt: '2026-05-14T17:30:00Z'
+        taskId: 123
+    CommentUpdate:
+      properties:
+        content:
+          type: string
+          maxLength: 10000
+          minLength: 1
+          title: Content
+      type: object
+      required:
+      - content
+      title: CommentUpdate
+      description: Body for PATCH /api/comments/{id}
+      example:
+        content: 'Edited: pushed the fix and rebased onto master.'
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Password
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+      description: Body for `POST /api/auth/login` (SAD §4.1).
+      example:
+        email: alice@example.com
+        password: correct-horse-battery-staple
+    MessageResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: MessageResponse
+      description: Generic message response.
+      example:
+        message: Password reset email sent.
+    OAuthLoginRequest:
+      properties:
+        provider:
+          type: string
+          title: Provider
+          description: e.g., 'google' or 'github'
+        oauthToken:
+          type: string
+          title: Oauthtoken
+      type: object
+      required:
+      - provider
+      - oauthToken
+      title: OAuthLoginRequest
+      description: Body for POST /api/auth/oauth
+      example:
+        oauthToken: ya29.A0AfH6SMB...redacted...
+        provider: google
+    Page_ProjectMemberOut_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProjectMemberOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        size:
+          type: integer
+          title: Size
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      title: Page[ProjectMemberOut]
+    Page_ProjectOut_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProjectOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        size:
+          type: integer
+          title: Size
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      title: Page[ProjectOut]
+    PaginatedUserResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/UserRead'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        size:
+          type: integer
+          title: Size
+      type: object
+      required:
+      - items
+      - total
+      - page
+      - size
+      title: PaginatedUserResponse
+      description: Response for `GET /api/users` (Admin only).
+      example:
+        items:
+        - createdAt: '2026-05-14T09:30:00Z'
+          email: alice@example.com
+          firstName: Alice
+          isActive: true
+          lastName: Smith
+          role: TeamMember
+          userId: 42
+        page: 1
+        size: 20
+        total: 1
+    PasswordResetConfirm:
+      properties:
+        token:
+          type: string
+          title: Token
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Newpassword
+      type: object
+      required:
+      - token
+      - newPassword
+      title: PasswordResetConfirm
+      description: Body for POST /api/auth/reset-password/confirm
+      example:
+        newPassword: new-correct-horse-battery-staple
+        token: 8c1b0f7e-3d2a-4b9a-9e6f-1a2b3c4d5e6f
+    PasswordResetRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+      type: object
+      required:
+      - email
+      title: PasswordResetRequest
+      description: Body for POST /api/auth/reset-password
+      example:
+        email: alice@example.com
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - name
+      title: ProjectCreate
+      description: POST /api/projects - request body.
+      example:
+        description: Migrate the legacy Apollo billing engine to the new microservice platform.
+        name: Apollo Migration
+    ProjectDetailOut:
+      properties:
+        projectId:
+          type: integer
+          title: Projectid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        currentUserRoles:
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+          type: array
+          title: Currentuserroles
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+        stats:
+          $ref: '#/components/schemas/ProjectStats'
+      type: object
+      required:
+      - projectId
+      - name
+      - status
+      - createdAt
+      - updatedAt
+      - stats
+      title: ProjectDetailOut
+      description: Extended project response (single GET) with stats.
+      example:
+        createdAt: '2026-05-14T09:30:00Z'
+        currentUserRoles:
+        - project_owner
+        description: Migrate the legacy Apollo billing engine to the new microservice platform.
+        name: Apollo Migration
+        projectId: 7
+        stats:
+          memberCount: 6
+          sprintCount: 3
+        status: active
+        updatedAt: '2026-05-14T09:30:00Z'
+    ProjectMemberCreate:
+      properties:
+        email:
+          type: string
+          maxLength: 255
+          pattern: ^[^@]+@[^@]+\.[^@]+$
+          title: Email
+        roles:
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+          type: array
+          minItems: 1
+          title: Roles
+      type: object
+      required:
+      - email
+      - roles
+      title: ProjectMemberCreate
+      description: POST /api/projects/{id}/members – request body.
+      example:
+        email: bob@example.com
+        roles:
+        - developer
+        - qa_engineer
+    ProjectMemberOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+        projectId:
+          type: integer
+          title: Projectid
+        userId:
+          type: integer
+          title: Userid
+        roles:
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+          type: array
+          title: Roles
+        joinedAt:
+          type: string
+          format: date-time
+          title: Joinedat
+        firstName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Firstname
+        lastName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Lastname
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - id
+      - projectId
+      - userId
+      - roles
+      - joinedAt
+      - email
+      title: ProjectMemberOut
+      description: Response body for a single project member.
+      example:
+        email: bob@example.com
+        firstName: Bob
+        id: 15
+        joinedAt: '2026-05-14T10:00:00Z'
+        lastName: Brown
+        projectId: 7
+        roles:
+        - developer
+        userId: 88
+    ProjectMemberUpdate:
+      properties:
+        roles:
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+          type: array
+          minItems: 1
+          title: Roles
+      type: object
+      required:
+      - roles
+      title: ProjectMemberUpdate
+      description: PATCH /api/projects/{id}/members/ – request body for role update.
+      example:
+        roles:
+        - scrum_master
+    ProjectOut:
+      properties:
+        projectId:
+          type: integer
+          title: Projectid
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        currentUserRoles:
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+          type: array
+          title: Currentuserroles
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - projectId
+      - name
+      - status
+      - createdAt
+      - updatedAt
+      title: ProjectOut
+      description: Standard project response body.
+      example:
+        createdAt: '2026-05-14T09:30:00Z'
+        currentUserRoles:
+        - project_owner
+        description: Migrate the legacy Apollo billing engine to the new microservice platform.
+        name: Apollo Migration
+        projectId: 7
+        status: active
+        updatedAt: '2026-05-14T09:30:00Z'
+    ProjectRole:
+      type: string
+      enum:
+      - developer
+      - qa
+      - scrum_master
+      - project_owner
+      - maintainer
+      title: ProjectRole
+    ProjectStats:
+      properties:
+        memberCount:
+          type: integer
+          title: Membercount
+        sprintCount:
+          type: integer
+          title: Sprintcount
+      type: object
+      required:
+      - memberCount
+      - sprintCount
+      title: ProjectStats
+      description: Embedded statistics returned on GET /api/projects/{id}.
+      example:
+        memberCount: 6
+        sprintCount: 3
+    ProjectStatus:
+      type: string
+      enum:
+      - active
+      - archived
+      title: ProjectStatus
+    ProjectUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 255
+            minLength: 1
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Description
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/ProjectStatus'
+          - type: 'null'
+      type: object
+      title: ProjectUpdate
+      description: PATCH /api/projects/{id} - all fields optional (partial update).
+      example:
+        name: Apollo Migration (Phase 2)
+        status: active
+    SprintCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+        startDate:
+          type: string
+          format: date-time
+          title: Startdate
+        endDate:
+          type: string
+          format: date-time
+          title: Enddate
+        goal:
+          anyOf:
+          - type: string
+            maxLength: 1500
+          - type: 'null'
+          title: Goal
+      type: object
+      required:
+      - name
+      - startDate
+      - endDate
+      title: SprintCreate
+      description: POST /api/projects/{id}/sprints - request body.
+      example:
+        endDate: '2026-05-29T00:00:00Z'
+        goal: Ship the auth flow and basic backlog UI.
+        name: Sprint 1
+        startDate: '2026-05-15T00:00:00Z'
+    SprintOut:
+      properties:
+        sprintId:
+          type: integer
+          title: Sprintid
+        projectId:
+          type: integer
+          title: Projectid
+        name:
+          type: string
+          title: Name
+        status:
+          $ref: '#/components/schemas/SprintStatus'
+        goal:
+          anyOf:
+          - type: string
+            maxLength: 1500
+          - type: 'null'
+          title: Goal
+        startDate:
+          type: string
+          format: date-time
+          title: Startdate
+        endDate:
+          type: string
+          format: date-time
+          title: Enddate
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - sprintId
+      - projectId
+      - name
+      - status
+      - startDate
+      - endDate
+      - createdAt
+      - updatedAt
+      title: SprintOut
+      description: Response body for a sprint.
+      example:
+        createdAt: '2026-05-14T11:00:00Z'
+        endDate: '2026-05-29T00:00:00Z'
+        goal: Ship the auth flow and basic backlog UI.
+        name: Sprint 1
+        projectId: 7
+        sprintId: 21
+        startDate: '2026-05-15T00:00:00Z'
+        status: planned
+        updatedAt: '2026-05-14T11:00:00Z'
+    SprintStatus:
+      type: string
+      enum:
+      - planned
+      - active
+      - completed
+      title: SprintStatus
+    SprintUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 255
+            minLength: 1
+          - type: 'null'
+          title: Name
+        startDate:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Startdate
+        endDate:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Enddate
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/SprintStatus'
+          - type: 'null'
+        goal:
+          anyOf:
+          - type: string
+            maxLength: 1500
+          - type: 'null'
+          title: Goal
+      type: object
+      title: SprintUpdate
+      description: PATCH /api/sprints/{id} - all fields optional.
+      example:
+        goal: Updated goal mid-sprint.
+        status: active
+    StatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+      type: object
+      required:
+      - status
+      title: StatusUpdate
+      description: Body for PATCH /api/tasks/{id}/status - Kanban column move.
+      example:
+        status: InProgress
+    TaskPriority:
+      type: string
+      enum:
+      - Low
+      - Medium
+      - High
+      title: TaskPriority
+    TaskStatus:
+      type: string
+      enum:
+      - ToDo
+      - InProgress
+      - Done
+      title: TaskStatus
+    TaskTypeCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+      type: object
+      required:
+      - name
+      title: TaskTypeCreate
+      description: Body for `POST /api/admin/task-types` (SAD §4.5).
+      example:
+        name: Epic
+    TaskTypeRead:
+      properties:
+        taskTypeId:
+          type: integer
+          title: Tasktypeid
+        name:
+          type: string
+          title: Name
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - taskTypeId
+      - name
+      - createdAt
+      title: TaskTypeRead
+      description: Public dictionary entry returned by /api/task-types and /api/admin/task-types.
+      example:
+        createdAt: '2026-05-14T08:00:00Z'
+        name: Epic
+        taskTypeId: 3
+    TimeLogCreate:
+      properties:
+        hoursSpent:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Hoursspent
+        note:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - hoursSpent
+      title: TimeLogCreate
+      description: Body for POST /api/tasks/{id}/worklogs.
+      example:
+        hoursSpent: 2.5
+        note: Wired up the redirect handler and unit-tested the token exchange.
+    TimeLogResponse:
+      properties:
+        hoursSpent:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Hoursspent
+        note:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Note
+        id:
+          type: integer
+          title: Id
+        workItemId:
+          type: integer
+          title: Workitemid
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - hoursSpent
+      - id
+      - workItemId
+      - createdAt
+      title: TimeLogResponse
+      description: Response body for a worklog entry.
+      example:
+        createdAt: '2026-05-14T16:00:00Z'
+        hoursSpent: 2.5
+        id: 9
+        note: Wired up the redirect handler and unit-tested the token exchange.
+        workItemId: 123
+    TokenResponse:
+      properties:
+        accessToken:
+          type: string
+          title: Accesstoken
+        tokenType:
+          type: string
+          title: Tokentype
+          default: bearer
+        expiresIn:
+          type: integer
+          title: Expiresin
+      type: object
+      required:
+      - accessToken
+      - expiresIn
+      title: TokenResponse
+      description: Response for login / oauth (SAD §4.1).
+      example:
+        accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MiIsInJvbGUiOiJUZWFtTWVtYmVyIiwiZXhwIjoxNzc4Nzk1NDIwfQ.signature
+        expiresIn: 3600
+        tokenType: bearer
+    UserCreate:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        firstName:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Firstname
+        lastName:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Lastname
+      type: object
+      required:
+      - email
+      - password
+      - firstName
+      - lastName
+      title: UserCreate
+      description: Body for `POST /api/auth/register` (SAD §4.1).
+      example:
+        email: alice@example.com
+        firstName: Alice
+        lastName: Smith
+        password: correct-horse-battery-staple
+    UserRead:
+      properties:
+        userId:
+          type: integer
+          title: Userid
+        email:
+          type: string
+          format: email
+          title: Email
+        firstName:
+          type: string
+          title: Firstname
+        lastName:
+          type: string
+          title: Lastname
+        avatar:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Avatar
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+          title: Isactive
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - userId
+      - email
+      - firstName
+      - lastName
+      - role
+      - isActive
+      - createdAt
+      title: UserRead
+      description: Public user representation. Never includes `passwordHash` (NFR04).
+      example:
+        createdAt: '2026-05-14T09:30:00Z'
+        email: alice@example.com
+        firstName: Alice
+        isActive: true
+        lastName: Smith
+        role: TeamMember
+        userId: 42
+    UserRole:
+      type: string
+      enum:
+      - TeamMember
+      - Manager
+      - Administrator
+      title: UserRole
+      description: 'Roles per System Analysis Document §4 (UML class diagram).
+
+
+        "Guest" from the SRS actor table is intentionally omitted: it describes the
+
+        unauthenticated visitor and has no corresponding row in the users table.'
+    UserRoleUpdate:
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+      type: object
+      required:
+      - role
+      title: UserRoleUpdate
+      description: Body for `PATCH /api/users/{id}/role` (Admin only).
+      example:
+        role: Manager
+    UserStatusUpdate:
+      properties:
+        isActive:
+          type: boolean
+          title: Isactive
+      type: object
+      required:
+      - isActive
+      title: UserStatusUpdate
+      description: Body for `PATCH /api/users/{id}/status` (Admin only).
+      example:
+        isActive: false
+    UserUpdate:
+      properties:
+        firstName:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Firstname
+        lastName:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Lastname
+        avatar:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Avatar
+      type: object
+      title: UserUpdate
+      description: Body for `PATCH /api/users/me`. All fields are optional.
+      example:
+        avatar: https://cdn.example.com/avatars/42.png
+        firstName: Alice
+        lastName: Smith-Jones
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    WorkItemCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Title
+        description:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Description
+        type:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Type
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        storyPoints:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Storypoints
+        parentId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Parentid
+        assigneeId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Assigneeid
+        sprintId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Sprintid
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+          default: ToDo
+      type: object
+      required:
+      - title
+      - type
+      - priority
+      title: WorkItemCreate
+      description: Body for POST /api/projects/{id}/tasks.
+      example:
+        assigneeId: 42
+        description: Handle the redirect from Google and exchange the code for a JWT.
+        parentId: 100
+        priority: High
+        sprintId: 21
+        status: ToDo
+        storyPoints: 5
+        title: Implement OAuth callback handler
+        type: Task
+    WorkItemResponse:
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Title
+        description:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Description
+        type:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Type
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        storyPoints:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Storypoints
+        parentId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Parentid
+        assigneeId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Assigneeid
+        sprintId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Sprintid
+        id:
+          type: integer
+          title: Id
+        projectId:
+          type: integer
+          title: Projectid
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updatedat
+      type: object
+      required:
+      - title
+      - type
+      - priority
+      - id
+      - projectId
+      - status
+      - createdAt
+      title: WorkItemResponse
+      description: Response body for a work item (task / bug / epic).
+      example:
+        assigneeId: 42
+        createdAt: '2026-05-14T12:00:00Z'
+        description: Handle the redirect from Google and exchange the code for a JWT.
+        id: 123
+        parentId: 100
+        priority: High
+        projectId: 7
+        sprintId: 21
+        status: ToDo
+        storyPoints: 5
+        title: Implement OAuth callback handler
+        type: Task
+    WorkItemUpdate:
+      properties:
+        title:
+          anyOf:
+          - type: string
+            maxLength: 255
+            minLength: 1
+          - type: 'null'
+          title: Title
+        description:
+          anyOf:
+          - type: string
+            maxLength: 5000
+          - type: 'null'
+          title: Description
+        type:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Type
+        priority:
+          anyOf:
+          - $ref: '#/components/schemas/TaskPriority'
+          - type: 'null'
+        storyPoints:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Storypoints
+        parentId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Parentid
+        assigneeId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Assigneeid
+        sprintId:
+          anyOf:
+          - type: integer
+            exclusiveMinimum: 0.0
+          - type: 'null'
+          title: Sprintid
+      type: object
+      title: WorkItemUpdate
+      description: Body for PATCH /api/tasks/{id} - all fields optional.
+      example:
+        assigneeId: 88
+        priority: Medium
+        storyPoints: 3
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+tags:
+- name: Health
+  description: Liveness and readiness probes for ops/integration.
+- name: Auth
+  description: Identity & Authorization — registration, login, OAuth, password reset, profile, admin user
+    management.
+- name: Projects
+  description: Project lifecycle, project membership, sprint planning.
+- name: Tasks
+  description: Backlog work items, Kanban status changes, worklog entries.
+- name: Communication
+  description: Comments, attachments, e-mail notifications via SMTP.
+- name: Admin
+  description: System dictionaries, database backups, audit log access.

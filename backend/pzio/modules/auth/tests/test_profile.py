@@ -58,3 +58,52 @@ def test_update_profile_success(client: TestClient, db_session: Session) -> None
     db_session.refresh(user)
     assert user.first_name == "NewMe"
     assert user.last_name == "NewUser"
+
+
+def test_update_profile_accepts_valid_avatar_url(client: TestClient, db_session: Session) -> None:
+    user = _create_user(db_session)
+    headers = _get_auth_headers(user)
+    avatar_url = "https://cdn.example.com/avatars/42.png"
+
+    response = client.patch("/api/users/me", headers=headers, json={"avatar": avatar_url})
+    assert response.status_code == 200
+    assert response.json()["avatar"] == avatar_url
+
+    db_session.refresh(user)
+    assert user.avatar == avatar_url
+
+
+def test_update_profile_clears_avatar_when_empty_string(
+    client: TestClient, db_session: Session
+) -> None:
+    user = _create_user(db_session)
+    user.avatar = "https://cdn.example.com/avatars/42.png"
+    db_session.commit()
+    headers = _get_auth_headers(user)
+
+    response = client.patch("/api/users/me", headers=headers, json={"avatar": ""})
+    assert response.status_code == 200
+    assert response.json()["avatar"] is None
+
+    db_session.refresh(user)
+    assert user.avatar is None
+
+
+def test_update_profile_rejects_non_url_avatar(client: TestClient, db_session: Session) -> None:
+    user = _create_user(db_session)
+    headers = _get_auth_headers(user)
+
+    response = client.patch("/api/users/me", headers=headers, json={"avatar": "not a url"})
+    assert response.status_code == 400
+
+
+def test_update_profile_rejects_non_http_avatar_scheme(
+    client: TestClient, db_session: Session
+) -> None:
+    user = _create_user(db_session)
+    headers = _get_auth_headers(user)
+
+    response = client.patch(
+        "/api/users/me", headers=headers, json={"avatar": "ftp://example.com/avatar.png"}
+    )
+    assert response.status_code == 400

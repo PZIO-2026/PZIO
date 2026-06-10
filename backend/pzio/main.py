@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from pzio.config import settings
 from pzio.db import Base, engine
@@ -62,9 +62,24 @@ async def validation_exception_handler(_request: Request, exc: RequestValidation
     return JSONResponse(status_code=400, content={"detail": detail})
 
 
-@app.get("/health", tags=["Health"], summary="Liveness probe")
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="Liveness probe",
+    description=(
+        "Operational liveness check used by Docker, Kubernetes and load balancers. "
+        'Returns `{"status": "ok"}` whenever the API process is reachable; '
+        "no authentication required. Outside the SAD business API surface on purpose."
+    ),
+)
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/", include_in_schema=False)
+def index() -> RedirectResponse:
+    """Auto-redirect root to docs for easy manual testing in development."""
+    return RedirectResponse(url="/docs")
 
 
 app.include_router(auth_router)

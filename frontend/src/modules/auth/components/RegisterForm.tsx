@@ -7,6 +7,7 @@ import { ApiError } from "../../../api/client";
 import { register as registerApi } from "../api";
 import { registerSchema } from "../schemas";
 import type { RegisterInput } from "../schemas";
+import PasswordInput from "./PasswordInput";
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
@@ -25,13 +26,24 @@ export default function RegisterForm() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: "", password: "", firstName: "", lastName: "" },
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+    },
   });
 
   async function onSubmit(values: RegisterInput) {
     setSubmitError(null);
     try {
-      await registerApi(values);
+      await registerApi({
+        email: values.email,
+        password: values.password,
+        firstName: values.firstName,
+        lastName: values.lastName,
+      });
       navigate("/login", { state: { registeredEmail: values.email }, replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -114,15 +126,13 @@ export default function RegisterForm() {
         <label htmlFor="register-password" className={labelClass}>
           Hasło
         </label>
-        <input
+        <PasswordInput
           id="register-password"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.password !== undefined}
           aria-describedby={
             errors.password ? "register-password-error" : "register-password-hint"
           }
-          className={inputClass}
           {...registerField("password")}
         />
         {errors.password && (
@@ -133,6 +143,24 @@ export default function RegisterForm() {
         <p id="register-password-hint" className="mt-1 text-xs text-gray-500">
           Co najmniej 8 znaków.
         </p>
+      </div>
+
+      <div>
+        <label htmlFor="register-confirm-password" className={labelClass}>
+          Powtórz hasło
+        </label>
+        <PasswordInput
+          id="register-confirm-password"
+          autoComplete="new-password"
+          aria-invalid={errors.confirmPassword !== undefined}
+          aria-describedby={errors.confirmPassword ? "register-confirm-password-error" : undefined}
+          {...registerField("confirmPassword")}
+        />
+        {errors.confirmPassword && (
+          <p id="register-confirm-password-error" className={errorClass}>
+            {errors.confirmPassword.message}
+          </p>
+        )}
       </div>
 
       {submitError !== null && (

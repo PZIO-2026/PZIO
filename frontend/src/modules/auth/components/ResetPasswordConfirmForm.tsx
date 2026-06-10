@@ -7,10 +7,7 @@ import { ApiError } from "../../../api/client";
 import { confirmPasswordReset } from "../api";
 import { resetPasswordConfirmSchema } from "../schemas";
 import type { ResetPasswordConfirmInput } from "../schemas";
-
-const inputClass =
-  "mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm " +
-  "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+import PasswordInput from "./PasswordInput";
 
 const labelClass = "block text-sm font-medium text-gray-700";
 const errorClass = "mt-1 text-sm text-red-600";
@@ -60,15 +57,13 @@ export default function ResetPasswordConfirmForm({ token }: ResetPasswordConfirm
         <label htmlFor="reset-new-password" className={labelClass}>
           Nowe hasło
         </label>
-        <input
+        <PasswordInput
           id="reset-new-password"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.newPassword !== undefined}
           aria-describedby={
             errors.newPassword ? "reset-new-password-error" : "reset-new-password-hint"
           }
-          className={inputClass}
           {...register("newPassword")}
         />
         {errors.newPassword && (
@@ -85,13 +80,11 @@ export default function ResetPasswordConfirmForm({ token }: ResetPasswordConfirm
         <label htmlFor="reset-confirm-password" className={labelClass}>
           Powtórz nowe hasło
         </label>
-        <input
+        <PasswordInput
           id="reset-confirm-password"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.confirmPassword !== undefined}
           aria-describedby={errors.confirmPassword ? "reset-confirm-password-error" : undefined}
-          className={inputClass}
           {...register("confirmPassword")}
         />
         {errors.confirmPassword && (

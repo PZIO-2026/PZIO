@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from pzio.config import settings
+from pzio.modules.admin import service as admin_service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
-
-UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "uploads"))
 
 
 class CommentNotFoundError(Exception):
@@ -35,12 +35,23 @@ def create_comment(db: Session, task_id: int, author_id: int, payload: CommentCr
     db.add(comment)
     db.commit()
     db.refresh(comment)
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=author_id,
+        action="ADD_COMMENT",
+    )
     return comment
 
 
 def list_comments(db: Session, task_id: int) -> list[Comment]:
     """Return all comments for a task, ordered chronologically."""
-    stmt = select(Comment).where(Comment.task_id == task_id).order_by(Comment.created_at.asc())
+    stmt = (
+        select(Comment)
+        .options(selectinload(Comment.user))
+        .where(Comment.task_id == task_id)
+        .order_by(Comment.created_at.asc())
+    )
     return list(db.execute(stmt).scalars().all())
 
 
@@ -71,13 +82,21 @@ def delete_comment(db: Session, comment_id: int, user_id: int) -> None:
     if comment.author_id != user_id:
         raise NotOwnerError()
 
+    task_id = comment.task_id
     db.delete(comment)
     db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="DELETE_COMMENT",
+    )
 
 
 def _ensure_upload_dir() -> Path:
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    return UPLOAD_DIR
+    upload_dir = Path(settings.upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
 
 
 def save_attachment(
@@ -117,6 +136,14 @@ def save_attachment(
     db.add(attachment)
     db.commit()
     db.refresh(attachment)
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=uploader_id,
+        action="ADD_ATTACHMENT",
+        field_name="filename",
+        new_value=filename,
+    )
     return attachment
 
 
@@ -145,5 +172,15 @@ def delete_attachment(db: Session, attachment_id: int, user_id: int) -> None:
     except FileNotFoundError:
         pass
 
+    task_id = attachment.task_id
+    filename = attachment.filename
     db.delete(attachment)
     db.commit()
+    admin_service.log_activity(
+        db,
+        task_id=task_id,
+        user_id=user_id,
+        action="DELETE_ATTACHMENT",
+        field_name="filename",
+        old_value=filename,
+    )

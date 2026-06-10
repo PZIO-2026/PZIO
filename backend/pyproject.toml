@@ -17,6 +17,7 @@ dependencies = [
     "httpx>=0.28.1",                   # HTTP client for testing FastAPI endpoints
     "python-multipart>=0.0.22",        # For handling multipart/form-data (file uploads)
     "testcontainers[postgres]>=4.10",  # Spin up Postgres for integration tests (SAD §2.2)
+    "pyyaml>=6.0",                     # YAML dump for backend/scripts/dump_openapi.py
 ]
 
 [tool.setuptools.packages.find]
