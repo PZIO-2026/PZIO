@@ -69,12 +69,16 @@ export default function ProjectsBacklogPage() {
   }
 
   async function reloadBacklog() {
-    const [taskResponse, sprintResponse] = await Promise.all([
-      fetchTasks(project.projectId, { status: "ToDo" }),
-      fetchSprints(project.projectId),
-    ]);
-    setTasks(taskResponse);
-    setSprints(sprintResponse);
+    try {
+      const [taskResponse, sprintResponse] = await Promise.all([
+        fetchTasks(project.projectId, { status: "ToDo" }),
+        fetchSprints(project.projectId),
+      ]);
+      setTasks(taskResponse);
+      setSprints(sprintResponse);
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : "Nie udało się odświeżyć backlogu.");
+    }
   }
 
   async function handleDelete(taskId: number) {
