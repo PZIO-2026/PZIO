@@ -4,6 +4,7 @@ import { useForm, useWatch, type Resolver } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { useConfirm } from "../../../../components/ConfirmProvider";
 import Modal from "../Modal";
 
 import { ApiError } from "../../../../api/client";
@@ -36,6 +37,7 @@ interface Props {
 // ============================================================
 
 export default function EditTaskModal({ isOpen, onClose, task, projectId, onTaskUpdated }: Props) {
+  const confirm = useConfirm();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [taskTypesLoading, setTaskTypesLoading] = useState(false);
@@ -65,6 +67,7 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
 
   const parentId = useWatch({ control, name: "parentId" }) ?? null;
   const sprintId = useWatch({ control, name: "sprintId" }) ?? null;
+  const childTasks = task ? allTasks.filter((item) => item.parentId === task.id) : [];
 
   // ============================================================
   // Effects
@@ -104,6 +107,13 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     setSubmitError(null);
 
     try {
+      if (childTasks.length > 0 && values.sprintId !== task.sprintId) {
+        const confirmed = await confirm(
+          `Zmiana sprintu tego zadania zmieni sprint także w ${childTasks.length} zadaniach podrzędnych. Czy kontynuować?`,
+        );
+        if (!confirmed) return;
+      }
+
       const updated = await updateTask(task.id, values);
 
       onTaskUpdated(updated);

@@ -296,6 +296,119 @@ def test_update_task_rejects_type_outside_dictionary(client: TestClient):
     assert response.json()["detail"] == "Invalid task type"
 
 
+def test_create_child_task_requires_same_project_and_sprint(client: TestClient):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Parent",
+            "type": "Task",
+            "priority": "High",
+            "sprintId": 11,
+        },
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    other_project_response = client.post(
+        "/api/projects/2/tasks",
+        json={
+            "title": "Wrong project child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+            "sprintId": 11,
+        },
+    )
+    assert other_project_response.status_code == 400
+    assert other_project_response.json()["detail"] == "Zadanie nadrzędne musi należeć do tego samego projektu"
+
+    other_sprint_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Wrong sprint child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+            "sprintId": 12,
+        },
+    )
+    assert other_sprint_response.status_code == 400
+    assert other_sprint_response.json()["detail"] == "Zadanie podrzędne musi należeć do tego samego sprintu co jego zadanie nadrzędne"
+
+
+def test_update_task_rejects_parent_cycle(client: TestClient):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Parent", "type": "Task", "priority": "Medium"},
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    child_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+        },
+    )
+    child = cast(dict[str, object], child_response.json())
+    child_id_value = child["id"]
+    assert isinstance(child_id_value, int)
+
+    response = client.patch(
+        f"/api/tasks/{parent_id_value}",
+        json={"parentId": child_id_value},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Hierarchia zadań nie może zawierać cykli"
+
+
+def test_update_parent_task_cascades_sprint_to_children(client: TestClient):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Parent",
+            "type": "Task",
+            "priority": "Medium",
+            "sprintId": 10,
+        },
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    child_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+            "sprintId": 10,
+        },
+    )
+    child = cast(dict[str, object], child_response.json())
+    child_id_value = child["id"]
+    assert isinstance(child_id_value, int)
+
+    update_response = client.patch(
+        f"/api/tasks/{parent_id_value}",
+        json={"sprintId": 22},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["sprintId"] == 22
+
+    child_get_response = client.get(f"/api/tasks/{child_id_value}")
+    assert child_get_response.status_code == 200
+    assert child_get_response.json()["sprintId"] == 22
+
+
 def test_update_task_status(client: TestClient, db_session: Session):
     """Test zmiany statusu (Kanban drag & drop) - (UC7)."""
     create_resp = client.post(
@@ -390,6 +503,38 @@ def test_delete_task(client: TestClient):
     # Sprawdzamy czy na pewno zniknęło
     get_response = client.get(f"/api/tasks/{task_id}")
     assert get_response.status_code == 404
+
+
+def test_delete_task_cascades_to_children(client: TestClient, db_session: Session):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={"title": "Parent", "type": "Task", "priority": "Medium"},
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    child_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+        },
+    )
+    child = cast(dict[str, object], child_response.json())
+    child_id_value = child["id"]
+    assert isinstance(child_id_value, int)
+
+    delete_response = client.delete(f"/api/tasks/{parent_id_value}")
+    assert delete_response.status_code == 204
+
+    assert client.get(f"/api/tasks/{parent_id_value}").status_code == 404
+    assert client.get(f"/api/tasks/{child_id_value}").status_code == 404
+
+    child_logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == child_id_value).all()
+    assert [log.action for log in child_logs] == ["CREATE_TASK", "DELETE_TASK"]
 
 
 def test_delete_task_preserves_activity_logs(client: TestClient, db_session: Session):

@@ -1,30 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-
 import { Link, useOutletContext } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
-
+import { useConfirm } from "../../../components/ConfirmProvider";
 import { deleteTask, fetchSprints, fetchTasks } from "../api";
-
-import type { ProjectDetail, Sprint, WorkItem } from "../types";
-
-import { hasProjectRole } from "../helpers/permissions";
-
+import AssignSprintModal from "../components/backlog/AssignSprintModal";
 import AddTaskModal from "../components/backlog/AddTaskModal";
 import EditTaskModal from "../components/backlog/EditTaskModal";
-import AssignSprintModal from "../components/backlog/AssignSprintModal";
-
-// ============================================================
-// Context
-// ============================================================
+import { hasProjectRole } from "../helpers/permissions";
+import type { ProjectDetail, Sprint, WorkItem } from "../types";
 
 interface OutletContext {
   project: ProjectDetail;
 }
-
-// ============================================================
-// Helpers
-// ============================================================
 
 const PRIORITY_STYLES: Record<string, string> = {
   High: "bg-red-100 text-red-700",
@@ -38,12 +26,9 @@ const PRIORITY_LABELS: Record<string, string> = {
   Low: "Niski",
 };
 
-// ============================================================
-// Component
-// ============================================================
-
 export default function ProjectsBacklogPage() {
   const { project } = useOutletContext<OutletContext>();
+  const confirm = useConfirm();
 
   const canManageTasks = hasProjectRole(project.currentUserRoles, [
     "project_owner",
@@ -61,34 +46,54 @@ export default function ProjectsBacklogPage() {
   const [assigningTask, setAssigningTask] = useState<WorkItem | null>(null);
   const [sprintFilter, setSprintFilter] = useState<"all" | "none" | number>("all");
 
-  // ============================================================
-  // Derived state
-  // ============================================================
-
   const filteredTasks = useMemo(() => {
     if (sprintFilter === "all") return tasks;
-    if (sprintFilter === "none") return tasks.filter((t) => t.sprintId === null);
-    return tasks.filter((t) => t.sprintId === sprintFilter);
+    if (sprintFilter === "none") return tasks.filter((task) => task.sprintId === null);
+    return tasks.filter((task) => task.sprintId === sprintFilter);
   }, [tasks, sprintFilter]);
 
-  // ============================================================
-  // Handlers
-  // ============================================================
+  function getDescendantIds(rootTaskId: number): number[] {
+    const descendantIds: number[] = [];
+    let pendingParentIds = [rootTaskId];
+
+    while (pendingParentIds.length > 0) {
+      const currentChildren = tasks
+        .filter((task) => pendingParentIds.includes(task.parentId ?? -1))
+        .map((task) => task.id);
+      if (currentChildren.length === 0) break;
+      descendantIds.push(...currentChildren);
+      pendingParentIds = currentChildren;
+    }
+
+    return descendantIds;
+  }
+
+  async function reloadBacklog() {
+    const [taskResponse, sprintResponse] = await Promise.all([
+      fetchTasks(project.projectId, { status: "ToDo" }),
+      fetchSprints(project.projectId),
+    ]);
+    setTasks(taskResponse);
+    setSprints(sprintResponse);
+  }
 
   async function handleDelete(taskId: number) {
-    if (!window.confirm("Czy na pewno chcesz usunąć zadanie?")) return;
+    const descendantIds = getDescendantIds(taskId);
+    const confirmed = await confirm(
+      descendantIds.length > 0
+        ? `Usunięcie tego zadania usunie też ${descendantIds.length} zadań podrzędnych. Czy kontynuować?`
+        : "Czy na pewno chcesz usunąć zadanie?",
+    );
+    if (!confirmed) return;
 
     try {
       await deleteTask(taskId);
-      setTasks((current) => current.filter((t) => t.id !== taskId));
+      const idsToRemove = new Set([taskId, ...descendantIds]);
+      setTasks((current) => current.filter((task) => !idsToRemove.has(task.id)));
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : "Nie udało się usunąć zadania.");
     }
   }
-
-  // ============================================================
-  // Effects
-  // ============================================================
 
   useEffect(() => {
     let cancelled = false;
@@ -104,12 +109,10 @@ export default function ProjectsBacklogPage() {
         ]);
 
         if (cancelled) return;
-
         setTasks(taskResponse);
         setSprints(sprintResponse);
       } catch (err) {
         if (cancelled) return;
-
         setLoadError(err instanceof ApiError ? err.detail : "Nie udało się pobrać backlogu.");
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -123,22 +126,17 @@ export default function ProjectsBacklogPage() {
     };
   }, [project.projectId]);
 
-  // ============================================================
-  // Render
-  // ============================================================
-
   return (
     <>
       <div className="space-y-6">
         <section className="rounded-2xl bg-white p-6 shadow">
-
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Backlog</h1>
             {canManageTasks && (
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
-                className="rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 cursor-pointer"
+                className="cursor-pointer rounded-md bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700"
               >
                 Dodaj element
               </button>
@@ -150,25 +148,25 @@ export default function ProjectsBacklogPage() {
               Wyświetlane: {filteredTasks.length} / {tasks.length}
             </span>
             <div className="flex items-center gap-2">
-              <label htmlFor="sprint-filter" className="text-sm text-gray-600 shrink-0">
+              <label htmlFor="sprint-filter" className="shrink-0 text-sm text-gray-600">
                 Filtruj sprint:
               </label>
               <select
                 id="sprint-filter"
                 value={sprintFilter}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "all") setSprintFilter("all");
-                  else if (val === "none") setSprintFilter("none");
-                  else setSprintFilter(Number(val));
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "all") setSprintFilter("all");
+                  else if (value === "none") setSprintFilter("none");
+                  else setSprintFilter(Number(value));
                 }}
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
               >
                 <option value="all">Wszystkie</option>
                 <option value="none">Bez sprintu</option>
-                {sprints.map((s) => (
-                  <option key={s.sprintId} value={s.sprintId}>
-                    {s.name}
+                {sprints.map((sprint) => (
+                  <option key={sprint.sprintId} value={sprint.sprintId}>
+                    {sprint.name}
                   </option>
                 ))}
               </select>
@@ -200,20 +198,15 @@ export default function ProjectsBacklogPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredTasks.map((task) => {
-                    const sprint = sprints.find((s) => s.sprintId === task.sprintId);
+                    const sprint = sprints.find((item) => item.sprintId === task.sprintId);
                     return (
                       <tr key={task.id} className="hover:bg-gray-50">
                         <td className="py-3 pr-4 font-medium text-gray-900">
-                          <Link
-                            to={`/tasks/${task.id}`}
-                            className="text-blue-600 hover:underline"
-                          >
+                          <Link to={`/tasks/${task.id}`} className="text-blue-600 hover:underline">
                             {task.title}
                           </Link>
                           {task.parentId !== null && (
-                            <span className="ml-2 text-xs text-gray-400">
-                              (#{task.parentId})
-                            </span>
+                            <span className="ml-2 text-xs text-gray-400">(#{task.parentId})</span>
                           )}
                         </td>
                         <td className="py-3 pr-4">
@@ -232,11 +225,7 @@ export default function ProjectsBacklogPage() {
                           {task.storyPoints !== null ? task.storyPoints : <span className="text-gray-400">—</span>}
                         </td>
                         <td className="py-3 pr-4 text-gray-600">
-                          {sprint ? (
-                            <span className="text-gray-800">{sprint.name}</span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
+                          {sprint ? <span className="text-gray-800">{sprint.name}</span> : <span className="text-gray-400">—</span>}
                         </td>
                         {canManageTasks && (
                           <td className="py-3 text-right">
@@ -244,21 +233,21 @@ export default function ProjectsBacklogPage() {
                               <button
                                 type="button"
                                 onClick={() => setAssigningTask(task)}
-                                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                className="cursor-pointer rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                               >
                                 Przypisz
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingTask(task)}
-                                className="rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 cursor-pointer"
+                                className="cursor-pointer rounded-md border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
                               >
                                 Edytuj
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDelete(task.id)}
-                                className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 cursor-pointer"
+                                className="cursor-pointer rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
                               >
                                 Usuń
                               </button>
@@ -288,10 +277,8 @@ export default function ProjectsBacklogPage() {
         task={editingTask}
         projectId={project.projectId}
         onTaskUpdated={(updated) => {
-          setTasks((current) =>
-            current.map((t) => (t.id === updated.id ? updated : t)),
-          );
-          setEditingTask(null);
+          void updated;
+          void reloadBacklog().finally(() => setEditingTask(null));
         }}
       />
 
@@ -300,9 +287,10 @@ export default function ProjectsBacklogPage() {
         onClose={() => setAssigningTask(null)}
         task={assigningTask}
         sprints={sprints}
+        childCount={assigningTask ? getDescendantIds(assigningTask.id).length : 0}
         onAssigned={(updated) => {
-          setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
-          setAssigningTask(null);
+          void updated;
+          void reloadBacklog().finally(() => setAssigningTask(null));
         }}
       />
     </>

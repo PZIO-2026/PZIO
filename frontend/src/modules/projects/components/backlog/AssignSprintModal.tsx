@@ -1,43 +1,37 @@
 import { useState } from "react";
 
-import Modal from "../Modal";
-
 import { ApiError } from "../../../../api/client";
-
+import Modal from "../Modal";
 import { updateTask } from "../../api";
-
+import { statusLabels, statusStyles } from "../../constants/sprintForm.constants";
 import type { Sprint, WorkItem } from "../../types";
-
-import {
-  statusLabels,
-  statusStyles,
-} from "../../constants/sprintForm.constants";
-
-// ============================================================
-// Props
-// ============================================================
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   task: WorkItem | null;
   sprints: Sprint[];
+  childCount?: number;
   onAssigned: (task: WorkItem) => void;
 }
 
-// ============================================================
-// Component
-// ============================================================
-
-export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAssigned }: Props) {
+export default function AssignSprintModal({
+  isOpen,
+  onClose,
+  task,
+  sprints,
+  childCount = 0,
+  onAssigned,
+}: Props) {
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const availableSprints = sprints.filter((s) => s.status === "planned" || s.status === "active");
-
-  const selectedSprint = availableSprints.find((s) => s.sprintId === selectedSprintId) ?? null;
+  const availableSprints = sprints.filter((sprint) => sprint.status === "planned" || sprint.status === "active");
+  const selectedSprint = availableSprints.find((sprint) => sprint.sprintId === selectedSprintId) ?? null;
+  const willCascadeSprintChange =
+    task !== null && selectedSprint !== null && childCount > 0 && task.sprintId !== selectedSprint.sprintId;
 
   function handleClose() {
     setSelectedSprintId(null);
@@ -55,7 +49,7 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
   async function handleAssign() {
     if (!task || !selectedSprint) return;
 
-    if (selectedSprint.status === "active" && !needsConfirmation) {
+    if ((selectedSprint.status === "active" || willCascadeSprintChange) && !needsConfirmation) {
       setNeedsConfirmation(true);
       return;
     }
@@ -77,15 +71,12 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
   return (
     <Modal title="Przypisz do sprintu" isOpen={isOpen} onClose={handleClose}>
       <div className="space-y-4">
-
-        {/* Task name reminder */}
         {task && (
           <p className="text-sm text-gray-500">
             Zadanie: <span className="font-medium text-gray-800">{task.title}</span>
           </p>
         )}
 
-        {/* Sprint list */}
         {availableSprints.length === 0 ? (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
             Brak dostępnych sprintów (planned lub active).
@@ -107,9 +98,9 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{sprint.name}</p>
+                      <p className="truncate font-medium text-gray-900">{sprint.name}</p>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        {new Date(sprint.startDate).toLocaleDateString("pl-PL")} —{" "}
+                        {new Date(sprint.startDate).toLocaleDateString("pl-PL")} -{" "}
                         {new Date(sprint.endDate).toLocaleDateString("pl-PL")}
                       </p>
                     </div>
@@ -125,14 +116,22 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
           </div>
         )}
 
-        {/* Active sprint scope warning */}
-        {needsConfirmation && selectedSprint?.status === "active" && (
+        {needsConfirmation && (selectedSprint?.status === "active" || willCascadeSprintChange) && (
           <div className="flex gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-            <span className="mt-0.5 shrink-0 text-orange-500">⚠</span>
-            <p className="text-sm text-orange-800">
-              Przypisanie zadania do aktywnego sprintu zmienia jego zakres.
-              Kliknij <strong>Potwierdź</strong>, aby kontynuować.
-            </p>
+            <span className="mt-0.5 shrink-0 text-orange-500">!</span>
+            <div className="space-y-2 text-sm text-orange-800">
+              {selectedSprint?.status === "active" && (
+                <p>
+                  Przypisanie zadania do aktywnego sprintu zmienia jego zakres.
+                  Kliknij <strong>Potwierdź</strong>, aby kontynuować.
+                </p>
+              )}
+              {willCascadeSprintChange && (
+                <p>
+                  To zadanie ma {childCount} zadań podrzędnych. Zmiana sprintu obejmie również dzieci.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -140,12 +139,11 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
           <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>
         )}
 
-        {/* Actions */}
         <div className="flex justify-end gap-3 pt-1">
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+            className="cursor-pointer rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Anuluj
           </button>
@@ -153,13 +151,9 @@ export default function AssignSprintModal({ isOpen, onClose, task, sprints, onAs
             type="button"
             onClick={handleAssign}
             disabled={!selectedSprintId || isSubmitting}
-            className="rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+            className="cursor-pointer rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting
-              ? "Przypisywanie..."
-              : needsConfirmation
-                ? "Potwierdź"
-                : "Przypisz do sprintu"}
+            {isSubmitting ? "Przypisywanie..." : needsConfirmation ? "Potwierdź" : "Przypisz do sprintu"}
           </button>
         </div>
       </div>
