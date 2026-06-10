@@ -104,7 +104,7 @@ def test_update_user_status_not_found(client: TestClient, db_session: Session) -
     assert response.status_code == 404
 
 
-def test_admin_cannot_deactivate_own_account(client: TestClient, db_session: Session) -> None:
+def test_admin_cannot_change_own_account_status(client: TestClient, db_session: Session) -> None:
     admin = _create_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
     headers = _get_auth_headers(admin)
 
@@ -113,6 +113,10 @@ def test_admin_cannot_deactivate_own_account(client: TestClient, db_session: Ses
 
     db_session.refresh(admin)
     assert admin.is_active is True
+
+    # Any self-targeted status change is rejected, including a no-op activation.
+    response = client.patch(f"/api/users/{admin.user_id}/status", json={"isActive": True}, headers=headers)
+    assert response.status_code == 403
 
 
 def test_list_users_no_sort(client: TestClient, db_session: Session) -> None:
