@@ -55,6 +55,34 @@ def test_get_comment_not_found(db_session: Session) -> None:
         service.get_comment(db_session, 999)
 
 
+def test_create_comment_nonexistent_task(db_session: Session, user_factory) -> None:
+    user = user_factory()
+
+    with pytest.raises(service.TaskNotFoundError):
+        _create_comment(db_session, 999999, user.user_id, "Orphan")
+
+    assert service.list_comments(db_session, 999999) == []
+
+
+def test_save_attachment_nonexistent_task(
+    db_session: Session, user_factory, upload_dir: Path
+) -> None:
+    user = user_factory()
+
+    with pytest.raises(service.TaskNotFoundError):
+        _save_attachment(
+            db_session,
+            task_id=999999,
+            uploader_id=user.user_id,
+            filename="orphan.txt",
+            content_type="text/plain",
+            data=b"orphan",
+        )
+
+    assert service.list_attachments(db_session, 999999) == []
+    assert not upload_dir.exists()
+
+
 def test_update_comment_success(db_session: Session, user_factory) -> None:
     user = user_factory()
     comment = _create_comment(db_session, 1, user.user_id, "Old")

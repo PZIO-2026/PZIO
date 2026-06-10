@@ -46,6 +46,37 @@ def test_get_comments_returns_history(
     assert all(item["user"]["avatar"] == user.avatar for item in payload)
 
 
+def test_add_comment_nonexistent_task_returns_404(
+    client: TestClient, user_factory, auth_headers, db_session
+) -> None:
+    user = user_factory()
+
+    response = client.post(
+        "/api/tasks/999999/comments",
+        json={"content": "test"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 404
+    assert service.list_comments(db_session, 999999) == []
+
+
+def test_upload_attachment_nonexistent_task_returns_404(
+    client: TestClient, user_factory, auth_headers, upload_dir: Path, db_session
+) -> None:
+    user = user_factory()
+
+    response = client.post(
+        "/api/tasks/999999/attachments",
+        files={"file": ("note.txt", b"hello", "text/plain")},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 404
+    assert service.list_attachments(db_session, 999999) == []
+    assert not upload_dir.exists()
+
+
 def test_edit_comment_success(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:

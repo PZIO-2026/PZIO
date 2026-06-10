@@ -11,6 +11,11 @@ from pzio.config import settings
 from pzio.modules.admin import service as admin_service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
+from pzio.modules.tasks.service import get_work_item
+
+
+class TaskNotFoundError(Exception):
+    """Raised when the parent task ID does not exist (404)."""
 
 
 class CommentNotFoundError(Exception):
@@ -26,7 +31,10 @@ class NotOwnerError(Exception):
 
 
 def create_comment(db: Session, task_id: int, author_id: int, payload: CommentCreate) -> Comment:
-    """Add a new comment to a task."""
+    """Add a new comment to a task. Raises TaskNotFoundError if the task does not exist."""
+    if get_work_item(db, task_id=task_id) is None:
+        raise TaskNotFoundError(task_id)
+
     comment = Comment(
         task_id=task_id,
         author_id=author_id,
@@ -111,7 +119,13 @@ def save_attachment(
 
     ``file_obj`` is expected to behave like ``UploadFile.file`` (a file-like
     object supporting ``.read()``).
+
+    Raises TaskNotFoundError if the task does not exist; nothing is written
+    to disk in that case.
     """
+    if get_work_item(db, task_id=task_id) is None:
+        raise TaskNotFoundError(task_id)
+
     upload_dir = _ensure_upload_dir()
 
     # Generate a unique on-disk name to avoid collisions, but keep the original extension.

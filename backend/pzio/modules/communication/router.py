@@ -60,6 +60,7 @@ def _build_comment_notification_message(task_id: int, author: User, content: str
         201: {"description": "Comment created"},
         400: {"description": "Validation error"},
         401: {"description": "Missing or invalid token"},
+        404: {"description": "Task not found"},
     },
 )
 def add_comment(
@@ -69,7 +70,10 @@ def add_comment(
     db: Session = Depends(get_db),
     email_service: EmailService = Depends(provide_email_service),
 ) -> CommentRead:
-    comment = service.create_comment(db, task_id, current_user.user_id, payload)
+    try:
+        comment = service.create_comment(db, task_id, current_user.user_id, payload)
+    except service.TaskNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     subject, body = _build_comment_notification_message(task_id, current_user, payload.content)
     # Observers are not modeled yet, so as a temporary integration point we send
     # the notification to the current user and keep the payload shape ready.
@@ -167,6 +171,7 @@ def delete_comment(
         201: {"description": "Attachment created"},
         400: {"description": "File too large or unsupported file type"},
         401: {"description": "Missing or invalid token"},
+        404: {"description": "Task not found"},
     },
 )
 def upload_attachment(
@@ -190,14 +195,17 @@ def upload_attachment(
             detail=f"File too large. Maximum size: {max_mb:.0f} MB",
         )
     
-    attachment = service.save_attachment(
-        db,
-        task_id=task_id,
-        uploader_id=current_user.user_id,
-        filename=file.filename or "unnamed",
-        content_type=file.content_type,
-        file_obj=file.file,
-    )
+    try:
+        attachment = service.save_attachment(
+            db,
+            task_id=task_id,
+            uploader_id=current_user.user_id,
+            filename=file.filename or "unnamed",
+            content_type=file.content_type,
+            file_obj=file.file,
+        )
+    except service.TaskNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return AttachmentRead.model_validate(attachment)
 
 

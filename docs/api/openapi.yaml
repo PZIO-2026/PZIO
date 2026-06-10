@@ -1244,6 +1244,8 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid token
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1387,6 +1389,8 @@ paths:
                 $ref: '#/components/schemas/AttachmentRead'
         '401':
           description: Missing or invalid token
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:

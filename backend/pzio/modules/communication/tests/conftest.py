@@ -11,6 +11,28 @@ from pzio.modules.auth.security import create_access_token, hash_password
 from pzio.modules.communication import service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate
+from pzio.modules.tasks.models import WorkItem
+
+
+@pytest.fixture(autouse=True)
+def seed_tasks(db_session: Session) -> None:
+    """Comments and attachments require an existing parent task.
+
+    Tests in this module reference task ids 1, 2 and 123, so create them up
+    front instead of repeating the setup in every test.
+    """
+    for task_id in (1, 2, 123):
+        if db_session.get(WorkItem, task_id) is None:
+            db_session.add(
+                WorkItem(
+                    id=task_id,
+                    project_id=1,
+                    title=f"Task {task_id}",
+                    type="Task",
+                    priority="Medium",
+                )
+            )
+    db_session.commit()
 
 
 @pytest.fixture
