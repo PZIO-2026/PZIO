@@ -2,8 +2,8 @@ import { useState } from "react";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
-const GOOGLE_ENABLED = Boolean(GOOGLE_CLIENT_ID);
-const GITHUB_ENABLED = Boolean(GITHUB_CLIENT_ID);
+const GOOGLE_ENABLED = Boolean(GOOGLE_CLIENT_ID?.trim());
+const GITHUB_ENABLED = Boolean(GITHUB_CLIENT_ID?.trim());
 
 type Provider = "google" | "github";
 

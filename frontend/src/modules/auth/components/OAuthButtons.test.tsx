@@ -58,4 +58,14 @@ describe("OAuthButtons", () => {
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText(/lub zaloguj się przez/i)).not.toBeInTheDocument();
   });
+
+  it("treats whitespace-only client IDs as unconfigured", async () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "   ");
+    vi.stubEnv("VITE_GITHUB_CLIENT_ID", "\t\n");
+    const OAuthButtons = await loadOAuthButtons();
+
+    const { container } = render(<OAuthButtons />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
 });

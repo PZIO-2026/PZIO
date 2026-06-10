@@ -72,7 +72,7 @@ Każdy dostawca wymaga zarejestrowania aplikacji w jego panelu i przeniesienia d
 2. Z menu wybierz **APIs & Services → OAuth consent screen** i skonfiguruj ekran zgody (typ aplikacji: External, podaj nazwę aplikacji i adres e-mail kontaktowy). Dodaj `email` i `profile` do scope'ów.
 3. Następnie **APIs & Services → Credentials → Create credentials → OAuth client ID**. Wybierz typ **Web application**.
 4. W polu **Authorized redirect URIs** dodaj adres zwrotny (jak wyżej — `http://localhost:5173/oauth/callback` lub produkcyjny odpowiednik).
-5. Skopiuj wygenerowane **Client ID** i **Client Secret** — wartości wpiszesz do pliku `.env` w sekcji „Gdzie wpisać wartości" niżej.
+5. Skopiuj wygenerowane **Client ID** i **Client Secret** — wartości wpiszesz do pliku `.env` w sekcji „Gdzie wpisać wartości” niżej.
 
 #### GitHub
 
@@ -107,9 +107,9 @@ Wartości `VITE_*` zazwyczaj są **identyczne** z `GOOGLE_CLIENT_ID` / `GITHUB_C
 
 #### Po zmianie konfiguracji — restart
 
-Backend wczytuje zmienne **runtime'owo** przy starcie procesu, więc wystarczy go zrestartować:
+Backend wczytuje zmienne **runtime'owo** przy starcie procesu, więc wystarczy odtworzyć kontener / proces:
 
-- Docker: `docker compose restart backend`.
+- Docker: `docker compose up -d backend`. **Nie** `docker compose restart backend` — `restart` jedynie restartuje proces wewnątrz istniejącego kontenera, więc świeżo dodane zmienne w `.env` nie zostaną odczytane. `up -d` porównuje konfigurację z aktualnym kontenerem i odtwarza go, jeśli coś się zmieniło.
 - klasyczne: zatrzymaj i ponownie uruchom `python -m pzio`.
 
 Frontend **wbudowuje** wartości `VITE_*` w bundle JS w momencie buildu — sam restart nic nie da, bo wcześniej zbudowane pliki nadal zawierają stare wartości. Trzeba przebudować:
@@ -138,7 +138,7 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 - Umożliwia uwierzytelnienie się za pomocą adresu e-mail i hasła.
 - Po pomyślnym zalogowaniu następuje przekierowanie do strony głównej.
 - Można też przejść do ekranu rejestracji lub zapomnianego hasła, jeśli nie masz jeszcze konta lub potrzebujesz zresetować hasło.
-- Dostępna jest również opcja logowania przez Google lub GitHub (OAuth2) — po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu powrót do aplikacji z zalogowanym użytkownikiem. Przyciski OAuth są widoczne tylko dla tych dostawców, których administrator wcześniej skonfigurował — zob. sekcję „Konfiguracja logowania przez Google / GitHub (OAuth2)" wyżej.
+- Dostępna jest również opcja logowania przez Google lub GitHub (OAuth2) — po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu powrót do aplikacji z zalogowanym użytkownikiem. Przyciski OAuth są widoczne tylko dla tych dostawców, których administrator wcześniej skonfigurował — zob. sekcję „Konfiguracja logowania przez Google / GitHub (OAuth2)” wyżej.
 
 ### Rejestracja (`/register`)
 
