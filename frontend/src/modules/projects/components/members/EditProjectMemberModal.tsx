@@ -163,10 +163,9 @@ export default function EditProjectMemberModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            disabled={isSubmitting}
+            className="rounded-md border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Anuluj
-          </button>
           <button
             type="submit"
             disabled={isSubmitting}
