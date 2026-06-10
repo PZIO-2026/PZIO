@@ -151,7 +151,7 @@ def create_project(db: Session, payload: ProjectCreate, current_user_id: int) ->
         .join(ProjectMember)
         .filter(
             ProjectMember.user_id == current_user_id,
-            Project.name.like(f"{payload.name}%")
+            Project.name.startswith(payload.name, autoescape=True),
         )
         .all()
     )
@@ -287,7 +287,7 @@ def update_project(
             .join(ProjectMember)
             .filter(
                 ProjectMember.user_id == current_user_id,
-                Project.name.like(f"{new_name}%"),
+                Project.name.startswith(new_name, autoescape=True),
                 Project.project_id != project.project_id
             )
             .all()
@@ -581,7 +581,7 @@ def create_sprint(
         db.query(Sprint.name)
         .filter(
             Sprint.project_id == project_id,
-            Sprint.name.like(f"{payload.name}%")
+             Sprint.name.startswith(payload.name, autoescape=True),
         )
         .all()
     )
@@ -664,7 +664,7 @@ def update_sprint(
             db.query(Sprint.name)
             .filter(
                 Sprint.project_id == sprint.project_id,
-                Sprint.name.like(f"{new_name}%"),
+                Sprint.name.startswith(new_name, autoescape=True),
                 Sprint.sprint_id != sprint.sprint_id
             )
             .all()
