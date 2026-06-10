@@ -11,9 +11,9 @@ import { ApiError } from "../../../../api/client";
 import { fetchTaskTypes } from "../../../admin/api";
 import type { TaskType } from "../../../admin/types";
 
-import { fetchTasks, updateTask } from "../../api";
+import { fetchSprints, fetchTasks, updateTask } from "../../api";
 
-import type { WorkItem } from "../../types";
+import type { Sprint, WorkItem } from "../../types";
 
 import { taskFormSchema, type TaskFormInput } from "../../schemas";
 
@@ -40,6 +40,8 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [taskTypesLoading, setTaskTypesLoading] = useState(false);
   const [allTasks, setAllTasks] = useState<WorkItem[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintsLoading, setSprintsLoading] = useState(false);
 
   const {
     register,
@@ -57,10 +59,12 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
       priority: "Medium",
       storyPoints: undefined,
       parentId: null,
+      sprintId: null,
     },
   });
 
   const parentId = useWatch({ control, name: "parentId" }) ?? null;
+  const sprintId = useWatch({ control, name: "sprintId" }) ?? null;
 
   // ============================================================
   // Effects
@@ -72,6 +76,8 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     setTaskTypesLoading(true);
     fetchTaskTypes().then(setTaskTypes).catch(() => {}).finally(() => setTaskTypesLoading(false));
     fetchTasks(projectId).then(setAllTasks).catch(() => {});
+    setSprintsLoading(true);
+    fetchSprints(projectId).then(setSprints).catch(() => setSprints([])).finally(() => setSprintsLoading(false));
   }, [isOpen, projectId]);
 
   useEffect(() => {
@@ -84,6 +90,7 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
       priority: task.priority as TaskFormInput["priority"],
       storyPoints: task.storyPoints ?? undefined,
       parentId: task.parentId ?? null,
+      sprintId: task.sprintId ?? null,
     });
   }, [task, reset]);
 
@@ -126,6 +133,9 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
           taskTypesLoading={taskTypesLoading}
           allTasks={allTasks}
           editingTaskId={task?.id}
+          sprints={sprints}
+          sprintId={sprintId}
+          sprintsLoading={sprintsLoading}
         />
 
         {submitError && (

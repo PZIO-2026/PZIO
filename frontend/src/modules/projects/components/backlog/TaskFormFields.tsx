@@ -3,7 +3,7 @@ import type { FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-f
 import type { TaskType } from "../../../admin/types";
 
 import type { TaskFormInput } from "../../schemas";
-import type { WorkItem } from "../../types";
+import type { Sprint, WorkItem } from "../../types";
 
 import ParentTaskSearch from "./ParentTaskSearch";
 
@@ -20,6 +20,9 @@ interface Props {
   taskTypesLoading: boolean;
   allTasks: WorkItem[];
   editingTaskId?: number;
+  sprints?: Sprint[];
+  sprintId?: number | null;
+  sprintsLoading?: boolean;
 }
 
 // ============================================================
@@ -35,6 +38,9 @@ export default function TaskFormFields({
   taskTypesLoading,
   allTasks,
   editingTaskId,
+  sprints,
+  sprintId,
+  sprintsLoading = false,
 }: Props) {
   return (
     <>
@@ -134,6 +140,32 @@ export default function TaskFormFields({
           onChange={(id) => setValue("parentId", id, { shouldDirty: true })}
         />
       </div>
+
+      {sprints && (
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Sprint</label>
+          <select
+            value={sprintId ?? ""}
+            disabled={sprintsLoading}
+            onChange={(e) =>
+              setValue("sprintId", e.target.value === "" ? null : Number(e.target.value), {
+                shouldDirty: true,
+              })
+            }
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+          >
+            <option value="">{sprintsLoading ? "Ładowanie..." : "Brak sprintu"}</option>
+            {sprints.map((sprint) => (
+              <option key={sprint.sprintId} value={sprint.sprintId}>
+                {sprint.name}
+              </option>
+            ))}
+          </select>
+          {errors.sprintId && (
+            <p className="mt-1 text-xs text-red-600">{errors.sprintId.message}</p>
+          )}
+        </div>
+      )}
     </>
   );
 }
