@@ -12,6 +12,7 @@ from pzio.modules.auth.models import User, UserRole
 from pzio.modules.auth.security import hash_password
 from pzio.modules.admin.models import ActivityLog as AdminActivityLog
 from pzio.modules.admin.models import TaskType
+from pzio.modules.projects.models import Project, ProjectMember
 from pzio.modules.tasks import models
 
 
@@ -25,26 +26,30 @@ def override_current_user(db_session: Session) -> None:
         )
         if task_type is None:
             db_session.add(TaskType(name=task_type_name))
+
+    user = User(
+        email="tasks-test-user@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Tasks",
+        last_name="Tester",
+        role=UserRole.TEAM_MEMBER,
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.flush()
+
+    # The task endpoints now require the caller to be a member of the project,
+    # so the fixture wires up project 1 with the test user as a member.
+    project = Project(name="Test Project")
+    db_session.add(project)
+    db_session.flush()
+    db_session.add(
+        ProjectMember(project_id=project.project_id, user_id=user.user_id, roles=["developer"])
+    )
     db_session.commit()
+    db_session.refresh(user)
 
     def _override_get_current_user() -> User:
-        user = (
-            db_session.query(User)
-            .filter(User.email == "tasks-test-user@example.com")
-            .first()
-        )
-        if user is None:
-            user = User(
-                email="tasks-test-user@example.com",
-                password_hash=hash_password("irrelevant"),
-                first_name="Tasks",
-                last_name="Tester",
-                role=UserRole.TEAM_MEMBER,
-                is_active=True,
-            )
-            db_session.add(user)
-            db_session.commit()
-            db_session.refresh(user)
         return user
 
     app.dependency_overrides[get_current_user] = _override_get_current_user
@@ -801,6 +806,127 @@ def test_get_worklogs_task_not_found(client: TestClient):
     response = client.get("/api/tasks/999999/worklogs")
     assert response.status_code == 404
     assert response.json()["detail"] == "Task not found"
+
+
+def test_non_member_cannot_access_project_tasks(client: TestClient, db_session: Session):
+    """Użytkownik spoza projektu nie ma wglądu w zadania ani nie może ich tworzyć (#59)."""
+    outsider = User(
+        email="outsider@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Out",
+        last_name="Sider",
+        role=UserRole.TEAM_MEMBER,
+        is_active=True,
+    )
+    db_session.add(outsider)
+    db_session.commit()
+    db_session.refresh(outsider)
+
+    # Zadanie istniejące w projekcie 1 (do prób dostępu po id zadania).
+    task = models.WorkItem(project_id=1, title="W projekcie", type="Task", priority="Medium")
+    db_session.add(task)
+    db_session.commit()
+    db_session.refresh(task)
+
+    app.dependency_overrides[get_current_user] = lambda: outsider
+    try:
+        list_response = client.get("/api/projects/1/tasks")
+        assert list_response.status_code == 403
+
+        create_response = client.post(
+            "/api/projects/1/tasks",
+            json={"title": "Nielegalne zadanie", "type": "Task", "priority": "Medium"},
+        )
+        assert create_response.status_code == 403
+
+        # Endpointy operujące po id zadania również wymagają członkostwa.
+        assert client.get(f"/api/tasks/{task.id}").status_code == 403
+        assert client.patch(f"/api/tasks/{task.id}", json={"title": "x"}).status_code == 403
+        assert client.patch(f"/api/tasks/{task.id}/status", json={"status": "Done"}).status_code == 403
+        assert client.delete(f"/api/tasks/{task.id}").status_code == 403
+        assert client.get(f"/api/tasks/{task.id}/worklogs").status_code == 403
+        worklog_resp = client.post(
+            f"/api/tasks/{task.id}/worklogs", json={"hoursSpent": 1.0, "note": "x"}
+        )
+        assert worklog_resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_admin_can_access_tasks_without_membership(client: TestClient, db_session: Session):
+    """Administrator ma dostęp do zadań każdego projektu, nawet bez członkostwa."""
+    admin = User(
+        email="admin-tasks@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Adam",
+        last_name="Admin",
+        role=UserRole.ADMINISTRATOR,
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+
+    task = models.WorkItem(project_id=1, title="W projekcie", type="Task", priority="Medium")
+    db_session.add(task)
+    db_session.commit()
+    db_session.refresh(task)
+
+    app.dependency_overrides[get_current_user] = lambda: admin
+    try:
+        assert client.get("/api/projects/1/tasks").status_code == 200
+        create_response = client.post(
+            "/api/projects/1/tasks",
+            json={"title": "Zadanie admina", "type": "Task", "priority": "Medium"},
+        )
+        assert create_response.status_code == 201
+        assert client.get(f"/api/tasks/{task.id}").status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_tasks_for_nonexistent_project_return_404(client: TestClient):
+    """Nieistniejący projekt daje 404, a nie mylące 403 'nie jesteś członkiem'."""
+    assert client.get("/api/projects/999/tasks").status_code == 404
+    create_response = client.post(
+        "/api/projects/999/tasks",
+        json={"title": "Zadanie widmo", "type": "Task", "priority": "Medium"},
+    )
+    assert create_response.status_code == 404
+
+
+def test_admin_cannot_create_task_for_nonexistent_project(
+    client: TestClient, db_session: Session
+):
+    """Bypass admina nie może tworzyć osieroconych zadań pod nieistniejącym projektem."""
+    admin = User(
+        email="admin-orphan@example.com",
+        password_hash=hash_password("irrelevant"),
+        first_name="Adam",
+        last_name="Admin",
+        role=UserRole.ADMINISTRATOR,
+        is_active=True,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+
+    app.dependency_overrides[get_current_user] = lambda: admin
+    try:
+        create_response = client.post(
+            "/api/projects/999/tasks",
+            json={"title": "Sierota", "type": "Task", "priority": "Medium"},
+        )
+        assert create_response.status_code == 404
+        # Żadne zadanie nie powstało.
+        assert (
+            db_session.query(models.WorkItem)
+            .filter(models.WorkItem.project_id == 999)
+            .count()
+            == 0
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_protected_endpoints_require_auth(client: TestClient):
