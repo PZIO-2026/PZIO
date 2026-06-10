@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import EditProfileForm from "../components/EditProfileForm";
 import { useAuth } from "../hooks";
@@ -50,7 +50,11 @@ export default function ProfilePage() {
 }
 
 function ProfileView({ user }: { user: User }) {
-  const hasAvatar = user.avatar !== null && user.avatar !== "";
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [user.avatar]);
+  const hasAvatar = user.avatar !== null && user.avatar !== "" && !imageFailed;
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   return (
@@ -60,10 +64,16 @@ function ProfileView({ user }: { user: User }) {
           <img
             src={user.avatar ?? ""}
             alt="Awatar"
+            onError={() => {
+              setImageFailed(true);
+            }}
             className="h-16 w-16 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700">
+          <div
+            aria-label="Awatar zastępczy"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700"
+          >
             {initials}
           </div>
         )}

@@ -24,7 +24,18 @@ export const registerSchema = z
 export const editProfileSchema = z.object({
   firstName: z.string().min(1, "Imię jest wymagane").max(100, "Imię jest za długie"),
   lastName: z.string().min(1, "Nazwisko jest wymagane").max(100, "Nazwisko jest za długie"),
-  avatar: z.string().max(255, "URL awatara jest za długi"),
+  avatar: z
+    .string()
+    .max(255, "URL awatara jest za długi")
+    .refine((value) => {
+      if (value === "") return true;
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "Podaj poprawny URL awatara (http:// lub https://)"),
 });
 
 export const forgotPasswordSchema = z.object({

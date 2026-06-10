@@ -160,17 +160,51 @@ describe("editProfileSchema", () => {
   });
 
   it("accepts an avatar exactly 255 characters long", () => {
-    const result = editProfileSchema.safeParse({ ...valid, avatar: "a".repeat(255) });
+    const prefix = "https://example.com/";
+    const url = prefix + "a".repeat(255 - prefix.length);
+    expect(url.length).toBe(255);
+    const result = editProfileSchema.safeParse({ ...valid, avatar: url });
     expect(result.success).toBe(true);
   });
 
   it("rejects an avatar longer than 255 characters", () => {
-    const result = editProfileSchema.safeParse({ ...valid, avatar: "a".repeat(256) });
+    const prefix = "https://example.com/";
+    const url = prefix + "a".repeat(256 - prefix.length);
+    const result = editProfileSchema.safeParse({ ...valid, avatar: url });
     expect(result.success).toBe(false);
     if (!result.success) {
       const issue = result.error.issues.find((i) => i.path[0] === "avatar");
       expect(issue?.message).toBe("URL awatara jest za długi");
     }
+  });
+
+  it("rejects an avatar that is not a URL", () => {
+    const result = editProfileSchema.safeParse({ ...valid, avatar: "not a url" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "avatar");
+      expect(issue?.message).toBe("Podaj poprawny URL awatara (http:// lub https://)");
+    }
+  });
+
+  it("rejects an avatar with a non-http(s) scheme", () => {
+    const result = editProfileSchema.safeParse({
+      ...valid,
+      avatar: "ftp://example.com/avatar.png",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path[0] === "avatar");
+      expect(issue?.message).toBe("Podaj poprawny URL awatara (http:// lub https://)");
+    }
+  });
+
+  it("accepts an avatar with a plain http scheme", () => {
+    const result = editProfileSchema.safeParse({
+      ...valid,
+      avatar: "http://example.com/avatar.png",
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects an empty firstName", () => {

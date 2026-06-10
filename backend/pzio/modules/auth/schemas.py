@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from urllib.parse import urlparse
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from pzio.modules.auth.models import UserRole
 
@@ -100,6 +102,18 @@ class UserUpdate(BaseModel):
     first_name: str | None = Field(default=None, alias="firstName", min_length=1, max_length=NAME_MAX_LENGTH)
     last_name: str | None = Field(default=None, alias="lastName", min_length=1, max_length=NAME_MAX_LENGTH)
     avatar: str | None = Field(default=None, max_length=255)
+
+    @field_validator("avatar", mode="before")
+    @classmethod
+    def _validate_avatar(cls, value: object) -> str | None:
+        if value is None or value == "":
+            return None
+        if not isinstance(value, str):
+            raise ValueError("avatar must be a string URL")
+        parsed = urlparse(value)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            raise ValueError("avatar must be a valid http(s) URL")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
