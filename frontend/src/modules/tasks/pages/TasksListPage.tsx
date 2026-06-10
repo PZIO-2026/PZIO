@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
+import { useAuth } from "../../auth/hooks";
 import AddTaskModal from "../../projects/components/backlog/AddTaskModal";
 import { fetchProjects, fetchProjectMembers, fetchTasks } from "../../projects/api";
 import { hasProjectRole } from "../../projects/helpers/permissions";
@@ -78,6 +79,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 export default function TasksListPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [allTasks, setAllTasks] = useState<WorkItem[]>([]);
@@ -92,6 +94,7 @@ export default function TasksListPage() {
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status") ?? "";
   const priority = searchParams.get("priority") ?? "";
+  const assignedToMe = searchParams.get("assignedToMe") === "true";
 
   useEffect(() => {
     let cancelled = false;
@@ -184,14 +187,16 @@ export default function TasksListPage() {
       if (search && !task.title.toLowerCase().includes(search.toLowerCase())) return false;
       if (status && task.status !== status) return false;
       if (priority && task.priority.toLowerCase() !== priority.toLowerCase()) return false;
+      if (assignedToMe && task.assigneeId !== user?.userId) return false;
       return true;
     });
-  }, [allTasks, search, status, priority]);
+  }, [allTasks, assignedToMe, priority, search, status, user?.userId]);
 
   function updateFilters(next: {
     search?: string;
     status?: string;
     priority?: string;
+    assignedToMe?: boolean;
     page?: number;
   }) {
     const params = new URLSearchParams(searchParams);
@@ -215,6 +220,13 @@ export default function TasksListPage() {
         params.set("priority", next.priority);
       } else {
         params.delete("priority");
+      }
+    }
+    if (next.assignedToMe !== undefined) {
+      if (next.assignedToMe) {
+        params.set("assignedToMe", "true");
+      } else {
+        params.delete("assignedToMe");
       }
     }
 
@@ -248,7 +260,7 @@ export default function TasksListPage() {
 
         <section className="rounded-xl bg-white p-6 shadow">
           <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-4">
               <div>
                 <label
                   htmlFor="task-search"
@@ -304,6 +316,23 @@ export default function TasksListPage() {
                   <option value="Medium">Średni</option>
                   <option value="Low">Niski</option>
                 </select>
+              </div>
+
+              <div>
+                <span className="mb-1 block text-sm font-medium text-gray-700">
+                  Przypisanie
+                </span>
+                <button
+                  type="button"
+                  onClick={() => updateFilters({ assignedToMe: !assignedToMe, page: 1 })}
+                  className={`inline-flex min-h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition cursor-pointer ${
+                    assignedToMe
+                      ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {assignedToMe ? "Moje zadania" : "Pokaż moje zadania"}
+                </button>
               </div>
             </div>
 
