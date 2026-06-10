@@ -1,22 +1,22 @@
 import { useState } from "react";
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+const GOOGLE_ENABLED = Boolean(GOOGLE_CLIENT_ID);
+const GITHUB_ENABLED = Boolean(GITHUB_CLIENT_ID);
+
 type Provider = "google" | "github";
 
 export default function OAuthButtons() {
   const [error, setError] = useState<string | null>(null);
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID;
-  const googleEnabled = Boolean(googleClientId);
-  const githubEnabled = Boolean(githubClientId);
-
-  if (!googleEnabled && !githubEnabled) {
+  if (!GOOGLE_ENABLED && !GITHUB_ENABLED) {
     return null;
   }
 
   function handleOAuth(provider: Provider) {
     try {
-      const clientId = provider === "google" ? googleClientId : githubClientId;
+      const clientId = provider === "google" ? GOOGLE_CLIENT_ID : GITHUB_CLIENT_ID;
 
       const state = crypto.randomUUID();
       localStorage.setItem("oauth_state", state);
@@ -41,7 +41,7 @@ export default function OAuthButtons() {
     }
   }
 
-  const buttonCount = (googleEnabled ? 1 : 0) + (githubEnabled ? 1 : 0);
+  const buttonCount = (GOOGLE_ENABLED ? 1 : 0) + (GITHUB_ENABLED ? 1 : 0);
   const gridClass = buttonCount === 2 ? "mt-6 grid grid-cols-2 gap-3" : "mt-6 grid grid-cols-1";
 
   return (
@@ -56,7 +56,7 @@ export default function OAuthButtons() {
       </div>
 
       <div className={gridClass}>
-        {googleEnabled && (
+        {GOOGLE_ENABLED && (
           <button
             type="button"
             onClick={() => handleOAuth("google")}
@@ -71,7 +71,7 @@ export default function OAuthButtons() {
             Google
           </button>
         )}
-        {githubEnabled && (
+        {GITHUB_ENABLED && (
           <button
             type="button"
             onClick={() => handleOAuth("github")}

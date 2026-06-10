@@ -1,16 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import OAuthButtons from "./OAuthButtons";
+async function loadOAuthButtons() {
+  vi.resetModules();
+  const mod = await import("./OAuthButtons");
+  return mod.default;
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
 
 describe("OAuthButtons", () => {
-  it("renders both buttons and the separator when both providers are configured", () => {
+  it("renders both buttons and the separator when both providers are configured", async () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "google-client-id");
     vi.stubEnv("VITE_GITHUB_CLIENT_ID", "github-client-id");
+    const OAuthButtons = await loadOAuthButtons();
 
     render(<OAuthButtons />);
 
@@ -19,9 +24,10 @@ describe("OAuthButtons", () => {
     expect(screen.getByText(/lub zaloguj się przez/i)).toBeInTheDocument();
   });
 
-  it("hides the GitHub button when only Google is configured", () => {
+  it("hides the GitHub button when only Google is configured", async () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "google-client-id");
     vi.stubEnv("VITE_GITHUB_CLIENT_ID", "");
+    const OAuthButtons = await loadOAuthButtons();
 
     render(<OAuthButtons />);
 
@@ -30,9 +36,10 @@ describe("OAuthButtons", () => {
     expect(screen.getByText(/lub zaloguj się przez/i)).toBeInTheDocument();
   });
 
-  it("hides the Google button when only GitHub is configured", () => {
+  it("hides the Google button when only GitHub is configured", async () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "");
     vi.stubEnv("VITE_GITHUB_CLIENT_ID", "github-client-id");
+    const OAuthButtons = await loadOAuthButtons();
 
     render(<OAuthButtons />);
 
@@ -41,9 +48,10 @@ describe("OAuthButtons", () => {
     expect(screen.getByText(/lub zaloguj się przez/i)).toBeInTheDocument();
   });
 
-  it("renders nothing when no provider is configured", () => {
+  it("renders nothing when no provider is configured", async () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "");
     vi.stubEnv("VITE_GITHUB_CLIENT_ID", "");
+    const OAuthButtons = await loadOAuthButtons();
 
     const { container } = render(<OAuthButtons />);
 
