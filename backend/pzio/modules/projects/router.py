@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
 
+from ...path_params import PathId
 from .dependencies import AuthUser, DBSession, ManagerUser
 from .schemas import (
     BurndownOut,
@@ -101,7 +102,7 @@ def list_projects(
     ),
 )
 def get_project(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> ProjectDetailOut:
@@ -120,7 +121,7 @@ def get_project(
     ),
 )
 def update_project(
-    id: int,
+    id: PathId,
     payload: ProjectUpdate,
     db: DBSession,
     current_user: AuthUser,
@@ -139,7 +140,7 @@ def update_project(
     ),
 )
 def delete_project(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> None:
@@ -163,7 +164,7 @@ def delete_project(
     ),
 )
 def add_member(
-    id: int,
+    id: PathId,
     payload: ProjectMemberCreate,
     db: DBSession,
     current_user: AuthUser,
@@ -184,7 +185,7 @@ def add_member(
     ),
 )
 def list_members(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
     role: str | None = Query(default=None),
@@ -206,8 +207,8 @@ def list_members(
     ),
 )
 def remove_member(
-    id: int,
-    user_id: int,
+    id: PathId,
+    user_id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> None:
@@ -225,8 +226,8 @@ def remove_member(
     ),
 )
 def update_member_roles(
-    id: int,
-    user_id: int,
+    id: PathId,
+    user_id: PathId,
     payload: ProjectMemberUpdate,
     db: DBSession,
     current_user: AuthUser,
@@ -250,7 +251,7 @@ def update_member_roles(
     ),
 )
 def create_sprint(
-    id: int,
+    id: PathId,
     payload: SprintCreate,
     db: DBSession,
     current_user: AuthUser,
@@ -270,7 +271,7 @@ def create_sprint(
     ),
 )
 def list_sprints(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> list[SprintOut]:
@@ -290,7 +291,7 @@ def list_sprints(
     ),
 )
 def update_sprint(
-    id: int,
+    id: PathId,
     payload: SprintUpdate,
     db: DBSession,
     current_user: AuthUser,
@@ -308,7 +309,7 @@ def update_sprint(
     ),
 )
 def delete_sprint(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> None:
@@ -328,7 +329,7 @@ def delete_sprint(
     ),
 )
 def get_burndown(
-    id: int,
+    id: PathId,
     db: DBSession,
     current_user: AuthUser,
 ) -> BurndownOut:

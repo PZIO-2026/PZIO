@@ -257,6 +257,18 @@ def test_get_task_not_found(client: TestClient):
     assert response.json()["detail"] == "Task not found"
 
 
+def test_get_task_id_out_of_range(client: TestClient):
+    """Id powyżej zakresu int4 ma być odrzucone walidacją, a nie kończyć się 500."""
+    response = client.get("/api/tasks/9999999999")
+    assert response.status_code == 400
+
+
+def test_get_tasks_project_id_out_of_range(client: TestClient):
+    """Analogicznie dla id projektu w ścieżce."""
+    response = client.get("/api/projects/9999999999/tasks")
+    assert response.status_code == 400
+
+
 def test_update_task(client: TestClient):
     """Test edycji danych zadania."""
     create_resp = client.post(

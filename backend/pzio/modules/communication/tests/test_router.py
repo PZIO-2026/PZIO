@@ -46,6 +46,16 @@ def test_get_comments_returns_history(
     assert all(item["user"]["avatar"] == user.avatar for item in payload)
 
 
+def test_get_comments_task_id_out_of_range(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    user = user_factory()
+
+    response = client.get("/api/tasks/9999999999/comments", headers=auth_headers(user))
+
+    assert response.status_code == 400
+
+
 def test_edit_comment_success(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:

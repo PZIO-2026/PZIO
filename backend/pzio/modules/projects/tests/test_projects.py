@@ -318,6 +318,15 @@ class TestGetProject:
         res = client.get("/api/projects/99999")
         assert res.status_code == 404
 
+    def test_project_id_out_of_range_is_rejected(self, client: TestClient):
+        """Id powyżej zakresu int4 odrzuca walidacja parametru ścieżki.
+
+        Testowa aplikacja nie rejestruje handlera z main.py, więc widzimy
+        surowe 422; w pełnej aplikacji odpowiedź to 400.
+        """
+        res = client.get("/api/projects/9999999999")
+        assert res.status_code == 422
+
     def test_non_member_cannot_view_project(self, client: TestClient):
         """Użytkownik spoza projektu dostaje 403."""
         login_as(MOCK_USER)

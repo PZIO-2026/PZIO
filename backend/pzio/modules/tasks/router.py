@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ...db import get_db
+from ...path_params import PathId
 from ..auth.deps import get_current_user
 from ..auth.models import User
 from . import schemas, service
@@ -32,7 +33,7 @@ def _prepare_project_membership_auth(user_id: int) -> None:
     status_code=status.HTTP_201_CREATED,
 )
 def create_task(
-    id: int,
+    id: PathId,
     task: schemas.WorkItemCreate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -44,7 +45,7 @@ def create_task(
 
 @router.get("/api/projects/{id}/tasks", response_model=list[schemas.WorkItemResponse])
 def get_tasks(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
     status: str | None = None,
@@ -66,7 +67,7 @@ def get_tasks(
 
 @router.get("/api/tasks/{id}", response_model=schemas.WorkItemResponse)
 def get_task(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):
@@ -80,7 +81,7 @@ def get_task(
 
 @router.patch("/api/tasks/{id}", response_model=schemas.WorkItemResponse)
 def update_task(
-    id: int,
+    id: PathId,
     task_update: schemas.WorkItemUpdate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -95,7 +96,7 @@ def update_task(
 
 @router.delete("/api/tasks/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):
@@ -108,7 +109,7 @@ def delete_task(
 
 @router.patch("/api/tasks/{id}/status", response_model=schemas.WorkItemResponse)
 def update_task_status(
-    id: int,
+    id: PathId,
     status_update: schemas.StatusUpdate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -129,7 +130,7 @@ def update_task_status(
     status_code=status.HTTP_201_CREATED,
 )
 def create_worklog(
-    id: int,
+    id: PathId,
     worklog: schemas.TimeLogCreate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -144,7 +145,7 @@ def create_worklog(
 
 @router.get("/api/tasks/{id}/worklogs", response_model=list[schemas.TimeLogResponse])
 def get_worklogs(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):
