@@ -121,11 +121,25 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     setSubmitError(null);
 
     try {
-      if (childTasks.length > 0 && values.sprintId !== task.sprintId) {
-        const confirmed = await confirm(
-          `Zmiana sprintu tego zadania zmieni sprint także w ${childTasks.length} zadaniach podrzędnych. Czy kontynuować?`,
-        );
-        if (!confirmed) return;
+      if (values.sprintId !== task.sprintId) {
+        let descendantCount = 0;
+        let pendingParentIds = [task.id];
+
+        while (pendingParentIds.length > 0) {
+          const children = allTasks
+            .filter((item) => pendingParentIds.includes(item.parentId ?? -1))
+            .map((item) => item.id);
+          if (children.length === 0) break;
+          descendantCount += children.length;
+          pendingParentIds = children;
+        }
+
+        if (descendantCount > 0) {
+          const confirmed = await confirm(
+            `Zmiana sprintu tego zadania zmieni sprint także w ${descendantCount} zadaniach podrzędnych. Czy kontynuować?`,
+          );
+          if (!confirmed) return;
+        }
       }
 
       const updated = await updateTask(task.id, values);
