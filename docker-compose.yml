@@ -26,6 +26,11 @@ services:
       CORS_ORIGINS: http://localhost:5173
       FRONTEND_URL: http://localhost:5173
       UPLOAD_DIR: /app/uploads
+      # OAuth credentials are optional — leave unset to disable that provider.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     ports:
       - "8000:8000"
     volumes:
@@ -40,6 +45,9 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: http://localhost:8000
+        # VITE_* are inlined at build time — changing them requires `--build`.
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_GITHUB_CLIENT_ID: ${VITE_GITHUB_CLIENT_ID:-}
     ports:
       - "5173:80"
     depends_on:

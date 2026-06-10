@@ -72,10 +72,7 @@ Każdy dostawca wymaga zarejestrowania aplikacji w jego panelu i przeniesienia d
 2. Z menu wybierz **APIs & Services → OAuth consent screen** i skonfiguruj ekran zgody (typ aplikacji: External, podaj nazwę aplikacji i adres e-mail kontaktowy). Dodaj `email` i `profile` do scope'ów.
 3. Następnie **APIs & Services → Credentials → Create credentials → OAuth client ID**. Wybierz typ **Web application**.
 4. W polu **Authorized redirect URIs** dodaj adres zwrotny (jak wyżej — `http://localhost:5173/oauth/callback` lub produkcyjny odpowiednik).
-5. Skopiuj wygenerowane **Client ID** i **Client Secret**.
-6. Ustaw zmienne środowiskowe:
-   - backend (`backend/.env`): `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...`
-   - frontend (`frontend/.env`): `VITE_GOOGLE_CLIENT_ID=...`
+5. Skopiuj wygenerowane **Client ID** i **Client Secret** — wartości wpiszesz do pliku `.env` w sekcji „Gdzie wpisać wartości" niżej.
 
 #### GitHub
 
@@ -85,18 +82,42 @@ Każdy dostawca wymaga zarejestrowania aplikacji w jego panelu i przeniesienia d
    - **Homepage URL** — np. `http://localhost:5173` (dev) lub adres produkcyjny.
    - **Authorization callback URL** — `http://localhost:5173/oauth/callback` (dev) lub `https://<twoja-domena>/oauth/callback` (prod).
 3. Po zapisaniu skopiuj **Client ID** i wygeneruj **Client Secret** (przycisk *Generate a new client secret* — wartość pokaże się tylko raz).
-4. Ustaw zmienne środowiskowe:
-   - backend (`backend/.env`): `GITHUB_CLIENT_ID=...`, `GITHUB_CLIENT_SECRET=...`
-   - frontend (`frontend/.env`): `VITE_GITHUB_CLIENT_ID=...`
 
-#### Po zmianie konfiguracji
+#### Gdzie wpisać wartości
 
-Po ustawieniu zmiennych:
+Sposób różni się w zależności od tego, którym sposobem (z rozdziału 1) uruchamiasz aplikację:
 
-- backend wczytuje `.env` przy starcie — wystarczy zrestartować proces (`python -m pzio` albo `docker compose restart backend`).
-- frontend wbudowuje wartości `VITE_*` w bundle przy starcie dev-servera / buildzie — należy zrestartować `npm run dev` (lub przebudować obraz `frontend` w Dockerze).
+**Sposób 1 — Docker (zalecany).** Wszystkie zmienne idą do **jednego** pliku `.env` w katalogu głównym repozytorium (ten sam, w którym trzymasz `JWT_SECRET`). Docker Compose automatycznie odczyta go i przekaże dalej — do backendu jako runtime env, do frontendu jako build args (zob. `docker-compose.yml`, sekcje `backend.environment` i `frontend.build.args`):
 
-Skonfigurowanie tylko jednego dostawcy jest w pełni dozwolone — frontend pokaże wtedy tylko ten jeden przycisk.
+```
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+VITE_GOOGLE_CLIENT_ID=...
+VITE_GITHUB_CLIENT_ID=...
+```
+
+Wartości `VITE_*` zazwyczaj są **identyczne** z `GOOGLE_CLIENT_ID` / `GITHUB_CLIENT_ID` — Vite wymaga prefiksu `VITE_`, żeby zmienna trafiła do bundle'a frontendu. Sekrety (`*_SECRET`) **nigdy** nie dostają prefiksu `VITE_`, bo bundle frontendu jest publiczny.
+
+**Sposób 2 — uruchamianie klasyczne.** Zmienne dzielą się na dwa pliki:
+
+- `backend/.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
+- `frontend/.env`: `VITE_GOOGLE_CLIENT_ID`, `VITE_GITHUB_CLIENT_ID`.
+
+#### Po zmianie konfiguracji — restart
+
+Backend wczytuje zmienne **runtime'owo** przy starcie procesu, więc wystarczy go zrestartować:
+
+- Docker: `docker compose restart backend`.
+- klasyczne: zatrzymaj i ponownie uruchom `python -m pzio`.
+
+Frontend **wbudowuje** wartości `VITE_*` w bundle JS w momencie buildu — sam restart nic nie da, bo wcześniej zbudowane pliki nadal zawierają stare wartości. Trzeba przebudować:
+
+- Docker: `docker compose up --build` (`--build` jest kluczowe — bez tego Compose użyje starego obrazu).
+- klasyczne: zatrzymaj i ponownie uruchom `npm run dev` — dev-server Vite czyta `frontend/.env` na starcie.
+
+Skonfigurowanie tylko jednego dostawcy jest w pełni dozwolone — frontend pokaże wtedy tylko ten jeden przycisk, a backend obsłuży tylko ten provider.
 
 ## 2. Baza danych i zasady środowiskowe
 
