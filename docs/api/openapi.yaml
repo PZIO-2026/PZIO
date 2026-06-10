@@ -1244,6 +1244,8 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
         '404':
           description: Task not found
         '422':
@@ -1279,6 +1281,10 @@ paths:
                 title: Response Get Comments Api Tasks  Task Id  Comments Get
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1319,7 +1325,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the comment author
+          description: Not the comment author or not a member of the project
         '404':
           description: Comment not found
         '422':
@@ -1349,7 +1355,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the comment author
+          description: Not the comment author or not a member of the project
         '404':
           description: Comment not found
         '422':
@@ -1389,6 +1395,8 @@ paths:
                 $ref: '#/components/schemas/AttachmentRead'
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
         '404':
           description: Task not found
         '422':
@@ -1424,6 +1432,10 @@ paths:
                 title: Response List Attachments Api Tasks  Task Id  Attachments Get
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1455,6 +1467,8 @@ paths:
             application/octet-stream: {}
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
         '404':
           description: Attachment not found
         '422':
@@ -1485,7 +1499,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the uploader
+          description: Not the uploader or not a member of the project
         '404':
           description: Attachment not found
         '422':
