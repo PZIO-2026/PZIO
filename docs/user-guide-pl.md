@@ -55,6 +55,49 @@ Domyślnie użyje on adresu `http://localhost:8000` dla backendu. Frontend ruszy
 
 > _Użytkownicy Nix:_ W głównym roocie projektu znajduje się również plik `shell.nix`. Możesz skorzystać po prostu z komendy `nix-shell` z roota, aby szybko ustawić wyizolowane środowisko systemowe.
 
+### Konfiguracja logowania przez Google / GitHub (OAuth2) — opcjonalne
+
+Aplikacja umożliwia logowanie zewnętrznym kontem Google lub GitHub. **Ta opcja jest wyłączona dopóki administrator nie skonfiguruje danych uwierzytelniających.** Jeśli żaden dostawca nie jest skonfigurowany, frontend ukrywa odpowiednie przyciski na ekranach logowania i rejestracji — użytkownik widzi wtedy wyłącznie klasyczny formularz e-mail + hasło.
+
+Każdy dostawca wymaga zarejestrowania aplikacji w jego panelu i przeniesienia dwóch wartości (Client ID i Client Secret) do zmiennych środowiskowych PZIO. Frontend potrzebuje **tylko Client ID** (publiczna wartość — startuje flow OAuth w przeglądarce). Backend potrzebuje **Client ID i Client Secret** (weryfikuje token zwrócony przez dostawcę). Sekret nigdy nie trafia do zmiennych z prefiksem `VITE_*`, bo te są wbudowywane w bundle frontendu.
+
+**Adres przekierowania zwrotnego (Redirect URI)** dla obu dostawców to:
+
+- środowisko lokalne (dev): `http://localhost:5173/oauth/callback`
+- środowisko produkcyjne: `https://<twoja-domena>/oauth/callback`
+
+#### Google
+
+1. Wejdź do [Google Cloud Console](https://console.cloud.google.com/) i wybierz (lub utwórz) projekt.
+2. Z menu wybierz **APIs & Services → OAuth consent screen** i skonfiguruj ekran zgody (typ aplikacji: External, podaj nazwę aplikacji i adres e-mail kontaktowy). Dodaj `email` i `profile` do scope'ów.
+3. Następnie **APIs & Services → Credentials → Create credentials → OAuth client ID**. Wybierz typ **Web application**.
+4. W polu **Authorized redirect URIs** dodaj adres zwrotny (jak wyżej — `http://localhost:5173/oauth/callback` lub produkcyjny odpowiednik).
+5. Skopiuj wygenerowane **Client ID** i **Client Secret**.
+6. Ustaw zmienne środowiskowe:
+   - backend (`backend/.env`): `GOOGLE_CLIENT_ID=...`, `GOOGLE_CLIENT_SECRET=...`
+   - frontend (`frontend/.env`): `VITE_GOOGLE_CLIENT_ID=...`
+
+#### GitHub
+
+1. Wejdź do [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers) i kliknij **New OAuth App**.
+2. Wypełnij formularz:
+   - **Application name** — dowolna nazwa.
+   - **Homepage URL** — np. `http://localhost:5173` (dev) lub adres produkcyjny.
+   - **Authorization callback URL** — `http://localhost:5173/oauth/callback` (dev) lub `https://<twoja-domena>/oauth/callback` (prod).
+3. Po zapisaniu skopiuj **Client ID** i wygeneruj **Client Secret** (przycisk *Generate a new client secret* — wartość pokaże się tylko raz).
+4. Ustaw zmienne środowiskowe:
+   - backend (`backend/.env`): `GITHUB_CLIENT_ID=...`, `GITHUB_CLIENT_SECRET=...`
+   - frontend (`frontend/.env`): `VITE_GITHUB_CLIENT_ID=...`
+
+#### Po zmianie konfiguracji
+
+Po ustawieniu zmiennych:
+
+- backend wczytuje `.env` przy starcie — wystarczy zrestartować proces (`python -m pzio` albo `docker compose restart backend`).
+- frontend wbudowuje wartości `VITE_*` w bundle przy starcie dev-servera / buildzie — należy zrestartować `npm run dev` (lub przebudować obraz `frontend` w Dockerze).
+
+Skonfigurowanie tylko jednego dostawcy jest w pełni dozwolone — frontend pokaże wtedy tylko ten jeden przycisk.
+
 ## 2. Baza danych i zasady środowiskowe
 
 - **Pierwszy zarejestrowany użytkownik** uzyskuje automatycznie najwyższe uprawnienia: **Administrator**.
@@ -74,7 +117,7 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 - Umożliwia uwierzytelnienie się za pomocą adresu e-mail i hasła.
 - Po pomyślnym zalogowaniu następuje przekierowanie do strony głównej.
 - Można też przejść do ekranu rejestracji lub zapomnianego hasła, jeśli nie masz jeszcze konta lub potrzebujesz zresetować hasło.
-- Dostępna jest również opcja logowanie przez Google lub GitHub (OAuth2) - po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu następuje powrót do aplikacji z zalogowanym użytkownikiem. Oczywiście, aby skorzystać z tej funkcji, administrator musi wcześniej skonfigurować odpowiednie dane uwierzytelniające za pomocą zmiennych środowiskowych.
+- Dostępna jest również opcja logowania przez Google lub GitHub (OAuth2) — po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu powrót do aplikacji z zalogowanym użytkownikiem. Przyciski OAuth są widoczne tylko dla tych dostawców, których administrator wcześniej skonfigurował — zob. sekcję „Konfiguracja logowania przez Google / GitHub (OAuth2)" wyżej.
 
 ### Rejestracja (`/register`)
 
