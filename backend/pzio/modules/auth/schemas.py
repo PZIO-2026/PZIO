@@ -1,8 +1,9 @@
 from datetime import datetime
 
+from typing import Annotated
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 from pzio.modules.auth.models import UserRole
 
@@ -10,14 +11,20 @@ PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 NAME_MAX_LENGTH = 100
 
+# Strip applied per field (not via model_config) so passwords stay untouched.
+NameStr = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=NAME_MAX_LENGTH),
+]
+
 
 class UserCreate(BaseModel):
     """Body for `POST /api/auth/register` (SAD §4.1)."""
 
     email: EmailStr
     password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    first_name: str = Field(alias="firstName", min_length=1, max_length=NAME_MAX_LENGTH)
-    last_name: str = Field(alias="lastName", min_length=1, max_length=NAME_MAX_LENGTH)
+    first_name: NameStr = Field(alias="firstName")
+    last_name: NameStr = Field(alias="lastName")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,8 +106,8 @@ class TokenResponse(BaseModel):
 class UserUpdate(BaseModel):
     """Body for `PATCH /api/users/me`. All fields are optional."""
 
-    first_name: str | None = Field(default=None, alias="firstName", min_length=1, max_length=NAME_MAX_LENGTH)
-    last_name: str | None = Field(default=None, alias="lastName", min_length=1, max_length=NAME_MAX_LENGTH)
+    first_name: NameStr | None = Field(default=None, alias="firstName")
+    last_name: NameStr | None = Field(default=None, alias="lastName")
     avatar: str | None = Field(default=None, max_length=255)
 
     @field_validator("avatar", mode="before")
