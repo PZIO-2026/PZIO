@@ -17,7 +17,7 @@ from pzio.modules.tasks.models import (
 )
 from sqlalchemy import func, or_, String, cast
 from sqlalchemy.orm import Session
-from pzio.modules.auth.models import User
+from pzio.modules.auth.models import User, UserRole
 
 from .models import (
     Project,
@@ -91,6 +91,26 @@ def _require_project_roles(
         )
 
     return membership
+
+
+def require_project_member(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
+    """Ensure the user may access the project, else raise 403.
+
+    Public entry point for other modules (e.g. tasks) that need to gate
+    project-scoped resources on membership. Administrators bypass the
+    membership requirement (they may access every project), in which case the
+    function returns None as there is no membership row to hand back.
+
+    The project must exist: a missing project raises 404 (rather than a
+    misleading "not a member" 403) and stops administrators from creating
+    tasks under an arbitrary, non-existent project_id (work_items has no FK).
+    """
+    _get_project_or_404(db, project_id)
+
+    user = db.get(User, user_id)
+    if user is not None and user.role == UserRole.ADMINISTRATOR:
+        return None
+    return _get_membership_or_403(db, project_id, user_id)
 
 
 def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
