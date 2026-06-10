@@ -62,3 +62,32 @@ export function confirmPasswordReset(input: ConfirmPasswordResetInput): Promise<
     body: input,
   });
 }
+
+export interface ChangeEmailApiInput {
+  email: string;
+}
+
+export function changeEmail(input: ChangeEmailApiInput): Promise<User> {
+  return apiFetch<User>("/api/users/me/email", {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+export interface ChangePasswordApiInput {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export function changePassword(input: ChangePasswordApiInput): Promise<MessageResponse> {
+  return apiFetch<MessageResponse>("/api/users/me/change-password", {
+    method: "POST",
+    body: input,
+  });
+}
+
+export function deleteMe(): Promise<void> {
+  return apiFetch<void>("/api/users/me", {
+    method: "DELETE",
+  });
+}
