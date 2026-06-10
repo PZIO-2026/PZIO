@@ -97,29 +97,17 @@ def _cascade_sprint_to_descendants(
     *,
     task_id: int,
     sprint_id: int | None,
-    user_id: int,
-) -> None:
+) -> list[tuple[models.WorkItem, int | None]]:
     descendants = _get_descendants(db, task_id)
     changed_descendants = [
         (child, child.sprint_id) for child in descendants if child.sprint_id != sprint_id
     ]
     if not changed_descendants:
-        return
+        return []
 
     for child, _old_sprint_id in changed_descendants:
         child.sprint_id = sprint_id
-    db.commit()
-
-    for child, old_sprint_id in changed_descendants:
-        admin_service.log_activity(
-            db,
-            task_id=child.id,
-            user_id=user_id,
-            action="UPDATE_FIELD",
-            field_name="sprint_id",
-            old_value=str(old_sprint_id) if old_sprint_id is not None else None,
-            new_value=str(sprint_id) if sprint_id is not None else None,
-        )
+    return changed_descendants
 
 
 def _delete_work_item_tree(
@@ -232,11 +220,29 @@ def update_work_item(
     _validate_parent_sprint(parent, next_sprint_id)
 
     sprint_changed = "sprint_id" in updates and db_item.sprint_id != next_sprint_id
+    field_changes: list[tuple[str, object | None, object | None]] = []
     for key, value in updates.items():
         old_value = getattr(db_item, key, None)
         if old_value == value:
             continue
         setattr(db_item, key, value)
+        field_changes.append((key, old_value, value))
+
+    changed_descendants: list[tuple[models.WorkItem, int | None]] = []
+    if sprint_changed:
+        changed_descendants = _cascade_sprint_to_descendants(
+            db,
+            task_id=task_id,
+            sprint_id=cast(int | None, db_item.sprint_id),
+        )
+
+    if not field_changes and not changed_descendants:
+        return db_item
+
+    db.commit()
+    db.refresh(db_item)
+
+    for key, old_value, value in field_changes:
         admin_service.log_activity(
             db,
             task_id=task_id,
@@ -246,14 +252,16 @@ def update_work_item(
             old_value=str(old_value) if old_value is not None else None,
             new_value=str(value) if value is not None else None,
         )
-    db.commit()
-    db.refresh(db_item)
-    if sprint_changed:
-        _cascade_sprint_to_descendants(
+
+    for child, old_sprint_id in changed_descendants:
+        admin_service.log_activity(
             db,
-            task_id=task_id,
-            sprint_id=cast(int | None, db_item.sprint_id),
+            task_id=child.id,
             user_id=user_id,
+            action="UPDATE_FIELD",
+            field_name="sprint_id",
+            old_value=str(old_sprint_id) if old_sprint_id is not None else None,
+            new_value=str(db_item.sprint_id) if db_item.sprint_id is not None else None,
         )
     return db_item
 

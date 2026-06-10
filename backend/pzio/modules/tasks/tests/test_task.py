@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from typing import cast
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -407,6 +408,111 @@ def test_update_parent_task_cascades_sprint_to_children(client: TestClient):
     child_get_response = client.get(f"/api/tasks/{child_id_value}")
     assert child_get_response.status_code == 200
     assert child_get_response.json()["sprintId"] == 22
+
+
+def test_update_parent_task_commits_task_data_once_before_audit_logs(
+    client: TestClient, db_session: Session
+):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Parent",
+            "type": "Task",
+            "priority": "Medium",
+            "sprintId": 10,
+        },
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    child_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+            "sprintId": 10,
+        },
+    )
+    child = cast(dict[str, object], child_response.json())
+    child_id_value = child["id"]
+    assert isinstance(child_id_value, int)
+
+    commit_calls: list[tuple[int | None, int | None]] = []
+    original_commit = Session.commit
+
+    def tracked_commit(session: Session) -> None:
+        parent_row = db_session.get(models.WorkItem, parent_id_value)
+        child_row = db_session.get(models.WorkItem, child_id_value)
+        commit_calls.append(
+            (
+                parent_row.sprint_id if parent_row is not None else None,
+                child_row.sprint_id if child_row is not None else None,
+            )
+        )
+        original_commit(session)
+
+    with patch.object(Session, "commit", autospec=True, side_effect=tracked_commit):
+        update_response = client.patch(
+            f"/api/tasks/{parent_id_value}",
+            json={"sprintId": 22},
+        )
+
+    assert update_response.status_code == 200
+    assert commit_calls[0] == (22, 22)
+
+
+def test_update_parent_task_logs_parent_and_child_sprint_changes(
+    client: TestClient, db_session: Session
+):
+    parent_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Parent",
+            "type": "Task",
+            "priority": "Medium",
+            "sprintId": 10,
+        },
+    )
+    parent = cast(dict[str, object], parent_response.json())
+    parent_id_value = parent["id"]
+    assert isinstance(parent_id_value, int)
+
+    child_response = client.post(
+        "/api/projects/1/tasks",
+        json={
+            "title": "Child",
+            "type": "Task",
+            "priority": "Medium",
+            "parentId": parent_id_value,
+            "sprintId": 10,
+        },
+    )
+    child = cast(dict[str, object], child_response.json())
+    child_id_value = child["id"]
+    assert isinstance(child_id_value, int)
+
+    update_response = client.patch(
+        f"/api/tasks/{parent_id_value}",
+        json={"sprintId": 22},
+    )
+
+    assert update_response.status_code == 200
+
+    parent_logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == parent_id_value).all()
+    child_logs = db_session.query(AdminActivityLog).filter(AdminActivityLog.task_id == child_id_value).all()
+
+    assert [log.action for log in parent_logs] == ["CREATE_TASK", "UPDATE_FIELD"]
+    assert parent_logs[1].field_name == "sprint_id"
+    assert parent_logs[1].old_value == "10"
+    assert parent_logs[1].new_value == "22"
+
+    assert [log.action for log in child_logs] == ["CREATE_TASK", "UPDATE_FIELD"]
+    assert child_logs[1].field_name == "sprint_id"
+    assert child_logs[1].old_value == "10"
+    assert child_logs[1].new_value == "22"
 
 
 def test_update_task_status(client: TestClient, db_session: Session):

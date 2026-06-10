@@ -75,7 +75,6 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
 
   const parentId = useWatch({ control, name: "parentId" }) ?? null;
   const sprintId = useWatch({ control, name: "sprintId" }) ?? null;
-  const childTasks = task ? allTasks.filter((item) => item.parentId === task.id) : [];
 
   // ============================================================
   // Effects
