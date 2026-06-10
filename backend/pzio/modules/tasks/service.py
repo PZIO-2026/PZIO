@@ -138,6 +138,9 @@ def _delete_work_item_tree(
 
     for item in items_to_delete:
         db.delete(item)
+        # Flush each delete so self-referential FK checks see children removed
+        # before their parent. Postgres can batch deletes otherwise.
+        db.flush()
     db.commit()
 
     for deleted_id in deleted_ids:
