@@ -54,3 +54,10 @@ export function updateUserRole(userId: number, role: UserRole): Promise<User> {
     body: { role },
   });
 }
+
+export function updateUserStatus(userId: number, isActive: boolean): Promise<User> {
+  return apiFetch<User>(`/api/users/${userId}/status`, {
+    method: "PATCH",
+    body: { isActive },
+  });
+}
