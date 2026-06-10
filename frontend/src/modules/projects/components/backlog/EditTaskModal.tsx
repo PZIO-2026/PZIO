@@ -54,6 +54,14 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     formState: { errors, isSubmitting },
   } = useForm<TaskFormInput>({
     resolver: zodResolver(taskFormSchema) as Resolver<TaskFormInput>,
+    values: task ? {
+      title: task.title,
+      description: task.description ?? "",
+      type: task.type,
+      priority: task.priority as TaskFormInput["priority"],
+      storyPoints: task.storyPoints ?? undefined,
+      parentId: task.parentId ?? null,
+    } : undefined,
     defaultValues: {
       title: "",
       description: "",
@@ -77,13 +85,19 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     if (!isOpen) return;
 
     setTaskTypesLoading(true);
-    fetchTaskTypes().then(setTaskTypes).catch(() => {}).finally(() => setTaskTypesLoading(false));
-    fetchTasks(projectId).then(setAllTasks).catch(() => {});
+    fetchTaskTypes().then(setTaskTypes).catch(() => { }).finally(() => setTaskTypesLoading(false));
+    fetchTasks(projectId).then(setAllTasks).catch(() => { });
     setSprintsLoading(true);
     fetchSprints(projectId).then(setSprints).catch(() => setSprints([])).finally(() => setSprintsLoading(false));
   }, [isOpen, projectId]);
 
   useEffect(() => {
+    if (!isOpen) {
+      setSubmitError(null);
+      reset();
+      return;
+    }
+
     if (!task) return;
 
     reset({
@@ -95,7 +109,7 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
       parentId: task.parentId ?? null,
       sprintId: task.sprintId ?? null,
     });
-  }, [task, reset]);
+  }, [isOpen, task, reset]);
 
   // ============================================================
   // Handlers
