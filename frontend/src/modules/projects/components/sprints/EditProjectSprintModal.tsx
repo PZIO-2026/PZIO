@@ -65,7 +65,6 @@ export default function EditProjectSprintModal({
   });
 
   useEffect(() => {
-    if (!sprint) return;
     if (!isOpen) {
       setSubmitError(null);
       reset();
