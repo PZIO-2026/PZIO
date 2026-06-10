@@ -218,7 +218,8 @@ paths:
       tags:
       - Auth
       summary: Change user status (Admin)
-      description: Activates or deactivates a user account. Requires Administrator role.
+      description: Activates or deactivates a user account. Requires Administrator role. Admin cannot
+        change their own account status.
       operationId: update_user_status_api_users__id__status_patch
       security:
       - HTTPBearer: []
@@ -242,6 +243,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserRead'
+        '403':
+          description: Cannot change own account status
         '404':
           description: User not found
         '422':
@@ -1478,6 +1481,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /api/admin/task-types:
+    get:
+      tags:
+      - Admin
+      summary: Get task type dictionary
+      description: Returns the list of task types defined in the system. Available to any authenticated
+        user (Administrator role is not required).
+      operationId: get_task_types_api_admin_task_types_get
+      responses:
+        '200':
+          description: List of task types
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TaskTypeRead'
+                type: array
+                title: Response Get Task Types Api Admin Task Types Get
+        '401':
+          description: Missing or invalid token
+      security:
+      - HTTPBearer: []
     post:
       tags:
       - Admin
@@ -1511,27 +1535,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - HTTPBearer: []
-  /api/task-types:
-    get:
-      tags:
-      - Admin
-      summary: Get task type dictionary
-      description: Returns the list of task types defined in the system.
-      operationId: get_task_types_api_task_types_get
-      responses:
-        '200':
-          description: List of task types
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/TaskTypeRead'
-                type: array
-                title: Response Get Task Types Api Task Types Get
-        '401':
-          description: Missing or invalid token
       security:
       - HTTPBearer: []
   /api/admin/task-types/{task_type_id}:
@@ -1755,7 +1758,7 @@ components:
       properties:
         file:
           type: string
-          format: binary
+          contentMediaType: application/octet-stream
           title: File
       type: object
       required:
@@ -2513,7 +2516,7 @@ components:
       - name
       - createdAt
       title: TaskTypeRead
-      description: Public dictionary entry returned by /api/task-types and /api/admin/task-types.
+      description: Public dictionary entry returned by GET and POST /api/admin/task-types.
       example:
         createdAt: '2026-05-14T08:00:00Z'
         name: Epic
@@ -2758,6 +2761,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc
