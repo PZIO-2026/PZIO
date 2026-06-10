@@ -65,7 +65,6 @@ export default function EditProjectSprintModal({
   });
 
   useEffect(() => {
-    if (!sprint) return;
     if (!isOpen) {
       setSubmitError(null);
       reset();
@@ -79,9 +78,13 @@ export default function EditProjectSprintModal({
 
     if (!startDate) return today;
 
-    const nextDay = new Date(startDate);
+    const [year, month, day] = startDate.split("-").map(Number);
+    const nextDay = new Date(year, month - 1, day);
     nextDay.setDate(nextDay.getDate() + 1);
-    const nextDayStr = nextDay.toISOString().split("T")[0];
+
+    const nextDayStr = `${nextDay.getFullYear()}-${String(
+      nextDay.getMonth() + 1,
+    ).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
 
     return nextDayStr > today ? nextDayStr : today;
   }, [startDate]);
