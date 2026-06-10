@@ -85,9 +85,10 @@ export default function AddTaskModal({
 
   async function loadProjectTasks(nextProjectId: number) {
     try {
-      setAllTasks(await fetchTasks(nextProjectId));
+      const tasks = await fetchTasks(nextProjectId);
+      setAllTasks((current) => (selectedProjectId === nextProjectId ? tasks : current));
     } catch {
-      setAllTasks([]);
+      setAllTasks((current) => (selectedProjectId === nextProjectId ? [] : current));
     }
   }
 
