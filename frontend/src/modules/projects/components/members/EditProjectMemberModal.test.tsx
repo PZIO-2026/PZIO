@@ -33,7 +33,7 @@ describe("EditProjectMemberModal", () => {
     vi.mocked(useAuth).mockReturnValue({ user: { userId: 999 } } as any);
   });
 
-  it("powinien wyrenderować modal z poprawnym adresem email w inpućie i zaznaczoną obecną rolą", () => {
+  it("powinien wyrenderować modal z poprawnym adresem email w inputcie i zaznaczoną obecną rolą", () => {
     render(<EditProjectMemberModal {...defaultProps} />);
 
     expect(screen.getByText("Edytuj użytkownika")).toBeInTheDocument();
