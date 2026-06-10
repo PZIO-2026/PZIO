@@ -104,6 +104,19 @@ export interface WorkItem {
   updatedAt: string | null;
 }
 
+export interface Worklog {
+  id: number;
+  workItemId: number;
+  hoursSpent: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface CreateWorklogInput {
+  hoursSpent: number;
+  note?: string | null;
+}
+
 export interface BurndownDay {
   date: string;
   remainingPoints: number;
