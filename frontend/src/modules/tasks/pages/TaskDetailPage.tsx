@@ -185,7 +185,7 @@ export default function TaskDetailPage() {
       {/* Two-column layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Left column — title + description */}
-        <div className="space-y-6 rounded-xl bg-white p-6 shadow">
+        <div className="min-w-0 space-y-6 rounded-xl bg-white p-6 shadow">
           <div>
             <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
               {task.type}
@@ -200,7 +200,7 @@ export default function TaskDetailPage() {
               Opis
             </h2>
             {task.description ? (
-              <p className="whitespace-pre-wrap text-sm text-gray-700">
+              <p className="whitespace-pre-wrap break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
                 {task.description}
               </p>
             ) : (
