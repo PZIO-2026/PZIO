@@ -32,6 +32,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
       SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
+      SMTP_TIMEOUT: ${SMTP_TIMEOUT:-30}
     ports:
       - "8000:8000"
     volumes:
