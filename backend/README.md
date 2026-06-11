@@ -136,6 +136,7 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 | `SMTP_PASSWORD`        |                                      | SMTP password (Gmail: App Password).        |
 | `SMTP_USE_TLS`         | `true`                               | STARTTLS before login (typical for 587).    |
 | `SMTP_USE_SSL`         | `false`                              | Implicit SSL (typical for port 465).        |
+| `SMTP_TIMEOUT`         | `30`                                 | SMTP connection timeout in seconds.         |
 | `GOOGLE_CLIENT_ID`     |                                      | Google OAuth Client ID.                     |
 | `GOOGLE_CLIENT_SECRET` |                                      | Google OAuth Client Secret.                 |
 | `GITHUB_CLIENT_ID`     |                                      | GitHub OAuth Client ID.                     |

@@ -97,6 +97,17 @@ def test_smtp_email_service_send_success() -> None:
     assert sent.get_content().strip() == "Body"
 
 
+def test_smtp_email_service_network_error_returns_false() -> None:
+    service = SmtpEmailService(_smtp_settings())
+    with patch(
+        "pzio.modules.communication.smtp.smtplib.SMTP",
+        side_effect=ConnectionRefusedError(111, "Connection refused"),
+    ):
+        result = service.send_email("user@test.com", "Hello", "Body")
+
+    assert result is False
+
+
 def test_smtp_email_service_send_failure_returns_false() -> None:
     service = SmtpEmailService(_smtp_settings())
     mock_smtp = MagicMock()

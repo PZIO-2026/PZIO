@@ -5,19 +5,19 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from pzio.config import settings
 from pzio.db import get_db
 from pzio.modules.auth.models import User
 from pzio.modules.communication import service
 from pzio.modules.communication.base import EmailService
 from pzio.modules.communication.deps import get_current_user, provide_email_service
-from pzio.modules.tasks.service import get_work_item
 from pzio.modules.communication.schemas import (
     AttachmentRead,
     CommentCreate,
     CommentRead,
     CommentUpdate,
 )
-from pzio.config import settings
+from pzio.modules.tasks import service as tasks_service
 
 router = APIRouter(tags=["Communication"])
 
@@ -48,6 +48,7 @@ def _is_mime_type_allowed(content_type: str | None) -> bool:
         201: {"description": "Comment created"},
         400: {"description": "Validation error"},
         401: {"description": "Missing or invalid token"},
+        404: {"description": "Task not found"},
     },
 )
 def add_comment(
@@ -57,7 +58,7 @@ def add_comment(
     db: Session = Depends(get_db),
     email_service: EmailService = Depends(provide_email_service),
 ) -> CommentRead:
-    task = get_work_item(db, task_id)
+    task = tasks_service.get_work_item(db, task_id)
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 

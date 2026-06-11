@@ -33,7 +33,8 @@ def build_comment_notification_message(
     author: User,
     content: str,
 ) -> tuple[str, str]:
-    subject = f"New comment on task #{task_id}: {task_title}"
+    safe_title = task_title.replace("\n", " ").replace("\r", " ")
+    subject = f"New comment on task #{task_id}: {safe_title}"
     author_display = f"{author.first_name} {author.last_name}".strip()
     body = (
         "A new task comment was added.\n\n"
@@ -70,7 +71,11 @@ def get_comment_notification_recipients(
     if not recipient_ids:
         return []
 
-    users_stmt = select(User).where(User.user_id.in_(recipient_ids))
+    users_stmt = (
+        select(User)
+        .where(User.user_id.in_(recipient_ids))
+        .where(User.is_active.is_(True))
+    )
     return list(db.scalars(users_stmt))
 
 

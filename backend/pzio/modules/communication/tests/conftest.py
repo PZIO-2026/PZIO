@@ -47,6 +47,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         last_name: str = "Lovelace",
         avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
+        is_active: bool = True,
     ) -> User:
         user = User(
             email=email,
@@ -55,7 +56,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
             last_name=last_name,
             avatar=avatar,
             role=role,
-            is_active=True,
+            is_active=is_active,
         )
         db_session.add(user)
         db_session.commit()

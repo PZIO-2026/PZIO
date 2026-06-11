@@ -1196,7 +1196,7 @@ paths:
       - Communication
       summary: Add a comment to a task
       description: Creates a new comment on the specified task. The system sends an e-mail notification
-        (SMTP) to observers.
+        (SMTP) to the task assignee and prior commenters.
       operationId: add_comment_api_tasks__task_id__comments_post
       security:
       - HTTPBearer: []
@@ -1224,6 +1224,8 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid token
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1341,7 +1343,8 @@ paths:
       tags:
       - Communication
       summary: Upload an attachment
-      description: Uploads a file attachment to the specified task. Request must use `multipart/form-data`.
+      description: 'Uploads a file attachment to the specified task. Request must use `multipart/form-data`.
+        Max file size: 10 MB. Allowed types: images, PDFs.'
       operationId: upload_attachment_api_tasks__task_id__attachments_post
       security:
       - HTTPBearer: []
@@ -1365,6 +1368,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttachmentRead'
+        '400':
+          description: File too large or unsupported file type
         '401':
           description: Missing or invalid token
         '422':
@@ -1796,6 +1801,10 @@ components:
         content:
           type: string
           title: Content
+        user:
+          anyOf:
+          - $ref: '#/components/schemas/UserRead'
+          - type: 'null'
         createdAt:
           type: string
           format: date-time

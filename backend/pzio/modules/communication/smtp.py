@@ -45,6 +45,6 @@ class SmtpEmailService(EmailService):
                 smtp.login(self._user, self._password)
                 smtp.send_message(msg)
             return True
-        except smtplib.SMTPException:
+        except (smtplib.SMTPException, OSError):
             logger.exception("Failed to send email to %s", to)
             return False

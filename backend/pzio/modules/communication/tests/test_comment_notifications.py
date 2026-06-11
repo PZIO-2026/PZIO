@@ -111,6 +111,27 @@ def test_assignee_commenting_does_not_notify_self(
     assert mock_email_service.sent_emails[0]["to"] == other.email
 
 
+def test_inactive_assignee_does_not_receive_comment_notification(
+    client: TestClient,
+    user_factory,
+    task_factory,
+) -> None:
+    assignee = user_factory(email="inactive@example.com", is_active=False)
+    author = user_factory(email="author@example.com")
+    task = task_factory(title="Deploy hotfix", assignee_id=assignee.user_id)
+
+    mock_email_service = MockEmailService()
+    app.dependency_overrides[provide_email_service] = lambda: mock_email_service
+    try:
+        token, _ = create_access_token(author.user_id, author.role)
+        response = _post_comment(client, task.id, token)
+    finally:
+        app.dependency_overrides.pop(provide_email_service, None)
+
+    assert response.status_code == 201
+    assert mock_email_service.sent_emails == []
+
+
 def test_add_comment_unknown_task_returns_404(client: TestClient, user_factory) -> None:
     user = user_factory()
     token, _ = create_access_token(user.user_id, user.role)
