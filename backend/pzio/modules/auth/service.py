@@ -23,6 +23,9 @@ from pzio.modules.communication.base import EmailService
 from pzio.modules.auth.oauth import oauth
 from pzio.config import settings
 
+class IncorrectPasswordError(Exception):
+    """Raised when trying to change password but old password doesn't match."""
+
 
 class EmailAlreadyExistsError(Exception):
     """Raised when registering an email that is already taken (→ 409)."""
@@ -397,3 +400,28 @@ async def authenticate_oauth(db: Session, payload: OAuthLoginRequest) -> User:
         raise AccountDeactivatedError()
 
     return user
+
+def delete_user(db: Session, user: User) -> None:
+    """Hard delete of the user account."""
+    db.delete(user)
+    db.commit()
+
+def change_user_email(db: Session, user: User, new_email: str) -> User:
+    """Updates user email. Raises EmailAlreadyExistsError if taken."""
+    if _get_user_by_email(db, new_email) is not None:
+        raise EmailAlreadyExistsError(new_email)
+    
+    user.email = new_email
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def change_user_password(db: Session, user: User, old_password: str, new_password: str) -> None:
+    """Updates user password. Raises IncorrectPasswordError if old password doesn't match."""
+    if not verify_password(old_password, user.password_hash):
+        raise IncorrectPasswordError()
+    
+    user.password_hash = hash_password(new_password)
+    db.add(user)
+    db.commit()
