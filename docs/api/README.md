@@ -162,6 +162,9 @@ Poniższa tabela jest mapą orientacyjną.
 | POST   | `/api/auth/reset-password/confirm`   | publiczna                  |
 | GET    | `/api/users/me`                      | zalogowany użytkownik      |
 | PATCH  | `/api/users/me`                      | zalogowany użytkownik      |
+| PATCH  | `/api/users/me/email`                | zalogowany użytkownik      |
+| POST   | `/api/users/me/change-password`      | zalogowany użytkownik      |
+| DELETE | `/api/users/me`                      | zalogowany użytkownik      |
 | GET    | `/api/users`                         | `Administrator`            |
 | PATCH  | `/api/users/{id}/status`             | `Administrator`            |
 | PATCH  | `/api/users/{id}/role`               | `Administrator`            |

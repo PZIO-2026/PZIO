@@ -5,6 +5,8 @@ from pzio.db import get_db
 from pzio.modules.auth import service
 from pzio.modules.auth.models import User
 from pzio.modules.auth.schemas import (
+    ChangeEmailRequest,
+    ChangePasswordRequest,
     LoginRequest,
     OAuthLoginRequest,
     PaginatedUserResponse,
@@ -269,3 +271,50 @@ async def oauth_login(
 
     token, expires_in = create_access_token(user.user_id, user.role)
     return TokenResponse(access_token=token, expires_in=expires_in)
+
+
+@router.patch(
+    "/api/users/me/email",
+    response_model=UserRead,
+    response_model_by_alias=True,
+    summary="Change user email",
+)
+def change_email(
+    payload: ChangeEmailRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserRead:
+    try:
+        updated_user = service.change_user_email(db, current_user, payload.email)
+        return UserRead.model_validate(updated_user)
+    except service.EmailAlreadyExistsError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already in use.")
+
+
+@router.post(
+    "/api/users/me/change-password",
+    response_model=MessageResponse,
+    summary="Change user password",
+)
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    try:
+        service.change_user_password(db, current_user, payload.old_password, payload.new_password)
+        return MessageResponse(message="The password has been successfully changed.")
+    except service.IncorrectPasswordError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password.")
+
+
+@router.delete(
+    "/api/users/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete current user account",
+)
+def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service.delete_user(db, current_user)

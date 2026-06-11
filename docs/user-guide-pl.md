@@ -240,8 +240,11 @@ Widok ten jest podzielony na wiele sekcji, które udokumentowano poniżej.
 
 ![Zrzut ekranu strony profilu użytkownika](assets/profile.png)
 
-- Wyświetlanie aktualnych informacji na swój temat.
-- Możliwość edycji danych osobowych, takich jak imię, nazwisko i adres URL awatara.
+- Wyświetlanie aktualnych informacji na swój temat (imię, nazwisko, adres e-mail, rola, status).
+- Możliwość edycji podstawowych danych osobowych, takich jak imię, nazwisko i adres URL awatara.
+- Możliwość zmiany adresu e-mail przypisanego do konta.
+- Możliwość zmiany aktualnego hasła (ze względów bezpieczeństwa operacja ta wymaga podania dotychczasowego hasła).
+- **Strefa niebezpieczna:** Możliwość trwałego i bezpowrotnego usunięcia własnego konta z systemu.
 
 ### Panel Administratora (`/admin`)
 

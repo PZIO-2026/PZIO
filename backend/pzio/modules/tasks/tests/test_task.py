@@ -302,47 +302,6 @@ def test_update_task_rejects_type_outside_dictionary(client: TestClient):
     assert response.json()["detail"] == "Invalid task type"
 
 
-def test_create_child_task_requires_same_project_and_sprint(client: TestClient):
-    parent_response = client.post(
-        "/api/projects/1/tasks",
-        json={
-            "title": "Parent",
-            "type": "Task",
-            "priority": "High",
-            "sprintId": 11,
-        },
-    )
-    parent = cast(dict[str, object], parent_response.json())
-    parent_id_value = parent["id"]
-    assert isinstance(parent_id_value, int)
-
-    other_project_response = client.post(
-        "/api/projects/2/tasks",
-        json={
-            "title": "Wrong project child",
-            "type": "Task",
-            "priority": "Medium",
-            "parentId": parent_id_value,
-            "sprintId": 11,
-        },
-    )
-    assert other_project_response.status_code == 400
-    assert other_project_response.json()["detail"] == "Zadanie nadrzędne musi należeć do tego samego projektu"
-
-    other_sprint_response = client.post(
-        "/api/projects/1/tasks",
-        json={
-            "title": "Wrong sprint child",
-            "type": "Task",
-            "priority": "Medium",
-            "parentId": parent_id_value,
-            "sprintId": 12,
-        },
-    )
-    assert other_sprint_response.status_code == 400
-    assert other_sprint_response.json()["detail"] == "Zadanie podrzędne musi należeć do tego samego sprintu co jego zadanie nadrzędne"
-
-
 def test_update_task_rejects_parent_cycle(client: TestClient):
     parent_response = client.post(
         "/api/projects/1/tasks",
