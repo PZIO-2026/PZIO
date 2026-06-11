@@ -135,6 +135,7 @@ export const taskFormSchema = z.object({
   priority: z.enum(["Low", "Medium", "High"], { error: "Wybierz priorytet" }),
   storyPoints: z.coerce.number().int().nonnegative().optional(),
   parentId: z.number().nullable().optional(),
+  sprintId: z.number().nullable().optional(),
 });
 
 export type TaskFormInput = z.infer<typeof taskFormSchema>;

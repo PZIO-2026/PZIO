@@ -23,6 +23,12 @@ export function createTaskType(input: CreateTaskTypeInput): Promise<TaskType> {
   });
 }
 
+export function deleteTaskType(taskTypeId: number): Promise<void> {
+  return apiFetch<void>(`/api/admin/task-types/${taskTypeId}`, {
+    method: "DELETE",
+  });
+}
+
 export function createBackup(): Promise<BackupResponse> {
   return apiFetch<BackupResponse>("/api/admin/backups", {
     method: "POST",
@@ -46,5 +52,12 @@ export function updateUserRole(userId: number, role: UserRole): Promise<User> {
   return apiFetch<User>(`/api/users/${userId}/role`, {
     method: "PATCH",
     body: { role },
+  });
+}
+
+export function updateUserStatus(userId: number, isActive: boolean): Promise<User> {
+  return apiFetch<User>(`/api/users/${userId}/status`, {
+    method: "PATCH",
+    body: { isActive },
   });
 }
