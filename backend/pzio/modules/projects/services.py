@@ -94,7 +94,7 @@ def _require_project_roles(
 
 
 def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
-    """Return the ProjectMember row for user in project, or None. Administrators bypass this and get a virtual ProjectOwner membership."""
+    """Return the ProjectMember row for user in project. Administrators bypass this and get a virtual ProjectOwner membership."""
     user = db.get(User, user_id)
     is_admin = user and getattr(user, "role", "") == "Administrator"
     membership = db.query(ProjectMember)\
