@@ -167,15 +167,15 @@ describe("EditProjectSprintModal", () => {
   });
 
   it.each([
-    [400, "Data zakończenia sprintu musi być późniejsza niż data rozpoczęcia."],
-    [403, "Nie masz uprawnień do edycji tego sprintu."],
-    [404, "Sprint nie istnieje lub został usunięty."],
-    [409, "W projekcie jest już aktywny sprint — nie można aktywować drugiego."],
-    [422, "Podane dane sprintu są nieprawidłowe."],
-    [500, "Nie udało się zaktualizować sprintu."],
-  ])("powinien wyświetlić komunikat '%s' dla błędu API o statusie %i", async (status, expectedMessage) => {
+    ["Data zakończenia sprintu musi być późniejsza niż data rozpoczęcia.", 400],
+    ["Nie masz uprawnień do edycji tego sprintu.", 403],
+    ["Sprint nie istnieje lub został usunięty.", 404],
+    ["W projekcie jest już aktywny sprint — nie można aktywować drugiego.", 409],
+    ["Podane dane sprintu są nieprawidłowe.", 422],
+    ["Nie udało się zaktualizować sprintu.", 500],
+  ])("powinien wyświetlić komunikat '%s' dla błędu API o statusie %i", async (expectedMessage, status) => {
     const user = userEvent.setup();
-    mockUpdateSprint.mockRejectedValueOnce(new ApiError(status as number, "Error"));
+    mockUpdateSprint.mockRejectedValueOnce(new ApiError(status, "Error"));
 
     const { container } = render(<EditProjectSprintModal {...defaultProps} />);
 
