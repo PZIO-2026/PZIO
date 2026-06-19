@@ -238,3 +238,116 @@ def test_delete_attachment_not_owner(db_session: Session, user_factory, upload_d
 
     with pytest.raises(service.NotOwnerError):
         service.delete_attachment(db_session, attachment.attachment_id, other.user_id)
+
+
+def test_get_comment_notification_recipients_includes_assignee_and_commenters(
+    db_session: Session,
+    user_factory,
+) -> None:
+    assignee = user_factory(email="assignee@example.com")
+    author = user_factory(email="author@example.com")
+    prior = user_factory(email="prior@example.com")
+    _create_comment(db_session, 1, prior.user_id, "Earlier")
+    _create_comment(db_session, 1, author.user_id, "New")
+
+    recipients = service.get_comment_notification_recipients(
+        db_session,
+        task_id=1,
+        author_id=author.user_id,
+        assignee_id=assignee.user_id,
+    )
+
+    assert {user.email for user in recipients} == {assignee.email, prior.email}
+
+
+def test_get_comment_notification_recipients_skips_null_assignee(
+    db_session: Session,
+    user_factory,
+) -> None:
+    author = user_factory(email="author@example.com")
+    prior = user_factory(email="prior@example.com")
+    _create_comment(db_session, 1, prior.user_id, "Earlier")
+    _create_comment(db_session, 1, author.user_id, "New")
+
+    recipients = service.get_comment_notification_recipients(
+        db_session,
+        task_id=1,
+        author_id=author.user_id,
+        assignee_id=None,
+    )
+
+    assert [user.email for user in recipients] == [prior.email]
+
+
+def test_get_comment_notification_recipients_empty_when_no_targets(
+    db_session: Session,
+    user_factory,
+) -> None:
+    author = user_factory(email="solo@example.com")
+    _create_comment(db_session, 1, author.user_id, "Only me")
+
+    recipients = service.get_comment_notification_recipients(
+        db_session,
+        task_id=1,
+        author_id=author.user_id,
+        assignee_id=None,
+    )
+
+    assert recipients == []
+
+
+def test_get_comment_notification_recipients_excludes_inactive_assignee(
+    db_session: Session,
+    user_factory,
+) -> None:
+    assignee = user_factory(email="inactive-assignee@example.com", is_active=False)
+    author = user_factory(email="author@example.com")
+    prior = user_factory(email="prior@example.com")
+    _create_comment(db_session, 1, prior.user_id, "Earlier")
+    _create_comment(db_session, 1, author.user_id, "New")
+
+    recipients = service.get_comment_notification_recipients(
+        db_session,
+        task_id=1,
+        author_id=author.user_id,
+        assignee_id=assignee.user_id,
+    )
+
+    assert [user.email for user in recipients] == [prior.email]
+
+
+def test_get_comment_notification_recipients_excludes_inactive_commenter(
+    db_session: Session,
+    user_factory,
+) -> None:
+    assignee = user_factory(email="assignee@example.com")
+    author = user_factory(email="author@example.com")
+    prior = user_factory(email="inactive-prior@example.com", is_active=False)
+    _create_comment(db_session, 1, prior.user_id, "Earlier")
+    _create_comment(db_session, 1, author.user_id, "New")
+
+    recipients = service.get_comment_notification_recipients(
+        db_session,
+        task_id=1,
+        author_id=author.user_id,
+        assignee_id=assignee.user_id,
+    )
+
+    assert [user.email for user in recipients] == [assignee.email]
+
+
+def test_build_comment_notification_message_sanitizes_newlines_in_subject(
+    user_factory,
+) -> None:
+    author = user_factory()
+
+    subject, body = service.build_comment_notification_message(
+        1,
+        "Deploy\nhotfix",
+        author,
+        "Looks good",
+    )
+
+    assert subject == "New comment on task #1: Deploy hotfix"
+    assert "Task title: Deploy\nhotfix" in body
+

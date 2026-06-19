@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, event, Connection, Table
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pzio.db import Base
@@ -25,6 +25,11 @@ class TaskType(Base):
     )
 
 
+@event.listens_for(TaskType.__table__, "after_create")
+def _insert_initial_task_type(target: Table, connection: Connection, **_):
+    connection.execute(target.insert().values(name="Bug"))
+
+
 class Backup(Base):
     """Metadata of a forced database backup (SAD §3.5, FR23)."""
 
@@ -46,9 +51,7 @@ class ActivityLog(Base):
 
     __tablename__ = "audit_logs"
 
-    activity_log_id: Mapped[int] = mapped_column(
-        "activity_log_id", Integer, primary_key=True, autoincrement=True
-    )
+    activity_log_id: Mapped[int] = mapped_column("activity_log_id", Integer, primary_key=True, autoincrement=True)
     task_id: Mapped[int] = mapped_column("task_id", Integer, nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(
         "user_id",

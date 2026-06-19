@@ -47,6 +47,36 @@ def test_get_comments_returns_history(
     assert all(item["user"]["avatar"] == user.avatar for item in payload)
 
 
+def test_add_comment_whitespace_only_content_rejected(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    user = user_factory()
+
+    response = client.post(
+        "/api/tasks/1/comments",
+        json={"content": "   "},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 400
+
+
+def test_edit_comment_strips_content(
+    client: TestClient, user_factory, auth_headers, comment_factory
+) -> None:
+    user = user_factory()
+    comment = comment_factory(task_id=1, author_id=user.user_id, content="Old")
+
+    response = client.patch(
+        f"/api/comments/{comment.comment_id}",
+        json={"content": "  New  "},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["content"] == "New"
+
+
 def test_add_comment_nonexistent_task_returns_404(
     client: TestClient, user_factory, auth_headers, db_session
 ) -> None:

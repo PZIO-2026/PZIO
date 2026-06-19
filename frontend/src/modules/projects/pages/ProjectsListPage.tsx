@@ -5,7 +5,8 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../../api/client";
 import { useAuth } from "../../auth/hooks";
-import { fetchProjects } from "../api";
+import { deleteProject, fetchProjects } from "../api";
+import { hasProjectRole } from "../helpers/permissions";
 import ProjectRoleBadge from "../components/ProjectRoleBadge";
 import Modal from "../components/Modal";
 import type { Project, ProjectStatus } from "../types";
@@ -121,6 +122,17 @@ export default function ProjectsListPage() {
     params.set("page", String(next.page ?? 1));
 
     setSearchParams(params);
+  }
+
+  async function handleArchive(projectId: number) {
+    if (!window.confirm("Czy na pewno chcesz zarchiwizować ten projekt?")) return;
+
+    try {
+      await deleteProject(projectId);
+      setRefreshKey((prev) => prev + 1);
+    } catch {
+      setError("Nie udało się zarchiwizować projektu.");
+    }
   }
 
   function handleProjectCreated() {
@@ -292,12 +304,25 @@ export default function ProjectsListPage() {
                       </td>
 
                       <td className="px-6 py-4 text-right">
-                        <Link
-                          to={`/projects/${project.projectId}`}
-                          className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          Szczegóły
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          {hasProjectRole(project.currentUserRoles, ["project_owner"]) &&
+                            project.status === "active" && (
+                            <button
+                              type="button"
+                              onClick={() => handleArchive(project.projectId)}
+                              className="inline-flex items-center rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                            >
+                              Archiwizuj
+                            </button>
+                          )}
+
+                          <Link
+                            to={`/projects/${project.projectId}`}
+                            className="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Szczegóły
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

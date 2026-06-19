@@ -41,6 +41,29 @@ def seed_project_with_tasks(db_session: Session) -> None:
 
 
 @pytest.fixture
+def task_factory(db_session: Session) -> Callable[..., WorkItem]:
+    def _create_task(
+        *,
+        title: str = "Fix login bug",
+        assignee_id: int | None = None,
+        project_id: int = 1,
+    ) -> WorkItem:
+        task = WorkItem(
+            project_id=project_id,
+            title=title,
+            type="Task",
+            priority="Medium",
+            assignee_id=assignee_id,
+        )
+        db_session.add(task)
+        db_session.commit()
+        db_session.refresh(task)
+        return task
+
+    return _create_task
+
+
+@pytest.fixture
 def user_factory(db_session: Session) -> Callable[..., User]:
     def _create_user(
         *,
@@ -50,6 +73,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         last_name: str = "Lovelace",
         avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
+        is_active: bool = True,
         project_member: bool = True,
     ) -> User:
         user = User(
@@ -59,7 +83,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
             last_name=last_name,
             avatar=avatar,
             role=role,
-            is_active=True,
+            is_active=is_active,
         )
         db_session.add(user)
         db_session.commit()

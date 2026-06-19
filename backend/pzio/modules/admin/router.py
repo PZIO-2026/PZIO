@@ -13,7 +13,7 @@ from pzio.modules.admin.schemas import (
 from pzio.modules.auth.deps import get_current_user, require_admin
 from pzio.modules.auth.models import User
 
-# Endpoints in this module: see SAD §4.5 (paths /api/admin/*, /api/task-types,
+# Endpoints in this module: see SAD §4.5 (paths /api/admin/*,
 # /api/tasks/{id}/history). Full paths are declared on each route — no router-level
 # prefix is set because the admin module owns multiple URL roots.
 router = APIRouter(tags=["Admin"])
@@ -50,12 +50,13 @@ def add_task_type(
 
 
 @router.get(
-    "/api/task-types",
+    "/api/admin/task-types",
     response_model=list[TaskTypeRead],
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Get task type dictionary",
-    description="Returns the list of task types defined in the system.",
+    description="Returns the list of task types defined in the system. "
+    "Available to any authenticated user (Administrator role is not required).",
     responses={
         200: {"description": "List of task types"},
         401: {"description": "Missing or invalid token"},
@@ -67,6 +68,32 @@ def get_task_types(
 ) -> list[TaskTypeRead]:
     items = service.list_task_types(db)
     return [TaskTypeRead.model_validate(item) for item in items]
+
+
+@router.delete(
+    "/api/admin/task-types/{task_type_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a task type (Admin)",
+    description="Removes a task type from the system. Requires Administrator role. Cannot remove the last task type.",
+    responses={
+        204: {"description": "Task type deleted successfully"},
+        400: {"description": "Cannot delete the last task type"},
+        401: {"description": "Missing or invalid token"},
+        403: {"description": "Insufficient privileges"},
+        404: {"description": "Task type not found"},
+    },
+)
+def remove_task_type(
+    task_type_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> None:
+    try:
+        service.delete_task_type(db, task_type_id)
+    except service.TaskTypeNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task type not found")
+    except service.CannotDeleteLastTaskTypeError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post(

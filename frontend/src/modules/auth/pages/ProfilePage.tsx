@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import EditProfileForm from "../components/EditProfileForm";
+import ChangeEmailForm from "../components/ChangeEmailForm";
+import ChangePasswordForm from "../components/ChangePasswordForm";
 import { useAuth } from "../hooks";
+import { deleteMe } from "../api";
 import type { User } from "../types";
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
 
   if (user === null) return null;
@@ -15,17 +20,28 @@ export default function ProfilePage() {
     setIsEditing(false);
   }
 
+  async function handleDeleteAccount() {
+    if (window.confirm("Czy na pewno chcesz bezpowrotnie usunąć swoje konto? Tego działania nie można cofnąć.")) {
+      try {
+        await deleteMe();
+        logout();
+        navigate("/login");
+      } catch {
+        alert("Wystąpił błąd podczas usuwania konta.");
+      }
+    }
+  }
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 space-y-6">
+      {/* Informacje o profilu i edycja */}
       <div className="rounded-lg bg-white p-6 shadow">
         <div className="mb-6 flex items-start justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Mój profil</h1>
           {!isEditing && (
             <button
               type="button"
-              onClick={() => {
-                setIsEditing(true);
-              }}
+              onClick={() => setIsEditing(true)}
               className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
             >
               Edytuj
@@ -37,20 +53,53 @@ export default function ProfilePage() {
           <EditProfileForm
             user={user}
             onSuccess={handleSaved}
-            onCancel={() => {
-              setIsEditing(false);
-            }}
+            onCancel={() => setIsEditing(false)}
           />
         ) : (
           <ProfileView user={user} />
         )}
       </div>
+
+      {/* Zarządzanie bezpieczeństwem */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">Zmień adres email</h2>
+          <ChangeEmailForm user={user} onSuccess={updateUser} />
+        </div>
+
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">Zmień hasło</h2>
+          <ChangePasswordForm />
+        </div>
+      </div>
+
+      {/* Strefa niebezpieczna */}
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-bold text-red-800">Strefa niebezpieczna</h2>
+        <p className="mb-4 text-sm text-red-600">
+          Trwałe usunięcie konta spowoduje wykasowanie wszystkich Twoich danych z systemu. Tego działania nie można cofnąć.
+        </p>
+        <button
+          onClick={handleDeleteAccount}
+          className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700"
+        >
+          Usuń konto
+        </button>
+      </div>
     </div>
   );
 }
 
+// Ten komponent pochodzi w 100% z kodu "incoming" z głównej gałęzi (main),
+// dzięki czemu zachowujemy poprawki współpracowników.
 function ProfileView({ user }: { user: User }) {
-  const hasAvatar = user.avatar !== null && user.avatar !== "";
+  const [imageFailed, setImageFailed] = useState(false);
+  
+  useEffect(() => {
+    setImageFailed(false);
+  }, [user.avatar]);
+  
+  const hasAvatar = user.avatar !== null && user.avatar !== "" && !imageFailed;
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
 
   return (
@@ -60,10 +109,16 @@ function ProfileView({ user }: { user: User }) {
           <img
             src={user.avatar ?? ""}
             alt="Awatar"
+            onError={() => {
+              setImageFailed(true);
+            }}
             className="h-16 w-16 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700">
+          <div
+            aria-label="Awatar zastępczy"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 text-xl font-medium text-gray-700"
+          >
             {initials}
           </div>
         )}

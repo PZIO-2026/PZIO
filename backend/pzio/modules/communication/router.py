@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from pzio.config import settings
 from pzio.db import get_db
 from pzio.modules.auth.models import User
-from pzio.modules.communication.base import EmailService
 from pzio.modules.communication import service
+from pzio.modules.communication.base import EmailService
 from pzio.modules.communication.deps import get_current_user, provide_email_service
 from pzio.modules.communication.schemas import (
     AttachmentRead,
@@ -18,6 +19,7 @@ from pzio.modules.communication.schemas import (
 )
 from pzio.modules.projects.services import require_project_member
 from pzio.modules.tasks.service import get_work_item
+from pzio.modules.tasks import service as tasks_service
 from pzio.config import settings
 
 router = APIRouter(tags=["Communication"])
@@ -50,19 +52,6 @@ def _require_task_member(db: Session, task_id: int, user_id: int) -> None:
     require_project_member(db, project_id=task.project_id, user_id=user_id)
 
 
-def _build_comment_notification_message(task_id: int, author: User, content: str) -> tuple[str, str]:
-    subject = f"New comment on task #{task_id}"
-    author_display = f"{author.first_name} {author.last_name}".strip()
-    body = (
-        "A new task comment was added.\n\n"
-        f"Task ID: {task_id}\n"
-        f"Commented by: {author_display} <{author.email}>\n\n"
-        "Comment content:\n"
-        f"{content}\n"
-    )
-    return subject, body
-
-
 @router.post(
     "/api/tasks/{task_id}/comments",
     response_model=CommentRead,
@@ -70,7 +59,7 @@ def _build_comment_notification_message(task_id: int, author: User, content: str
     status_code=status.HTTP_201_CREATED,
     summary="Add a comment to a task",
     description="Creates a new comment on the specified task. "
-    "The system sends an e-mail notification (SMTP) to observers.",
+    "The system sends an e-mail notification (SMTP) to the task assignee and prior commenters.",
     responses={
         201: {"description": "Comment created"},
         400: {"description": "Validation error"},
@@ -89,13 +78,25 @@ def add_comment(
     _require_task_member(db, task_id, current_user.user_id)
     try:
         comment = service.create_comment(db, task_id, current_user.user_id, payload)
+        task = tasks_service.get_work_item(db, task_id)
+        assert task is not None
     except service.TaskNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    subject, body = _build_comment_notification_message(task_id, current_user, payload.content)
-    # Observers are not modeled yet, so as a temporary integration point we send
-    # the notification to the current user and keep the payload shape ready.
-    email_service.send_email(to=current_user.email, subject=subject, body=body)
-    
+
+    recipients = service.get_comment_notification_recipients(
+        db,
+        task_id,
+        current_user.user_id,
+        task.assignee_id,
+    )
+    subject, body = service.build_comment_notification_message(
+        task_id,
+        task.title,
+        current_user,
+        payload.content,
+    )
+    service.send_comment_notifications(email_service, recipients, subject, body)
+
     return CommentRead.model_validate(comment)
 
 

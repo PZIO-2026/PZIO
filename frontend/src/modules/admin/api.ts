@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 export function fetchTaskTypes(): Promise<TaskType[]> {
-  return apiFetch<TaskType[]>("/api/task-types");
+  return apiFetch<TaskType[]>("/api/admin/task-types");
 }
 
 export interface CreateTaskTypeInput {
@@ -20,6 +20,12 @@ export function createTaskType(input: CreateTaskTypeInput): Promise<TaskType> {
   return apiFetch<TaskType>("/api/admin/task-types", {
     method: "POST",
     body: input,
+  });
+}
+
+export function deleteTaskType(taskTypeId: number): Promise<void> {
+  return apiFetch<void>(`/api/admin/task-types/${taskTypeId}`, {
+    method: "DELETE",
   });
 }
 
@@ -46,5 +52,12 @@ export function updateUserRole(userId: number, role: UserRole): Promise<User> {
   return apiFetch<User>(`/api/users/${userId}/role`, {
     method: "PATCH",
     body: { role },
+  });
+}
+
+export function updateUserStatus(userId: number, isActive: boolean): Promise<User> {
+  return apiFetch<User>(`/api/users/${userId}/status`, {
+    method: "PATCH",
+    body: { isActive },
   });
 }

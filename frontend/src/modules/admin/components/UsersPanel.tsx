@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../../api/client";
 import { useAuth } from "../../auth/hooks";
 import type { User, UserRole } from "../../auth/types";
-import { fetchUsers, updateUserRole } from "../api";
+import { fetchUsers, updateUserRole, updateUserStatus } from "../api";
 
 const PAGE_SIZE = 50;
 
@@ -102,13 +102,45 @@ export default function UsersPanel() {
     }
   }
 
+  async function handleStatusChange(target: User, nextActive: boolean) {
+    setActionError(null);
+    setActionSuccess(null);
+    setPendingUserId(target.userId);
+
+    setUsers((current) =>
+      current.map((u) => (u.userId === target.userId ? { ...u, isActive: nextActive } : u)),
+    );
+
+    try {
+      const updated = await updateUserStatus(target.userId, nextActive);
+      setUsers((current) => current.map((u) => (u.userId === updated.userId ? updated : u)));
+      setActionSuccess(
+        updated.isActive
+          ? `Odblokowano konto użytkownika ${updated.email}.`
+          : `Zablokowano konto użytkownika ${updated.email}.`,
+      );
+    } catch (err) {
+      setUsers((current) =>
+        current.map((u) => (u.userId === target.userId ? { ...u, isActive: !nextActive } : u)),
+      );
+      if (err instanceof ApiError) {
+        setActionError(err.detail);
+      } else {
+        setActionError("Nie udało się zmienić statusu użytkownika. Spróbuj ponownie.");
+      }
+    } finally {
+      setPendingUserId(null);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <section className="rounded-lg bg-white p-6 shadow">
       <h2 className="mb-2 text-xl font-bold text-gray-900">Użytkownicy</h2>
       <p className="mb-4 text-sm text-gray-600">
-        Lista wszystkich kont w systemie. Możesz zmienić rolę dowolnemu użytkownikowi poza sobą.
+        Lista wszystkich kont w systemie. Możesz zmienić rolę oraz zablokować lub odblokować
+        dowolne konto poza swoim własnym.
       </p>
 
       <form onSubmit={handleSearchSubmit} className="mb-4 flex gap-2" noValidate>
@@ -181,15 +213,36 @@ export default function UsersPanel() {
                       </select>
                     </td>
                     <td className="py-2 pr-4">
-                      <span
-                        className={
-                          user.isActive
-                            ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-                            : "rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"
-                        }
-                      >
-                        {user.isActive ? "aktywny" : "zablokowany"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            user.isActive
+                              ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
+                              : "rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700"
+                          }
+                        >
+                          {user.isActive ? "aktywny" : "zablokowany"}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isSelf || isPending}
+                          title={isSelf ? "Nie możesz zablokować własnego konta" : undefined}
+                          aria-label={
+                            user.isActive
+                              ? `Zablokuj użytkownika ${user.email}`
+                              : `Odblokuj użytkownika ${user.email}`
+                          }
+                          onClick={() => handleStatusChange(user, !user.isActive)}
+                          className={
+                            "rounded-md border px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 " +
+                            (user.isActive
+                              ? "border-red-300 text-red-700 hover:bg-red-50"
+                              : "border-green-300 text-green-700 hover:bg-green-50")
+                          }
+                        >
+                          {user.isActive ? "Zablokuj" : "Odblokuj"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
