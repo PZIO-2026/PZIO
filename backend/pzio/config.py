@@ -1,4 +1,7 @@
+import warnings
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_JWT_SECRET = "dev-secret-change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -11,7 +14,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./pzio.db"
 
-    jwt_secret: str = "dev-secret-change-me-in-production"
+    jwt_secret: str = _DEFAULT_JWT_SECRET
     jwt_algorithm: str = "HS256"
     jwt_expires_min: int = 60
 
@@ -46,3 +49,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.jwt_secret == _DEFAULT_JWT_SECRET:
+    warnings.warn(
+        "\n" + "-" * 85 + "\n" +
+        f"JWT_SECRET is set to the known default value '{_DEFAULT_JWT_SECRET}'.\n"
+        "This is REALLY INSECURE - set a unique random value in production."
+        "\n" + "-" * 85,
+        stacklevel=2,
+    )

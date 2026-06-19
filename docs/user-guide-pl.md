@@ -119,12 +119,55 @@ Frontend **wbudowuje** wartości `VITE_*` w bundle JS w momencie buildu — sam 
 
 Skonfigurowanie tylko jednego dostawcy jest w pełni dozwolone — frontend pokaże wtedy tylko ten jeden przycisk, a backend obsłuży tylko ten provider.
 
-## 2. Baza danych i zasady środowiskowe
+## 2. Role systemowe
+
+### Ogólne zasady
 
 - **Pierwszy zarejestrowany użytkownik** uzyskuje automatycznie najwyższe uprawnienia: **Administrator**.
 - **Każdy kolejny** staje się domyślnie **Team Memberem**.
+- **Twórca projektu** staje się automatycznie **Project Ownerem** tego projektu.
 
-_Uwaga deweloperska:_ Przypominanie haseł póki co używa komponentu `MockEmailService`. Aplikacja nie wysyła fizycznie e-maili, ale zapisuje requesty resetu w bazie danych.
+### Tabela kompetencji ról systemowych
+
+| Funkcjonalność | TeamMember | Manager | Administrator |
+|---|---|---|---|
+| Przeglądanie i edycja własnego profilu | ✅ | ✅ | ✅ |
+| Przeglądanie projektów, których jest członkiem | ✅ | ✅ | ✅ |
+| Tworzenie nowych projektów | ❌ | ✅ | ✅ |
+| Przeglądanie listy użytkowników | ❌ | ❌ | ✅ |
+| Przeglądanie wszystkich projektów | ❌ | ❌ | ✅ |
+| Aktywacja/dezaktywacja kont użytkowników | ❌ | ❌ | ✅ |
+| Zmiana ról systemowych użytkowników | ❌ | ❌ | ✅ |
+| Zarządzanie typami zadań (słownik systemowy) | ❌ | ❌ | ✅ |
+| Wymuszanie backupu bazy danych | ❌ | ❌ | ✅ |
+| Przeglądanie logów aktywności | ❌ | ❌ | ✅ |
+| Dostęp do panelu administratora (`/admin`) | ❌ | ❌ | ✅ |
+
+### Tabela kompetencji ról projektowych
+
+| Funkcjonalność | Developer | QA | Scrum Master | Project Owner |
+|---|---|---|---|---|
+| Przeglądanie szczegółów projektu | ✅ | ✅ | ✅ | ✅ |
+| Przeglądanie listy sprintów | ✅ | ✅ | ✅ | ✅ |
+| Podgląd wykresu burndown | ✅ | ✅ | ✅ | ✅ |
+| Zarządzanie zadaniami (CRUD) w projekcie | ✅ | ✅ | ✅ | ✅ |
+| Korzystanie z tablicy Kanban | ✅ | ✅ | ✅ | ✅ |
+| Zarządzanie backlogiem | ✅ | ✅ | ✅ | ✅ |
+| Dodawanie komentarzy i załączników do zadań | ✅ | ✅ | ✅ | ✅ |
+| Tworzenie sprintów | ❌ | ❌ | ✅ | ✅ |
+| Edycja sprintów | ❌ | ❌ | ✅ | ✅ |
+| Usuwanie sprintów | ❌ | ❌ | ✅ | ✅ |
+| Dodawanie członków do projektu | ❌ | ❌ | ✅¹ | ✅ |
+| Usuwanie członków z projektu | ❌ | ❌ | ✅² | ✅ |
+| Edycja ról członków projektu | ❌ | ❌ | ✅³ | ✅ |
+| Edycja danych projektu (nazwa, opis) | ❌ | ❌ | ❌ | ✅ |
+| Usuwanie/archiwizacja projektu | ❌ | ❌ | ❌ | ✅ |
+
+> **Uwagi:**
+> 1. Scrum Master nie może dodać członka z rolą Project Owner.
+> 2. Scrum Master nie może usunąć Project Ownera ani innego Scrum Mastera.
+> 3. Tylko Project Owner może nadawać lub odbierać rolę Project Owner. Scrum Master może edytować pozostałe role, ale nie może odebrać sobie samemu roli Scrum Master, jeśli jest jedynym Scrum Masterem w projekcie.
+> 4. Definiowana w kodzie rola **Maintainer** nie jest obecnie używana w żadnej logice biznesowej.
 
 ## 3. Sposób użycia - Funkcjonalności
 
