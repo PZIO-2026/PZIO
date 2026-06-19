@@ -32,11 +32,11 @@ def test_get_comments_returns_history(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:
     user = user_factory(avatar="https://example.com/avatar.png")
-    first = comment_factory(task_id=1, author_id=user.user_id, content="First")
-    second = comment_factory(task_id=1, author_id=user.user_id, content="Second")
-    comment_factory(task_id=2, author_id=user.user_id, content="Other task")
+    first = comment_factory(task_id=1000, author_id=user.user_id, content="First")
+    second = comment_factory(task_id=1000, author_id=user.user_id, content="Second")
+    comment_factory(task_id=1001, author_id=user.user_id, content="Other task")
 
-    response = client.get("/api/tasks/1/comments", headers=auth_headers(user))
+    response = client.get("/api/tasks/1000/comments", headers=auth_headers(user))
 
     assert response.status_code == 200
     payload = response.json()
@@ -53,7 +53,7 @@ def test_add_comment_whitespace_only_content_rejected(
     user = user_factory()
 
     response = client.post(
-        "/api/tasks/1/comments",
+        "/api/tasks/1000/comments",
         json={"content": "   "},
         headers=auth_headers(user),
     )
@@ -65,7 +65,7 @@ def test_edit_comment_strips_content(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:
     user = user_factory()
-    comment = comment_factory(task_id=1, author_id=user.user_id, content="Old")
+    comment = comment_factory(task_id=1000, author_id=user.user_id, content="Old")
 
     response = client.patch(
         f"/api/comments/{comment.comment_id}",
@@ -112,7 +112,7 @@ def test_edit_comment_success(
     client: TestClient, user_factory, auth_headers, comment_factory
 ) -> None:
     user = user_factory()
-    comment = comment_factory(task_id=1, author_id=user.user_id, content="Old")
+    comment = comment_factory(task_id=1000, author_id=user.user_id, content="Old")
 
     response = client.patch(
         f"/api/comments/{comment.comment_id}",
@@ -143,7 +143,7 @@ def test_edit_comment_forbidden(
 ) -> None:
     owner = user_factory(email="owner@example.com")
     other = user_factory(email="other@example.com")
-    comment = comment_factory(task_id=1, author_id=owner.user_id, content="Hello")
+    comment = comment_factory(task_id=1000, author_id=owner.user_id, content="Hello")
 
     response = client.patch(
         f"/api/comments/{comment.comment_id}",
@@ -158,7 +158,7 @@ def test_delete_comment_success(
     client: TestClient, user_factory, auth_headers, comment_factory, db_session
 ) -> None:
     user = user_factory()
-    comment = comment_factory(task_id=1, author_id=user.user_id, content="To delete")
+    comment = comment_factory(task_id=1000, author_id=user.user_id, content="To delete")
 
     response = client.delete(
         f"/api/comments/{comment.comment_id}",
@@ -188,7 +188,7 @@ def test_delete_comment_forbidden(
 ) -> None:
     owner = user_factory(email="owner2@example.com")
     other = user_factory(email="other2@example.com")
-    comment = comment_factory(task_id=1, author_id=owner.user_id, content="Cannot delete")
+    comment = comment_factory(task_id=1000, author_id=owner.user_id, content="Cannot delete")
 
     response = client.delete(
         f"/api/comments/{comment.comment_id}",
@@ -204,7 +204,7 @@ def test_upload_attachment_success(
     user = user_factory()
 
     response = client.post(
-        "/api/tasks/1/attachments",
+        "/api/tasks/1000/attachments",
         files={"file": ("note.txt", b"hello", "text/plain")},
         headers=auth_headers(user),
     )
@@ -223,21 +223,21 @@ def test_list_attachments_filters_by_task(
 ) -> None:
     user = user_factory()
     first = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=user.user_id,
         filename="first.txt",
         content_type="text/plain",
         data=b"first",
     )
     attachment_factory(
-        task_id=2,
+        task_id=1001,
         uploader_id=user.user_id,
         filename="second.txt",
         content_type="text/plain",
         data=b"second",
     )
 
-    response = client.get("/api/tasks/1/attachments", headers=auth_headers(user))
+    response = client.get("/api/tasks/1000/attachments", headers=auth_headers(user))
 
     assert response.status_code == 200
     assert {item["attachmentId"] for item in response.json()} == {first.attachment_id}
@@ -251,7 +251,7 @@ def test_download_attachment_success(
 ) -> None:
     user = user_factory()
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=user.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -289,7 +289,7 @@ def test_download_attachment_missing_file_returns_404(
 ) -> None:
     user = user_factory()
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=user.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -314,7 +314,7 @@ def test_delete_attachment_success(
 ) -> None:
     user = user_factory()
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=user.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -338,7 +338,7 @@ def test_delete_attachment_forbidden(
     owner = user_factory(email="owner3@example.com")
     other = user_factory(email="other3@example.com")
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=owner.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -374,7 +374,7 @@ def test_upload_attachment_file_too_large(
     large_file_data = b"x" * (11 * 1024 * 1024)
 
     response = client.post(
-        "/api/tasks/1/attachments",
+        "/api/tasks/1000/attachments",
         files={"file": ("large.png", large_file_data, "image/png")},
         headers=auth_headers(user),
     )
@@ -389,7 +389,7 @@ def test_upload_attachment_unsupported_mime_type(
     user = user_factory()
 
     response = client.post(
-        "/api/tasks/1/attachments",
+        "/api/tasks/1000/attachments",
         files={"file": ("script.exe", b"MZ\x90\x00", "application/x-msdownload")},
         headers=auth_headers(user),
     )
@@ -404,7 +404,7 @@ def test_upload_attachment_pdf_allowed(
     user = user_factory()
 
     response = client.post(
-        "/api/tasks/1/attachments",
+        "/api/tasks/1000/attachments",
         files={"file": ("document.pdf", b"%PDF-1.4", "application/pdf")},
         headers=auth_headers(user),
     )
@@ -420,7 +420,7 @@ def test_upload_attachment_image_types_allowed(
 
     for mime_type in ["image/png", "image/jpeg", "image/gif", "image/webp"]:
         response = client.post(
-            "/api/tasks/1/attachments",
+            "/api/tasks/1000/attachments",
             files={"file": ("image.bin", b"imagedata", mime_type)},
             headers=auth_headers(user),
         )
@@ -433,7 +433,7 @@ def test_get_comments_non_member_returns_403(
 ) -> None:
     outsider = user_factory(email="outsider@example.com", project_member=False)
 
-    response = client.get("/api/tasks/1/comments", headers=auth_headers(outsider))
+    response = client.get("/api/tasks/1000/comments", headers=auth_headers(outsider))
 
     assert response.status_code == 403
 
@@ -444,13 +444,13 @@ def test_add_comment_non_member_returns_403(
     outsider = user_factory(email="outsider@example.com", project_member=False)
 
     response = client.post(
-        "/api/tasks/1/comments",
+        "/api/tasks/1000/comments",
         json={"content": "spoza projektu"},
         headers=auth_headers(outsider),
     )
 
     assert response.status_code == 403
-    assert service.list_comments(db_session, 1) == []
+    assert service.list_comments(db_session, 1000) == []
 
 
 def test_edit_comment_non_member_returns_403(
@@ -458,7 +458,7 @@ def test_edit_comment_non_member_returns_403(
 ) -> None:
     member = user_factory(email="member@example.com")
     outsider = user_factory(email="outsider@example.com", project_member=False)
-    comment = comment_factory(task_id=1, author_id=member.user_id, content="Hello")
+    comment = comment_factory(task_id=1000, author_id=member.user_id, content="Hello")
 
     response = client.patch(
         f"/api/comments/{comment.comment_id}",
@@ -475,7 +475,7 @@ def test_upload_attachment_non_member_returns_403(
     outsider = user_factory(email="outsider@example.com", project_member=False)
 
     response = client.post(
-        "/api/tasks/1/attachments",
+        "/api/tasks/1000/attachments",
         files={"file": ("note.txt", b"hello", "text/plain")},
         headers=auth_headers(outsider),
     )
@@ -489,7 +489,7 @@ def test_list_attachments_non_member_returns_403(
 ) -> None:
     outsider = user_factory(email="outsider@example.com", project_member=False)
 
-    response = client.get("/api/tasks/1/attachments", headers=auth_headers(outsider))
+    response = client.get("/api/tasks/1000/attachments", headers=auth_headers(outsider))
 
     assert response.status_code == 403
 
@@ -500,7 +500,7 @@ def test_download_attachment_non_member_returns_403(
     member = user_factory(email="member@example.com")
     outsider = user_factory(email="outsider@example.com", project_member=False)
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=member.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -521,7 +521,7 @@ def test_delete_attachment_non_member_returns_403(
     member = user_factory(email="member@example.com")
     outsider = user_factory(email="outsider@example.com", project_member=False)
     attachment = attachment_factory(
-        task_id=1,
+        task_id=1000,
         uploader_id=member.user_id,
         filename="file.bin",
         content_type="application/octet-stream",
@@ -546,9 +546,9 @@ def test_admin_outside_project_can_access_comments(
         role=UserRole.ADMINISTRATOR,
         project_member=False,
     )
-    comment = comment_factory(task_id=1, author_id=member.user_id, content="Hello")
+    comment = comment_factory(task_id=1000, author_id=member.user_id, content="Hello")
 
-    response = client.get("/api/tasks/1/comments", headers=auth_headers(admin))
+    response = client.get("/api/tasks/1000/comments", headers=auth_headers(admin))
 
     assert response.status_code == 200
     assert [item["commentId"] for item in response.json()] == [comment.comment_id]

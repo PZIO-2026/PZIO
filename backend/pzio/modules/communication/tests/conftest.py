@@ -21,12 +21,16 @@ SEED_PROJECT_ID = 1
 def seed_project_with_tasks(db_session: Session) -> None:
     """Comments and attachments require an existing parent task in a project.
 
-    Tests in this module reference task ids 1, 2 and 123, so create them up
-    front (all in project 1) instead of repeating the setup in every test.
+    Tests in this module reference task ids 1000, 1001 and 1002, so create
+    them up front (all in project 1) instead of repeating the setup in every
+    test.
+
+    The IDs are deliberately high to avoid clashing with auto-generated rows
+    created by task_factory (which starts at 1 on a fresh schema).
     """
     if db_session.get(Project, SEED_PROJECT_ID) is None:
         db_session.add(Project(project_id=SEED_PROJECT_ID, name="Communication tests"))
-    for task_id in (1, 2, 123):
+    for task_id in (1000, 1001, 1002):
         if db_session.get(WorkItem, task_id) is None:
             db_session.add(
                 WorkItem(
