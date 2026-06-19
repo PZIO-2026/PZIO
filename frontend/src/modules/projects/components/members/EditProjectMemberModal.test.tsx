@@ -4,8 +4,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import EditProjectMemberModal from "./EditProjectMemberModal";
 
 import * as api from "../../api";
+import { useAuth } from "../../../auth/hooks";
+
 vi.mock("../../api", () => ({
   updateProjectMemberRoles: vi.fn(),
+}));
+
+vi.mock("../../../auth/hooks", () => ({
+  useAuth: vi.fn(),
 }));
 
 describe("EditProjectMemberModal", () => {
@@ -23,17 +29,22 @@ describe("EditProjectMemberModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    
+    vi.mocked(useAuth).mockReturnValue({ user: { userId: 999 } } as any);
   });
 
-  it("powinien wyrenderować modal z poprawnym adresem email i zaznaczoną obecną rolą", () => {
+  it("powinien wyrenderować modal z poprawnym adresem email w inputcie i zaznaczoną obecną rolą", () => {
     render(<EditProjectMemberModal {...defaultProps} />);
 
-    expect(screen.getByText("Edytuj role użytkownika: test@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Edytuj użytkownika")).toBeInTheDocument();
 
-    const devCheckbox = screen.getByLabelText("Developer");
+    const emailInput = screen.getByDisplayValue("test@example.com");
+    expect(emailInput).toBeDisabled();
+
+    const devCheckbox = screen.getByRole("checkbox", { name: "Developer" });
     expect(devCheckbox).toBeChecked();
 
-    const smCheckbox = screen.getByLabelText("Scrum Master");
+    const smCheckbox = screen.getByRole("checkbox", { name: "Scrum Master" });
     expect(smCheckbox).not.toBeChecked();
   });
 
@@ -41,14 +52,13 @@ describe("EditProjectMemberModal", () => {
     const user = userEvent.setup();
     render(<EditProjectMemberModal {...defaultProps} />);
 
-    const devCheckbox = screen.getByLabelText("Developer");
+    const devCheckbox = screen.getByRole("checkbox", { name: "Developer" });
     await user.click(devCheckbox);
 
     const submitButton = screen.getByRole("button", { name: /zapisz zmiany/i });
     await user.click(submitButton);
 
     expect(await screen.findByText("Wybierz przynajmniej jedną rolę")).toBeInTheDocument();
-
     expect(api.updateProjectMemberRoles).not.toHaveBeenCalled();
   });
 
@@ -58,8 +68,10 @@ describe("EditProjectMemberModal", () => {
 
     render(<EditProjectMemberModal {...defaultProps} />);
 
-    const smCheckbox = screen.getByLabelText("Scrum Master");
+    const smCheckbox = screen.getByRole("checkbox", { name: "Scrum Master" });
     await user.click(smCheckbox);
+    
+    expect(smCheckbox).toBeChecked();
 
     const submitButton = screen.getByRole("button", { name: /zapisz zmiany/i });
     await user.click(submitButton);
@@ -68,11 +80,35 @@ describe("EditProjectMemberModal", () => {
       expect(api.updateProjectMemberRoles).toHaveBeenCalledWith(
         1,
         123,
-        ["developer", "scrum_master"]
+        expect.arrayContaining(["developer", "scrum_master"])
       );
     });
 
     expect(mockOnSuccess).toHaveBeenCalledTimes(1);
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("powinien wyświetlić ostrzeżenie (window.confirm) przy próbie odebrania sobie uprawnień", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(useAuth).mockReturnValue({ user: { userId: 123 } } as any);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<EditProjectMemberModal {...defaultProps} currentRoles={["project_owner"]} />);
+
+    const poCheckbox = screen.getByRole("checkbox", { name: "Project Owner" });
+    await user.click(poCheckbox);
+    
+    const devCheckbox = screen.getByRole("checkbox", { name: "Developer" });
+    await user.click(devCheckbox);
+
+    const submitButton = screen.getByRole("button", { name: /zapisz zmiany/i });
+    await user.click(submitButton);
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(api.updateProjectMemberRoles).not.toHaveBeenCalled();
+    
+    confirmSpy.mockRestore();
   });
 });

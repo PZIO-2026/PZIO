@@ -101,6 +101,16 @@ paths:
                 $ref: '#/components/schemas/UserRead'
       security:
       - HTTPBearer: []
+    delete:
+      tags:
+      - Auth
+      summary: Delete current user account
+      operationId: delete_account_api_users_me_delete
+      responses:
+        '204':
+          description: Successful Response
+      security:
+      - HTTPBearer: []
     patch:
       tags:
       - Auth
@@ -218,7 +228,8 @@ paths:
       tags:
       - Auth
       summary: Change user status (Admin)
-      description: Activates or deactivates a user account. Requires Administrator role.
+      description: Activates or deactivates a user account. Requires Administrator role. Admin cannot
+        change their own account status.
       operationId: update_user_status_api_users__id__status_patch
       security:
       - HTTPBearer: []
@@ -242,6 +253,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserRead'
+        '403':
+          description: Cannot change own account status
         '404':
           description: User not found
         '422':
@@ -382,6 +395,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/users/me/email:
+    patch:
+      tags:
+      - Auth
+      summary: Change user email
+      operationId: change_email_api_users_me_email_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeEmailRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRead'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/users/me/change-password:
+    post:
+      tags:
+      - Auth
+      summary: Change user password
+      operationId: change_password_api_users_me_change_password_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
   /api/projects:
     post:
       tags:
@@ -937,6 +1004,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Project not found
         '422':
           description: Validation Error
           content:
@@ -1000,6 +1071,10 @@ paths:
                 items:
                   $ref: '#/components/schemas/WorkItemResponse'
                 title: Response Get Tasks Api Projects  Id  Tasks Get
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Project not found
         '422':
           description: Validation Error
           content:
@@ -1029,6 +1104,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1063,6 +1140,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1087,6 +1166,8 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1122,6 +1203,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkItemResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1157,6 +1240,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TimeLogResponse'
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1188,6 +1273,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/TimeLogResponse'
                 title: Response Get Worklogs Api Tasks  Id  Worklogs Get
+        '403':
+          description: Caller is not a member of the project
         '422':
           description: Validation Error
           content:
@@ -1200,7 +1287,7 @@ paths:
       - Communication
       summary: Add a comment to a task
       description: Creates a new comment on the specified task. The system sends an e-mail notification
-        (SMTP) to observers.
+        (SMTP) to the task assignee and prior commenters.
       operationId: add_comment_api_tasks__task_id__comments_post
       security:
       - HTTPBearer: []
@@ -1228,6 +1315,10 @@ paths:
           description: Validation error
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1261,6 +1352,10 @@ paths:
                 title: Response Get Comments Api Tasks  Task Id  Comments Get
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1301,7 +1396,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the comment author
+          description: Not the comment author or not a member of the project
         '404':
           description: Comment not found
         '422':
@@ -1331,7 +1426,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the comment author
+          description: Not the comment author or not a member of the project
         '404':
           description: Comment not found
         '422':
@@ -1374,6 +1469,10 @@ paths:
           description: File too large or unsupported file type
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1407,6 +1506,10 @@ paths:
                 title: Response List Attachments Api Tasks  Task Id  Attachments Get
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
+        '404':
+          description: Task not found
         '422':
           description: Validation Error
           content:
@@ -1438,6 +1541,8 @@ paths:
             application/octet-stream: {}
         '401':
           description: Missing or invalid token
+        '403':
+          description: Caller is not a member of the project
         '404':
           description: Attachment not found
         '422':
@@ -1468,7 +1573,7 @@ paths:
         '401':
           description: Missing or invalid token
         '403':
-          description: Not the uploader
+          description: Not the uploader or not a member of the project
         '404':
           description: Attachment not found
         '422':
@@ -1478,6 +1583,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
   /api/admin/task-types:
+    get:
+      tags:
+      - Admin
+      summary: Get task type dictionary
+      description: Returns the list of task types defined in the system. Available to any authenticated
+        user (Administrator role is not required).
+      operationId: get_task_types_api_admin_task_types_get
+      responses:
+        '200':
+          description: List of task types
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TaskTypeRead'
+                type: array
+                title: Response Get Task Types Api Admin Task Types Get
+        '401':
+          description: Missing or invalid token
+      security:
+      - HTTPBearer: []
     post:
       tags:
       - Admin
@@ -1511,27 +1637,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - HTTPBearer: []
-  /api/task-types:
-    get:
-      tags:
-      - Admin
-      summary: Get task type dictionary
-      description: Returns the list of task types defined in the system.
-      operationId: get_task_types_api_task_types_get
-      responses:
-        '200':
-          description: List of task types
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/TaskTypeRead'
-                type: array
-                title: Response Get Task Types Api Task Types Get
-        '401':
-          description: Missing or invalid token
       security:
       - HTTPBearer: []
   /api/admin/task-types/{task_type_id}:
@@ -1755,7 +1860,7 @@ components:
       properties:
         file:
           type: string
-          format: binary
+          contentMediaType: application/octet-stream
           title: File
       type: object
       required:
@@ -1809,6 +1914,33 @@ components:
           remainingPoints: 27
         sprintId: 21
         totalPoints: 34
+    ChangeEmailRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+      type: object
+      required:
+      - email
+      title: ChangeEmailRequest
+      description: Body for PATCH /api/users/me/email
+    ChangePasswordRequest:
+      properties:
+        oldPassword:
+          type: string
+          title: Oldpassword
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Newpassword
+      type: object
+      required:
+      - oldPassword
+      - newPassword
+      title: ChangePasswordRequest
+      description: Body for POST /api/users/me/change-password
     CommentCreate:
       properties:
         content:
@@ -1905,7 +2037,6 @@ components:
       - email
       - password
       title: LoginRequest
-      description: Body for `POST /api/auth/login` (SAD §4.1).
       example:
         email: alice@example.com
         password: correct-horse-battery-staple
@@ -2050,7 +2181,6 @@ components:
       required:
       - email
       title: PasswordResetRequest
-      description: Body for POST /api/auth/reset-password
       example:
         email: alice@example.com
     ProjectCreate:
@@ -2513,7 +2643,7 @@ components:
       - name
       - createdAt
       title: TaskTypeRead
-      description: Public dictionary entry returned by /api/task-types and /api/admin/task-types.
+      description: Public dictionary entry returned by GET and POST /api/admin/task-types.
       example:
         createdAt: '2026-05-14T08:00:00Z'
         name: Epic
@@ -2624,7 +2754,6 @@ components:
       - firstName
       - lastName
       title: UserCreate
-      description: Body for `POST /api/auth/register` (SAD §4.1).
       example:
         email: alice@example.com
         firstName: Alice
@@ -2758,6 +2887,11 @@ components:
         type:
           type: string
           title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
       type: object
       required:
       - loc

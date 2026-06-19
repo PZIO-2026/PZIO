@@ -1,8 +1,8 @@
 from datetime import datetime
-
+from typing import Any, Annotated
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
 
 from pzio.modules.auth.models import UserRole
 
@@ -10,14 +10,18 @@ PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 NAME_MAX_LENGTH = 100
 
+# Strip applied per field (not via model_config) so passwords stay untouched.
+NameStr = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=NAME_MAX_LENGTH),
+]
+
 
 class UserCreate(BaseModel):
-    """Body for `POST /api/auth/register` (SAD §4.1)."""
-
     email: EmailStr
     password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
-    first_name: str = Field(alias="firstName", min_length=1, max_length=NAME_MAX_LENGTH)
-    last_name: str = Field(alias="lastName", min_length=1, max_length=NAME_MAX_LENGTH)
+    first_name: NameStr = Field(alias="firstName")
+    last_name: NameStr = Field(alias="lastName")
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -30,6 +34,11 @@ class UserCreate(BaseModel):
             }
         },
     )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: Any) -> Any:
+        return v.lower() if isinstance(v, str) else v
 
 
 class UserRead(BaseModel):
@@ -63,8 +72,6 @@ class UserRead(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Body for `POST /api/auth/login` (SAD §4.1)."""
-
     email: EmailStr
     password: str = Field(min_length=1, max_length=PASSWORD_MAX_LENGTH)
 
@@ -76,6 +83,11 @@ class LoginRequest(BaseModel):
             }
         }
     )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: Any) -> Any:
+        return v.lower() if isinstance(v, str) else v
 
 
 class TokenResponse(BaseModel):
@@ -99,8 +111,8 @@ class TokenResponse(BaseModel):
 class UserUpdate(BaseModel):
     """Body for `PATCH /api/users/me`. All fields are optional."""
 
-    first_name: str | None = Field(default=None, alias="firstName", min_length=1, max_length=NAME_MAX_LENGTH)
-    last_name: str | None = Field(default=None, alias="lastName", min_length=1, max_length=NAME_MAX_LENGTH)
+    first_name: NameStr | None = Field(default=None, alias="firstName")
+    last_name: NameStr | None = Field(default=None, alias="lastName")
     avatar: str | None = Field(default=None, max_length=255)
 
     @field_validator("avatar", mode="before")
@@ -181,12 +193,16 @@ class PaginatedUserResponse(BaseModel):
 
 
 class PasswordResetRequest(BaseModel):
-    """Body for POST /api/auth/reset-password"""
     email: EmailStr
 
     model_config = ConfigDict(
         json_schema_extra={"example": {"email": "alice@example.com"}}
     )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: Any) -> Any:
+        return v.lower() if isinstance(v, str) else v
 
 
 class PasswordResetConfirm(BaseModel):
@@ -228,3 +244,22 @@ class MessageResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"example": {"message": "Password reset email sent."}}
     )
+
+
+
+class ChangeEmailRequest(BaseModel):
+    """Body for PATCH /api/users/me/email"""
+    email: EmailStr
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def lowercase_email(cls, v: Any) -> Any:
+        return v.lower() if isinstance(v, str) else v
+
+
+class ChangePasswordRequest(BaseModel):
+    """Body for POST /api/users/me/change-password"""
+    old_password: str = Field(alias="oldPassword")
+    new_password: str = Field(alias="newPassword", min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+
+    model_config = ConfigDict(populate_by_name=True)

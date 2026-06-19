@@ -17,7 +17,7 @@ from pzio.modules.tasks.models import (
 )
 from sqlalchemy import func, or_, String, cast
 from sqlalchemy.orm import Session
-from pzio.modules.auth.models import User
+from pzio.modules.auth.models import User, UserRole
 
 from .models import (
     Project,
@@ -93,8 +93,30 @@ def _require_project_roles(
     return membership
 
 
+def require_project_member(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
+    """Ensure the user may access the project, else raise 403.
+
+    Public entry point for other modules (e.g. tasks) that need to gate
+    project-scoped resources on membership. Administrators bypass the
+    membership requirement (they may access every project), in which case the
+    function returns None as there is no membership row to hand back.
+
+    The project must exist: a missing project raises 404 (rather than a
+    misleading "not a member" 403) and stops administrators from creating
+    tasks under an arbitrary, non-existent project_id (work_items has no FK).
+    """
+    _get_project_or_404(db, project_id)
+
+    user = db.get(User, user_id)
+    if user is not None and user.role == UserRole.ADMINISTRATOR:
+        return None
+    return _get_membership_or_403(db, project_id, user_id)
+
+
 def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Optional[ProjectMember]:
-    """Return the ProjectMember row for user in project, or None."""
+    """Return the ProjectMember row for user in project. Administrators bypass this and get a virtual ProjectOwner membership."""
+    user = db.get(User, user_id)
+    is_admin = user and getattr(user, "role", "") == "Administrator"
     membership = db.query(ProjectMember)\
         .filter(
             ProjectMember.project_id == project_id,
@@ -103,6 +125,12 @@ def _get_membership_or_403(db: Session, project_id: int, user_id: int) -> Option
         .first()
     
     if membership is None:
+        if is_admin:
+            return ProjectMember(
+                project_id=project_id,
+                user_id=user_id,
+                roles=[ProjectRole.PROJECT_OWNER]
+            )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not a member of this project.",
@@ -138,15 +166,35 @@ def _project_out(project: Project, roles: list[ProjectRole]) -> ProjectOut:
 # Projects
 # ---------------------------------------------------------------------------
 def create_project(db: Session, payload: ProjectCreate, current_user_id: int) -> ProjectOut:
+    existing_projects = (
+        db.query(Project.name)
+        .join(ProjectMember)
+        .filter(
+            ProjectMember.user_id == current_user_id,
+            Project.name.startswith(payload.name, autoescape=True),
+        )
+        .all()
+    )
+    
+    existing_names = {row[0] for row in existing_projects}
+    
+    final_name = payload.name
+    if final_name in existing_names:
+        counter = 1
+        suffix = f" ({counter})"
+        final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
+        while final_name in existing_names:
+            counter += 1
+            suffix = f" ({counter})"
+            final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
+
     project = Project(
-        name=payload.name,
+        name=final_name,
         description=payload.description,
         status=ProjectStatus.ACTIVE,
     )
     db.add(project)
     db.flush()
-    
-    # Automatyczne dodanie twórcy
     owner = ProjectMember(
         project_id=project.project_id,
         user_id=current_user_id,
@@ -161,13 +209,21 @@ def create_project(db: Session, payload: ProjectCreate, current_user_id: int) ->
 def list_projects(
     db: Session, params: ProjectListParams, current_user_id: int
 ) -> Page[ProjectOut]:
-    # Users can only see projects they are a member of
+    user = db.get(User, current_user_id)
+    is_admin = user and getattr(user, "role", "") == "Administrator"
+
     query = (
         db.query(Project, ProjectMember)
-        .join(ProjectMember)
-        .filter(ProjectMember.user_id == current_user_id)
+        .outerjoin(
+            ProjectMember,
+            (ProjectMember.project_id == Project.project_id) &
+            (ProjectMember.user_id == current_user_id)
+        )
     )
-    
+
+    if not is_admin:
+        query = query.filter(ProjectMember.user_id == current_user_id)
+
     if params.status is not None:
         query = query.filter(Project.status == params.status)
 
@@ -190,7 +246,10 @@ def list_projects(
 
     return Page(
         items=[
-            _project_out(project, membership.roles)
+            _project_out(
+                project, 
+                membership.roles if membership else ([ProjectRole.PROJECT_OWNER] if is_admin else [])
+            )
             for project, membership in rows
         ],
         total=total,
@@ -240,6 +299,34 @@ def update_project(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update.",
         )
+    
+    new_name = changes.get("name")
+    if new_name is not None and new_name != project.name:
+        existing_projects = (
+            db.query(Project.name)
+            .join(ProjectMember)
+            .filter(
+                ProjectMember.user_id == current_user_id,
+                Project.name.startswith(new_name, autoescape=True),
+                Project.project_id != project.project_id
+            )
+            .all()
+        )
+        
+        existing_names = {row[0] for row in existing_projects}
+        
+        final_name = new_name
+        if final_name in existing_names:
+            counter = 1
+            suffix = f" ({counter})"
+            final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+            
+            while final_name in existing_names:
+                counter += 1
+                suffix = f" ({counter})"
+                final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+                
+        changes["name"] = final_name
 
     for field, value in changes.items():
         setattr(project, field, value)
@@ -503,10 +590,37 @@ def create_sprint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="endDate must be after startDate.",
         )
+    
+    if (payload.end_date - payload.start_date) > timedelta(days=60):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
+        )
+    
+    existing_sprints = (
+        db.query(Sprint.name)
+        .filter(
+            Sprint.project_id == project_id,
+             Sprint.name.startswith(payload.name, autoescape=True),
+        )
+        .all()
+    )
+    
+    existing_names = {row[0] for row in existing_sprints}
+    
+    final_name = payload.name
+    if final_name in existing_names:
+        counter = 1
+        suffix = f" ({counter})"
+        final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
+        while final_name in existing_names:
+            counter += 1
+            suffix = f" ({counter})"
+            final_name = f"{payload.name[:255 - len(suffix)]}{suffix}"
 
     sprint = Sprint(
         project_id=project_id,
-        name=payload.name,
+        name=final_name,
         status=SprintStatus.PLANNED,
         start_date=payload.start_date,
         goal=payload.goal,
@@ -546,8 +660,6 @@ def update_sprint(
             detail="No fields provided for update.",
         )
     
-    # check if there is already active sprint
-    # if there is - and user tries to set this sprint as active - throw 409 
     new_status = changes.get("status")
     if new_status == SprintStatus.ACTIVE:
         existing_active = (
@@ -565,6 +677,32 @@ def update_sprint(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="There is already an active sprint in this project.",
             )
+        
+    new_name = changes.get("name")
+    if new_name is not None and new_name != sprint.name:
+        existing_sprints = (
+            db.query(Sprint.name)
+            .filter(
+                Sprint.project_id == sprint.project_id,
+                Sprint.name.startswith(new_name, autoescape=True),
+                Sprint.sprint_id != sprint.sprint_id
+            )
+            .all()
+        )
+        
+        existing_names = {row[0] for row in existing_sprints}
+        
+        final_name = new_name
+        if final_name in existing_names:
+            counter = 1
+            suffix = f" ({counter})"
+            final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+            while final_name in existing_names:
+                counter += 1
+                suffix = f" ({counter})"
+                final_name = f"{new_name[:255 - len(suffix)]}{suffix}"
+            
+        changes["name"] = final_name
 
     for field, value in changes.items():
         setattr(sprint, field, value)
@@ -573,6 +711,12 @@ def update_sprint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="endDate must be after startDate.",
+        )
+    
+    if (sprint.end_date - sprint.start_date) > timedelta(days=60):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Sprint duration is too long. Maximum allowed duration is 60 days.",
         )
 
     sprint.updated_at = datetime.now(timezone.utc)

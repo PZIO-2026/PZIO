@@ -14,7 +14,7 @@ from pzio.modules.auth.deps import get_current_user, require_admin
 from pzio.modules.auth.models import User
 from pzio.path_params import PathId
 
-# Endpoints in this module: see SAD §4.5 (paths /api/admin/*, /api/task-types,
+# Endpoints in this module: see SAD §4.5 (paths /api/admin/*,
 # /api/tasks/{id}/history). Full paths are declared on each route — no router-level
 # prefix is set because the admin module owns multiple URL roots.
 router = APIRouter(tags=["Admin"])
@@ -51,12 +51,13 @@ def add_task_type(
 
 
 @router.get(
-    "/api/task-types",
+    "/api/admin/task-types",
     response_model=list[TaskTypeRead],
     response_model_by_alias=True,
     status_code=status.HTTP_200_OK,
     summary="Get task type dictionary",
-    description="Returns the list of task types defined in the system.",
+    description="Returns the list of task types defined in the system. "
+    "Available to any authenticated user (Administrator role is not required).",
     responses={
         200: {"description": "List of task types"},
         401: {"description": "Missing or invalid token"},

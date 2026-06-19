@@ -45,6 +45,7 @@ class ProjectCreate(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
 
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "name": "Apollo Migration",
@@ -62,6 +63,7 @@ class ProjectUpdate(BaseModel):
     status: Optional[ProjectStatus] = None
 
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "name": "Apollo Migration (Phase 2)",
@@ -206,6 +208,7 @@ class SprintCreate(BaseModel):
 
     model_config = ConfigDict(
         populate_by_name=True,
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "name": "Sprint 1",
@@ -228,6 +231,7 @@ class SprintUpdate(BaseModel):
 
     model_config = ConfigDict(
         populate_by_name=True,
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {"status": "active", "goal": "Updated goal mid-sprint."}
         },

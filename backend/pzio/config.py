@@ -1,4 +1,7 @@
+import warnings
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_JWT_SECRET = "dev-secret-change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -11,7 +14,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./pzio.db"
 
-    jwt_secret: str = "dev-secret-change-me-in-production"
+    jwt_secret: str = _DEFAULT_JWT_SECRET
     jwt_algorithm: str = "HS256"
     jwt_expires_min: int = 60
 
@@ -31,9 +34,27 @@ class Settings(BaseSettings):
     github_client_id: str | None = None
     github_client_secret: str | None = None
 
+    # SMTP — when SMTP_USER is set, the backend sends real emails instead of using MockEmailService.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
+    smtp_timeout: int = 30
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()
+
+if settings.jwt_secret == _DEFAULT_JWT_SECRET:
+    warnings.warn(
+        "\n" + "-" * 85 + "\n" +
+        f"JWT_SECRET is set to the known default value '{_DEFAULT_JWT_SECRET}'.\n"
+        "This is REALLY INSECURE - set a unique random value in production."
+        "\n" + "-" * 85,
+        stacklevel=2,
+    )

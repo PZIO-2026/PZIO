@@ -11,6 +11,60 @@ from pzio.modules.auth.security import create_access_token, hash_password
 from pzio.modules.communication import service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate
+from pzio.modules.projects.models import Project, ProjectMember
+from pzio.modules.tasks.models import WorkItem
+
+SEED_PROJECT_ID = 1
+
+
+@pytest.fixture(autouse=True)
+def seed_project_with_tasks(db_session: Session) -> None:
+    """Comments and attachments require an existing parent task in a project.
+
+    Tests in this module reference task ids 1000, 1001 and 1002, so create
+    them up front (all in project 1) instead of repeating the setup in every
+    test.
+
+    The IDs are deliberately high to avoid clashing with auto-generated rows
+    created by task_factory (which starts at 1 on a fresh schema).
+    """
+    if db_session.get(Project, SEED_PROJECT_ID) is None:
+        db_session.add(Project(project_id=SEED_PROJECT_ID, name="Communication tests"))
+    for task_id in (1000, 1001, 1002):
+        if db_session.get(WorkItem, task_id) is None:
+            db_session.add(
+                WorkItem(
+                    id=task_id,
+                    project_id=SEED_PROJECT_ID,
+                    title=f"Task {task_id}",
+                    type="Task",
+                    priority="Medium",
+                )
+            )
+    db_session.commit()
+
+
+@pytest.fixture
+def task_factory(db_session: Session) -> Callable[..., WorkItem]:
+    def _create_task(
+        *,
+        title: str = "Fix login bug",
+        assignee_id: int | None = None,
+        project_id: int = 1,
+    ) -> WorkItem:
+        task = WorkItem(
+            project_id=project_id,
+            title=title,
+            type="Task",
+            priority="Medium",
+            assignee_id=assignee_id,
+        )
+        db_session.add(task)
+        db_session.commit()
+        db_session.refresh(task)
+        return task
+
+    return _create_task
 
 
 @pytest.fixture
@@ -23,6 +77,8 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         last_name: str = "Lovelace",
         avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
+        is_active: bool = True,
+        project_member: bool = True,
     ) -> User:
         user = User(
             email=email,
@@ -31,11 +87,20 @@ def user_factory(db_session: Session) -> Callable[..., User]:
             last_name=last_name,
             avatar=avatar,
             role=role,
-            is_active=True,
+            is_active=is_active,
         )
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
+        if project_member:
+            db_session.add(
+                ProjectMember(
+                    project_id=SEED_PROJECT_ID,
+                    user_id=user.user_id,
+                    roles=["developer"],
+                )
+            )
+            db_session.commit()
         return user
 
     return _create_user
