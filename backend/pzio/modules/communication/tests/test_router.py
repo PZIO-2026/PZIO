@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from pzio.modules.auth.models import UserRole
 from pzio.modules.communication import service
 from pzio.modules.communication.router import _is_mime_type_allowed
 
@@ -395,3 +396,139 @@ def test_upload_attachment_image_types_allowed(
         )
 
         assert response.status_code == 201, f"Failed for {mime_type}"
+
+
+def test_get_comments_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+
+    response = client.get("/api/tasks/1/comments", headers=auth_headers(outsider))
+
+    assert response.status_code == 403
+
+
+def test_add_comment_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers, db_session
+) -> None:
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+
+    response = client.post(
+        "/api/tasks/1/comments",
+        json={"content": "spoza projektu"},
+        headers=auth_headers(outsider),
+    )
+
+    assert response.status_code == 403
+    assert service.list_comments(db_session, 1) == []
+
+
+def test_edit_comment_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers, comment_factory
+) -> None:
+    member = user_factory(email="member@example.com")
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+    comment = comment_factory(task_id=1, author_id=member.user_id, content="Hello")
+
+    response = client.patch(
+        f"/api/comments/{comment.comment_id}",
+        json={"content": "Nope"},
+        headers=auth_headers(outsider),
+    )
+
+    assert response.status_code == 403
+
+
+def test_upload_attachment_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers, upload_dir: Path
+) -> None:
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+
+    response = client.post(
+        "/api/tasks/1/attachments",
+        files={"file": ("note.txt", b"hello", "text/plain")},
+        headers=auth_headers(outsider),
+    )
+
+    assert response.status_code == 403
+    assert not upload_dir.exists()
+
+
+def test_list_attachments_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+
+    response = client.get("/api/tasks/1/attachments", headers=auth_headers(outsider))
+
+    assert response.status_code == 403
+
+
+def test_download_attachment_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers, attachment_factory
+) -> None:
+    member = user_factory(email="member@example.com")
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+    attachment = attachment_factory(
+        task_id=1,
+        uploader_id=member.user_id,
+        filename="file.bin",
+        content_type="application/octet-stream",
+        data=b"data",
+    )
+
+    response = client.get(
+        f"/api/attachments/{attachment.attachment_id}/download",
+        headers=auth_headers(outsider),
+    )
+
+    assert response.status_code == 403
+
+
+def test_delete_attachment_non_member_returns_403(
+    client: TestClient, user_factory, auth_headers, attachment_factory, db_session
+) -> None:
+    member = user_factory(email="member@example.com")
+    outsider = user_factory(email="outsider@example.com", project_member=False)
+    attachment = attachment_factory(
+        task_id=1,
+        uploader_id=member.user_id,
+        filename="file.bin",
+        content_type="application/octet-stream",
+        data=b"data",
+    )
+
+    response = client.delete(
+        f"/api/attachments/{attachment.attachment_id}",
+        headers=auth_headers(outsider),
+    )
+
+    assert response.status_code == 403
+    assert service.get_attachment(db_session, attachment.attachment_id) is not None
+
+
+def test_admin_outside_project_can_access_comments(
+    client: TestClient, user_factory, auth_headers, comment_factory
+) -> None:
+    member = user_factory(email="member@example.com")
+    admin = user_factory(
+        email="admin@example.com",
+        role=UserRole.ADMINISTRATOR,
+        project_member=False,
+    )
+    comment = comment_factory(task_id=1, author_id=member.user_id, content="Hello")
+
+    response = client.get("/api/tasks/1/comments", headers=auth_headers(admin))
+
+    assert response.status_code == 200
+    assert [item["commentId"] for item in response.json()] == [comment.comment_id]
+
+
+def test_get_comments_nonexistent_task_returns_404(
+    client: TestClient, user_factory, auth_headers
+) -> None:
+    user = user_factory()
+
+    response = client.get("/api/tasks/999999/comments", headers=auth_headers(user))
+
+    assert response.status_code == 404

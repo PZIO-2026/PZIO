@@ -11,22 +11,27 @@ from pzio.modules.auth.security import create_access_token, hash_password
 from pzio.modules.communication import service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate
+from pzio.modules.projects.models import Project, ProjectMember
 from pzio.modules.tasks.models import WorkItem
+
+SEED_PROJECT_ID = 1
 
 
 @pytest.fixture(autouse=True)
-def seed_tasks(db_session: Session) -> None:
-    """Comments and attachments require an existing parent task.
+def seed_project_with_tasks(db_session: Session) -> None:
+    """Comments and attachments require an existing parent task in a project.
 
     Tests in this module reference task ids 1, 2 and 123, so create them up
-    front instead of repeating the setup in every test.
+    front (all in project 1) instead of repeating the setup in every test.
     """
+    if db_session.get(Project, SEED_PROJECT_ID) is None:
+        db_session.add(Project(project_id=SEED_PROJECT_ID, name="Communication tests"))
     for task_id in (1, 2, 123):
         if db_session.get(WorkItem, task_id) is None:
             db_session.add(
                 WorkItem(
                     id=task_id,
-                    project_id=1,
+                    project_id=SEED_PROJECT_ID,
                     title=f"Task {task_id}",
                     type="Task",
                     priority="Medium",
@@ -45,6 +50,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         last_name: str = "Lovelace",
         avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
+        project_member: bool = True,
     ) -> User:
         user = User(
             email=email,
@@ -58,6 +64,15 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
+        if project_member:
+            db_session.add(
+                ProjectMember(
+                    project_id=SEED_PROJECT_ID,
+                    user_id=user.user_id,
+                    roles=["developer"],
+                )
+            )
+            db_session.commit()
         return user
 
     return _create_user
