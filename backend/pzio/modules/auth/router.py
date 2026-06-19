@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from pzio.db import get_db
 from pzio.modules.auth import service
+from pzio.path_params import PathId
 from pzio.modules.auth.models import User
 from pzio.modules.auth.schemas import (
     ChangeEmailRequest,
@@ -148,7 +149,7 @@ def list_users(
     },
 )
 def update_user_status(
-    id: int,
+    id: PathId,
     payload: UserStatusUpdate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -182,7 +183,7 @@ def update_user_status(
     },
 )
 def update_user_role(
-    id: int,
+    id: PathId,
     payload: UserRoleUpdate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),

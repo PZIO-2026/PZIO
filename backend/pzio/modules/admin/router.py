@@ -12,6 +12,7 @@ from pzio.modules.admin.schemas import (
 )
 from pzio.modules.auth.deps import get_current_user, require_admin
 from pzio.modules.auth.models import User
+from pzio.path_params import PathId
 
 # Endpoints in this module: see SAD §4.5 (paths /api/admin/*,
 # /api/tasks/{id}/history). Full paths are declared on each route — no router-level
@@ -84,7 +85,7 @@ def get_task_types(
     },
 )
 def remove_task_type(
-    task_type_id: int,
+    task_type_id: PathId,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ) -> None:
@@ -149,7 +150,7 @@ def force_backup(
     },
 )
 def get_task_history(
-    task_id: int,
+    task_id: PathId,
     db: Session = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ) -> list[ActivityLogRead]:

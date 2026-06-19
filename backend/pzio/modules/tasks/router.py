@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ...db import get_db
+from ...path_params import PathId
 from ..auth.deps import get_current_user
 from ..auth.models import User
 from ..projects import services as projects_service
@@ -44,7 +45,7 @@ def _require_member_for_task(db: Session, task_id: int, user_id: int) -> models.
     },
 )
 def create_task(
-    id: int,
+    id: PathId,
     task: schemas.WorkItemCreate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -63,7 +64,7 @@ def create_task(
     },
 )
 def get_tasks(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
     status: str | None = None,
@@ -89,7 +90,7 @@ def get_tasks(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def get_task(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):
@@ -103,7 +104,7 @@ def get_task(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def update_task(
-    id: int,
+    id: PathId,
     task_update: schemas.WorkItemUpdate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -122,7 +123,7 @@ def update_task(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def delete_task(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):
@@ -139,7 +140,7 @@ def delete_task(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def update_task_status(
-    id: int,
+    id: PathId,
     status_update: schemas.StatusUpdate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -161,7 +162,7 @@ def update_task_status(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def create_worklog(
-    id: int,
+    id: PathId,
     worklog: schemas.TimeLogCreate,
     db: DbSession,
     user_id: CurrentUserId,
@@ -180,7 +181,7 @@ def create_worklog(
     responses={403: {"description": "Caller is not a member of the project"}},
 )
 def get_worklogs(
-    id: int,
+    id: PathId,
     db: DbSession,
     user_id: CurrentUserId,
 ):

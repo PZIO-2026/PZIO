@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from pzio.config import settings
 from pzio.db import get_db
+from pzio.path_params import PathId
 from pzio.modules.auth.models import User
 from pzio.modules.communication import service
 from pzio.modules.communication.base import EmailService
@@ -69,7 +70,7 @@ def _require_task_member(db: Session, task_id: int, user_id: int) -> None:
     },
 )
 def add_comment(
-    task_id: int,
+    task_id: PathId,
     payload: CommentCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -115,7 +116,7 @@ def add_comment(
     },
 )
 def get_comments(
-    task_id: int,
+    task_id: PathId,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CommentRead]:
@@ -140,7 +141,7 @@ def get_comments(
     },
 )
 def edit_comment(
-    comment_id: int,
+    comment_id: PathId,
     payload: CommentUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -169,7 +170,7 @@ def edit_comment(
     },
 )
 def delete_comment(
-    comment_id: int,
+    comment_id: PathId,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
@@ -201,7 +202,7 @@ def delete_comment(
     },
 )
 def upload_attachment(
-    task_id: int,
+    task_id: PathId,
     file: UploadFile,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -252,7 +253,7 @@ def upload_attachment(
     },
 )
 def list_attachments(
-    task_id: int,
+    task_id: PathId,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AttachmentRead]:
@@ -274,7 +275,7 @@ def list_attachments(
     },
 )
 def download_attachment(
-    attachment_id: int,
+    attachment_id: PathId,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> FileResponse:
@@ -309,7 +310,7 @@ def download_attachment(
     },
 )
 def delete_attachment(
-    attachment_id: int,
+    attachment_id: PathId,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
