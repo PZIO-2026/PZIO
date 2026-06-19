@@ -17,7 +17,10 @@ from pzio.modules.communication.schemas import (
     CommentRead,
     CommentUpdate,
 )
+from pzio.modules.projects.services import require_project_member
+from pzio.modules.tasks.service import get_work_item
 from pzio.modules.tasks import service as tasks_service
+from pzio.config import settings
 
 router = APIRouter(tags=["Communication"])
 
@@ -36,6 +39,19 @@ def _is_mime_type_allowed(content_type: str | None) -> bool:
     return False
 
 
+def _require_task_member(db: Session, task_id: int, user_id: int) -> None:
+    """Ensure the task exists and the caller may access it.
+
+    Raises 404 when the task does not exist (without leaking membership) and 403
+    when the caller is not a member of the owning project. Administrators bypass
+    the membership check inside require_project_member.
+    """
+    task = get_work_item(db, task_id=task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    require_project_member(db, project_id=task.project_id, user_id=user_id)
+
+
 @router.post(
     "/api/tasks/{task_id}/comments",
     response_model=CommentRead,
@@ -48,6 +64,7 @@ def _is_mime_type_allowed(content_type: str | None) -> bool:
         201: {"description": "Comment created"},
         400: {"description": "Validation error"},
         401: {"description": "Missing or invalid token"},
+        403: {"description": "Caller is not a member of the project"},
         404: {"description": "Task not found"},
     },
 )
@@ -58,11 +75,14 @@ def add_comment(
     db: Session = Depends(get_db),
     email_service: EmailService = Depends(provide_email_service),
 ) -> CommentRead:
-    task = tasks_service.get_work_item(db, task_id)
-    if task is None:
+    _require_task_member(db, task_id, current_user.user_id)
+    try:
+        comment = service.create_comment(db, task_id, current_user.user_id, payload)
+        task = tasks_service.get_work_item(db, task_id)
+        assert task is not None
+    except service.TaskNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
-    comment = service.create_comment(db, task_id, current_user.user_id, payload)
     recipients = service.get_comment_notification_recipients(
         db,
         task_id,
@@ -90,6 +110,8 @@ def add_comment(
     responses={
         200: {"description": "List of comments"},
         401: {"description": "Missing or invalid token"},
+        403: {"description": "Caller is not a member of the project"},
+        404: {"description": "Task not found"},
     },
 )
 def get_comments(
@@ -97,6 +119,7 @@ def get_comments(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CommentRead]:
+    _require_task_member(db, task_id, current_user.user_id)
     comments = service.list_comments(db, task_id)
     return [CommentRead.model_validate(c) for c in comments]
 
@@ -112,7 +135,7 @@ def get_comments(
         200: {"description": "Comment updated"},
         400: {"description": "Validation error"},
         401: {"description": "Missing or invalid token"},
-        403: {"description": "Not the comment author"},
+        403: {"description": "Not the comment author or not a member of the project"},
         404: {"description": "Comment not found"},
     },
 )
@@ -123,6 +146,8 @@ def edit_comment(
     db: Session = Depends(get_db),
 ) -> CommentRead:
     try:
+        comment = service.get_comment(db, comment_id)
+        _require_task_member(db, comment.task_id, current_user.user_id)
         comment = service.update_comment(db, comment_id, current_user.user_id, payload)
     except service.CommentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
@@ -139,7 +164,7 @@ def edit_comment(
     responses={
         204: {"description": "Comment deleted"},
         401: {"description": "Missing or invalid token"},
-        403: {"description": "Not the comment author"},
+        403: {"description": "Not the comment author or not a member of the project"},
         404: {"description": "Comment not found"},
     },
 )
@@ -149,6 +174,8 @@ def delete_comment(
     db: Session = Depends(get_db),
 ) -> None:
     try:
+        comment = service.get_comment(db, comment_id)
+        _require_task_member(db, comment.task_id, current_user.user_id)
         service.delete_comment(db, comment_id, current_user.user_id)
     except service.CommentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
@@ -169,6 +196,8 @@ def delete_comment(
         201: {"description": "Attachment created"},
         400: {"description": "File too large or unsupported file type"},
         401: {"description": "Missing or invalid token"},
+        403: {"description": "Caller is not a member of the project"},
+        404: {"description": "Task not found"},
     },
 )
 def upload_attachment(
@@ -177,6 +206,8 @@ def upload_attachment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AttachmentRead:
+    _require_task_member(db, task_id, current_user.user_id)
+
     # Validate MIME type
     if not _is_mime_type_allowed(file.content_type):
         raise HTTPException(
@@ -192,14 +223,17 @@ def upload_attachment(
             detail=f"File too large. Maximum size: {max_mb:.0f} MB",
         )
     
-    attachment = service.save_attachment(
-        db,
-        task_id=task_id,
-        uploader_id=current_user.user_id,
-        filename=file.filename or "unnamed",
-        content_type=file.content_type,
-        file_obj=file.file,
-    )
+    try:
+        attachment = service.save_attachment(
+            db,
+            task_id=task_id,
+            uploader_id=current_user.user_id,
+            filename=file.filename or "unnamed",
+            content_type=file.content_type,
+            file_obj=file.file,
+        )
+    except service.TaskNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return AttachmentRead.model_validate(attachment)
 
 
@@ -213,6 +247,8 @@ def upload_attachment(
     responses={
         200: {"description": "List of attachments"},
         401: {"description": "Missing or invalid token"},
+        403: {"description": "Caller is not a member of the project"},
+        404: {"description": "Task not found"},
     },
 )
 def list_attachments(
@@ -220,6 +256,7 @@ def list_attachments(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AttachmentRead]:
+    _require_task_member(db, task_id, current_user.user_id)
     attachments = service.list_attachments(db, task_id)
     return [AttachmentRead.model_validate(a) for a in attachments]
 
@@ -232,6 +269,7 @@ def list_attachments(
     responses={
         200: {"description": "File stream", "content": {"application/octet-stream": {}}},
         401: {"description": "Missing or invalid token"},
+        403: {"description": "Caller is not a member of the project"},
         404: {"description": "Attachment not found"},
     },
 )
@@ -244,6 +282,8 @@ def download_attachment(
         attachment = service.get_attachment(db, attachment_id)
     except service.AttachmentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+
+    _require_task_member(db, attachment.task_id, current_user.user_id)
 
     file_path = Path(attachment.file_path)
     if not file_path.is_file():
@@ -264,7 +304,7 @@ def download_attachment(
     responses={
         204: {"description": "Attachment deleted"},
         401: {"description": "Missing or invalid token"},
-        403: {"description": "Not the uploader"},
+        403: {"description": "Not the uploader or not a member of the project"},
         404: {"description": "Attachment not found"},
     },
 )
@@ -274,6 +314,8 @@ def delete_attachment(
     db: Session = Depends(get_db),
 ) -> None:
     try:
+        attachment = service.get_attachment(db, attachment_id)
+        _require_task_member(db, attachment.task_id, current_user.user_id)
         service.delete_attachment(db, attachment_id, current_user.user_id)
     except service.AttachmentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
