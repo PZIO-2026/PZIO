@@ -224,7 +224,7 @@ Poniższa tabela jest mapą orientacyjną.
 
 | Metoda | Ścieżka                       | Rola wymagana    |
 |--------|-------------------------------|------------------|
-| GET    | `/api/task-types`             | zalogowany       |
+| GET    | `/api/admin/task-types`       | zalogowany       |
 | POST   | `/api/admin/task-types`       | `Administrator`  |
 | DELETE | `/api/admin/task-types/{id}`  | `Administrator`  |
 | POST   | `/api/admin/backups`          | `Administrator`  |

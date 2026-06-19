@@ -9,7 +9,7 @@ import type {
 } from "./types";
 
 export function fetchTaskTypes(): Promise<TaskType[]> {
-  return apiFetch<TaskType[]>("/api/task-types");
+  return apiFetch<TaskType[]>("/api/admin/task-types");
 }
 
 export interface CreateTaskTypeInput {

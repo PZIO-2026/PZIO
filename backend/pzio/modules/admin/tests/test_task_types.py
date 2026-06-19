@@ -74,7 +74,7 @@ def test_get_task_types_has_default_entry(client: TestClient, db_session: Sessio
     admin = seed_user(db_session, email="admin@example.com", role=UserRole.ADMINISTRATOR)
     headers = auth_header(admin)
 
-    response = client.get("/api/task-types", headers=headers)
+    response = client.get("/api/admin/task-types", headers=headers)
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body, list)
@@ -89,7 +89,7 @@ def test_get_task_types_returns_inserted_items(client: TestClient, db_session: S
     client.post("/api/admin/task-types", json={"name": "Epic"}, headers=headers)
     client.post("/api/admin/task-types", json={"name": "Spike"}, headers=headers)
 
-    response = client.get("/api/task-types", headers=headers)
+    response = client.get("/api/admin/task-types", headers=headers)
     assert response.status_code == 200
     body = response.json()
     assert isinstance(body, list)
@@ -97,8 +97,17 @@ def test_get_task_types_returns_inserted_items(client: TestClient, db_session: S
     assert names == ["Bug", "Epic", "Spike"]
 
 
+def test_get_task_types_as_non_admin_returns_200(client: TestClient, db_session: Session) -> None:
+    # Despite the /api/admin prefix the dictionary read stays available to every
+    # logged-in user — task forms need it to populate the type select.
+    member = seed_user(db_session, email="member@example.com", role=UserRole.TEAM_MEMBER)
+
+    response = client.get("/api/admin/task-types", headers=auth_header(member))
+    assert response.status_code == 200
+
+
 def test_get_task_types_without_token_returns_401(client: TestClient) -> None:
-    response = client.get("/api/task-types")
+    response = client.get("/api/admin/task-types")
     assert response.status_code == 401
 
 
@@ -115,7 +124,7 @@ def test_remove_task_type_success(client: TestClient, db_session: Session) -> No
     assert delete_resp.status_code == 204
 
     # Verify it was removed
-    get_resp = client.get("/api/task-types", headers=headers)
+    get_resp = client.get("/api/admin/task-types", headers=headers)
     assert len(get_resp.json()) == 1
 
 
@@ -124,7 +133,7 @@ def test_remove_last_task_type_returns_400(client: TestClient, db_session: Sessi
     headers = auth_header(admin)
 
     # Just one default item exists at this point
-    get_resp = client.get("/api/task-types", headers=headers)
+    get_resp = client.get("/api/admin/task-types", headers=headers)
     items = get_resp.json()
     assert len(items) == 1
     task_type_id = items[0]["taskTypeId"]
