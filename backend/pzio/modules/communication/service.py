@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from pzio.config import settings
 from pzio.modules.admin import service as admin_service
+from pzio.modules.auth.models import User
+from pzio.modules.communication.base import EmailService
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate, CommentUpdate
 
@@ -23,6 +25,68 @@ class AttachmentNotFoundError(Exception):
 
 class NotOwnerError(Exception):
     """Raised when a user tries to modify a resource they don't own (403)."""
+
+
+def build_comment_notification_message(
+    task_id: int,
+    task_title: str,
+    author: User,
+    content: str,
+) -> tuple[str, str]:
+    safe_title = task_title.replace("\n", " ").replace("\r", " ")
+    subject = f"New comment on task #{task_id}: {safe_title}"
+    author_display = f"{author.first_name} {author.last_name}".strip()
+    body = (
+        "A new task comment was added.\n\n"
+        f"Task ID: {task_id}\n"
+        f"Task title: {task_title}\n"
+        f"Commented by: {author_display} <{author.email}>\n\n"
+        "Comment content:\n"
+        f"{content}\n"
+    )
+    return subject, body
+
+
+def get_comment_notification_recipients(
+    db: Session,
+    task_id: int,
+    author_id: int,
+    assignee_id: int | None,
+) -> list[User]:
+    """Return assignee and prior commenters, excluding the author of the new comment."""
+    recipient_ids: set[int] = set()
+
+    if assignee_id is not None and assignee_id != author_id:
+        recipient_ids.add(assignee_id)
+
+    commenter_stmt = (
+        select(Comment.author_id)
+        .where(Comment.task_id == task_id)
+        .distinct()
+    )
+    for commenter_id in db.scalars(commenter_stmt):
+        if commenter_id != author_id:
+            recipient_ids.add(commenter_id)
+
+    if not recipient_ids:
+        return []
+
+    users_stmt = (
+        select(User)
+        .where(User.user_id.in_(recipient_ids))
+        .where(User.is_active.is_(True))
+    )
+    return list(db.scalars(users_stmt))
+
+
+def send_comment_notifications(
+    email_service: EmailService,
+    recipients: list[User],
+    subject: str,
+    body: str,
+) -> None:
+    for recipient in recipients:
+        email_service.send_email(to=recipient.email, subject=subject, body=body)
 
 
 def create_comment(db: Session, task_id: int, author_id: int, payload: CommentCreate) -> Comment:
