@@ -51,6 +51,14 @@ const inputClass =
 
 const PAGE_SIZE = 10;
 
+const ROLE_WEIGHTS: Record<ProjectRole, number> = {
+  project_owner: 1,
+  scrum_master: 2,
+  developer: 3,
+  qa: 4,
+  maintainer: 5,
+};
+
 export default function ProjectsMembersPage() {
   const { project, refreshProject } =
     useOutletContext<OutletContext>();
@@ -369,12 +377,14 @@ export default function ProjectsMembersPage() {
 
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-2">
-                              {member.roles.map((roleValue) => (
-                                <ProjectRoleBadge
-                                  key={roleValue}
-                                  role={roleValue}
-                                />
-                              ))}
+                              {[...member.roles]
+                                .sort((a, b) => ROLE_WEIGHTS[a] - ROLE_WEIGHTS[b])
+                                .map((roleValue) => (
+                                  <ProjectRoleBadge
+                                    key={roleValue}
+                                    role={roleValue}
+                                  />
+                                ))}
                             </div>
                           </td>
 

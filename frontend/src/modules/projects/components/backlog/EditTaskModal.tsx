@@ -4,6 +4,7 @@ import { useForm, useWatch, type Resolver } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { useConfirm } from "../../../../components/ConfirmProvider";
 import Modal from "../Modal";
 
 import { ApiError } from "../../../../api/client";
@@ -11,9 +12,9 @@ import { ApiError } from "../../../../api/client";
 import { fetchTaskTypes } from "../../../admin/api";
 import type { TaskType } from "../../../admin/types";
 
-import { fetchTasks, updateTask } from "../../api";
+import { fetchSprints, fetchTasks, updateTask } from "../../api";
 
-import type { WorkItem } from "../../types";
+import type { Sprint, WorkItem } from "../../types";
 
 import { taskFormSchema, type TaskFormInput } from "../../schemas";
 
@@ -36,10 +37,13 @@ interface Props {
 // ============================================================
 
 export default function EditTaskModal({ isOpen, onClose, task, projectId, onTaskUpdated }: Props) {
+  const confirm = useConfirm();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [taskTypesLoading, setTaskTypesLoading] = useState(false);
   const [allTasks, setAllTasks] = useState<WorkItem[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintsLoading, setSprintsLoading] = useState(false);
 
   const {
     register,
@@ -65,10 +69,12 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
       priority: "Medium",
       storyPoints: undefined,
       parentId: null,
+      sprintId: null,
     },
   });
 
   const parentId = useWatch({ control, name: "parentId" }) ?? null;
+  const sprintId = useWatch({ control, name: "sprintId" }) ?? null;
 
   // ============================================================
   // Effects
@@ -78,17 +84,31 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     if (!isOpen) return;
 
     setTaskTypesLoading(true);
-    fetchTaskTypes().then(setTaskTypes).catch(() => {}).finally(() => setTaskTypesLoading(false));
-    fetchTasks(projectId).then(setAllTasks).catch(() => {});
+    fetchTaskTypes().then(setTaskTypes).catch(() => { }).finally(() => setTaskTypesLoading(false));
+    fetchTasks(projectId).then(setAllTasks).catch(() => { });
+    setSprintsLoading(true);
+    fetchSprints(projectId).then(setSprints).catch(() => setSprints([])).finally(() => setSprintsLoading(false));
   }, [isOpen, projectId]);
 
   useEffect(() => {
-    if (!task) return;
     if (!isOpen) {
       setSubmitError(null);
       reset();
+      return;
     }
-  }, [task, isOpen, reset]);
+
+    if (!task) return;
+
+    reset({
+      title: task.title,
+      description: task.description ?? "",
+      type: task.type,
+      priority: task.priority as TaskFormInput["priority"],
+      storyPoints: task.storyPoints ?? undefined,
+      parentId: task.parentId ?? null,
+      sprintId: task.sprintId ?? null,
+    });
+  }, [isOpen, task, reset]);
 
   // ============================================================
   // Handlers
@@ -100,6 +120,27 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
     setSubmitError(null);
 
     try {
+      if (values.sprintId !== task.sprintId) {
+        let descendantCount = 0;
+        let pendingParentIds = [task.id];
+
+        while (pendingParentIds.length > 0) {
+          const children = allTasks
+            .filter((item) => pendingParentIds.includes(item.parentId ?? -1))
+            .map((item) => item.id);
+          if (children.length === 0) break;
+          descendantCount += children.length;
+          pendingParentIds = children;
+        }
+
+        if (descendantCount > 0) {
+          const confirmed = await confirm(
+            `Zmiana sprintu tego zadania zmieni sprint także w ${descendantCount} zadaniach podrzędnych. Czy kontynuować?`,
+          );
+          if (!confirmed) return;
+        }
+      }
+
       const updated = await updateTask(task.id, values);
 
       onTaskUpdated(updated);
@@ -129,6 +170,9 @@ export default function EditTaskModal({ isOpen, onClose, task, projectId, onTask
           taskTypesLoading={taskTypesLoading}
           allTasks={allTasks}
           editingTaskId={task?.id}
+          sprints={sprints}
+          sprintId={sprintId}
+          sprintsLoading={sprintsLoading}
         />
 
         {submitError && (

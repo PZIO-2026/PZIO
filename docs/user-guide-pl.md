@@ -55,12 +55,119 @@ Domyślnie użyje on adresu `http://localhost:8000` dla backendu. Frontend ruszy
 
 > _Użytkownicy Nix:_ W głównym roocie projektu znajduje się również plik `shell.nix`. Możesz skorzystać po prostu z komendy `nix-shell` z roota, aby szybko ustawić wyizolowane środowisko systemowe.
 
-## 2. Baza danych i zasady środowiskowe
+### Konfiguracja logowania przez Google / GitHub (OAuth2) — opcjonalne
+
+Aplikacja umożliwia logowanie zewnętrznym kontem Google lub GitHub. **Ta opcja jest wyłączona dopóki administrator nie skonfiguruje danych uwierzytelniających.** Jeśli żaden dostawca nie jest skonfigurowany, frontend ukrywa odpowiednie przyciski na ekranach logowania i rejestracji — użytkownik widzi wtedy wyłącznie klasyczny formularz e-mail + hasło.
+
+Każdy dostawca wymaga zarejestrowania aplikacji w jego panelu i przeniesienia dwóch wartości (Client ID i Client Secret) do zmiennych środowiskowych PZIO. Frontend potrzebuje **tylko Client ID** (publiczna wartość — startuje flow OAuth w przeglądarce). Backend potrzebuje **Client ID i Client Secret** (weryfikuje token zwrócony przez dostawcę). Sekret nigdy nie trafia do zmiennych z prefiksem `VITE_*`, bo te są wbudowywane w bundle frontendu.
+
+**Adres przekierowania zwrotnego (Redirect URI)** dla obu dostawców to:
+
+- środowisko lokalne (dev): `http://localhost:5173/oauth/callback`
+- środowisko produkcyjne: `https://<twoja-domena>/oauth/callback`
+
+#### Google
+
+1. Wejdź do [Google Cloud Console](https://console.cloud.google.com/) i wybierz (lub utwórz) projekt.
+2. Z menu wybierz **APIs & Services → OAuth consent screen** i skonfiguruj ekran zgody (typ aplikacji: External, podaj nazwę aplikacji i adres e-mail kontaktowy). Dodaj `email` i `profile` do scope'ów.
+3. Następnie **APIs & Services → Credentials → Create credentials → OAuth client ID**. Wybierz typ **Web application**.
+4. W polu **Authorized redirect URIs** dodaj adres zwrotny (jak wyżej — `http://localhost:5173/oauth/callback` lub produkcyjny odpowiednik).
+5. Skopiuj wygenerowane **Client ID** i **Client Secret** — wartości wpiszesz do pliku `.env` w sekcji „Gdzie wpisać wartości” niżej.
+
+#### GitHub
+
+1. Wejdź do [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers) i kliknij **New OAuth App**.
+2. Wypełnij formularz:
+   - **Application name** — dowolna nazwa.
+   - **Homepage URL** — np. `http://localhost:5173` (dev) lub adres produkcyjny.
+   - **Authorization callback URL** — `http://localhost:5173/oauth/callback` (dev) lub `https://<twoja-domena>/oauth/callback` (prod).
+3. Po zapisaniu skopiuj **Client ID** i wygeneruj **Client Secret** (przycisk *Generate a new client secret* — wartość pokaże się tylko raz).
+
+#### Gdzie wpisać wartości
+
+Sposób różni się w zależności od tego, którym sposobem (z rozdziału 1) uruchamiasz aplikację:
+
+**Sposób 1 — Docker (zalecany).** Wszystkie zmienne idą do **jednego** pliku `.env` w katalogu głównym repozytorium (ten sam, w którym trzymasz `JWT_SECRET`). Docker Compose automatycznie odczyta go i przekaże dalej — do backendu jako runtime env, do frontendu jako build args (zob. `docker-compose.yml`, sekcje `backend.environment` i `frontend.build.args`):
+
+```
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+VITE_GOOGLE_CLIENT_ID=...
+VITE_GITHUB_CLIENT_ID=...
+```
+
+Wartości `VITE_*` zazwyczaj są **identyczne** z `GOOGLE_CLIENT_ID` / `GITHUB_CLIENT_ID` — Vite wymaga prefiksu `VITE_`, żeby zmienna trafiła do bundle'a frontendu. Sekrety (`*_SECRET`) **nigdy** nie dostają prefiksu `VITE_`, bo bundle frontendu jest publiczny.
+
+**Sposób 2 — uruchamianie klasyczne.** Zmienne dzielą się na dwa pliki:
+
+- `backend/.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
+- `frontend/.env`: `VITE_GOOGLE_CLIENT_ID`, `VITE_GITHUB_CLIENT_ID`.
+
+#### Po zmianie konfiguracji — restart
+
+Backend wczytuje zmienne **runtime'owo** przy starcie procesu, więc wystarczy odtworzyć kontener / proces:
+
+- Docker: `docker compose up -d backend`. **Nie** `docker compose restart backend` — `restart` jedynie restartuje proces wewnątrz istniejącego kontenera, więc świeżo dodane zmienne w `.env` nie zostaną odczytane. `up -d` porównuje konfigurację z aktualnym kontenerem i odtwarza go, jeśli coś się zmieniło.
+- klasyczne: zatrzymaj i ponownie uruchom `python -m pzio`.
+
+Frontend **wbudowuje** wartości `VITE_*` w bundle JS w momencie buildu — sam restart nic nie da, bo wcześniej zbudowane pliki nadal zawierają stare wartości. Trzeba przebudować:
+
+- Docker: `docker compose up --build` (`--build` jest kluczowe — bez tego Compose użyje starego obrazu).
+- klasyczne: zatrzymaj i ponownie uruchom `npm run dev` — dev-server Vite czyta `frontend/.env` na starcie.
+
+Skonfigurowanie tylko jednego dostawcy jest w pełni dozwolone — frontend pokaże wtedy tylko ten jeden przycisk, a backend obsłuży tylko ten provider.
+
+## 2. Role systemowe
+
+### Ogólne zasady
 
 - **Pierwszy zarejestrowany użytkownik** uzyskuje automatycznie najwyższe uprawnienia: **Administrator**.
 - **Każdy kolejny** staje się domyślnie **Team Memberem**.
+- **Twórca projektu** staje się automatycznie **Project Ownerem** tego projektu.
 
-_Uwaga deweloperska:_ Przypominanie haseł póki co używa komponentu `MockEmailService`. Aplikacja nie wysyła fizycznie e-maili, ale zapisuje requesty resetu w bazie danych.
+### Tabela kompetencji ról systemowych
+
+| Funkcjonalność | TeamMember | Manager | Administrator |
+|---|---|---|---|
+| Przeglądanie i edycja własnego profilu | ✅ | ✅ | ✅ |
+| Przeglądanie projektów, których jest członkiem | ✅ | ✅ | ✅ |
+| Tworzenie nowych projektów | ❌ | ✅ | ✅ |
+| Przeglądanie listy użytkowników | ❌ | ❌ | ✅ |
+| Przeglądanie wszystkich projektów | ❌ | ❌ | ✅ |
+| Aktywacja/dezaktywacja kont użytkowników | ❌ | ❌ | ✅ |
+| Zmiana ról systemowych użytkowników | ❌ | ❌ | ✅ |
+| Zarządzanie typami zadań (słownik systemowy) | ❌ | ❌ | ✅ |
+| Wymuszanie backupu bazy danych | ❌ | ❌ | ✅ |
+| Przeglądanie logów aktywności | ❌ | ❌ | ✅ |
+| Dostęp do panelu administratora (`/admin`) | ❌ | ❌ | ✅ |
+
+### Tabela kompetencji ról projektowych
+
+| Funkcjonalność | Developer | QA | Scrum Master | Project Owner |
+|---|---|---|---|---|
+| Przeglądanie szczegółów projektu | ✅ | ✅ | ✅ | ✅ |
+| Przeglądanie listy sprintów | ✅ | ✅ | ✅ | ✅ |
+| Podgląd wykresu burndown | ✅ | ✅ | ✅ | ✅ |
+| Zarządzanie zadaniami (CRUD) w projekcie | ✅ | ✅ | ✅ | ✅ |
+| Korzystanie z tablicy Kanban | ✅ | ✅ | ✅ | ✅ |
+| Zarządzanie backlogiem | ✅ | ✅ | ✅ | ✅ |
+| Dodawanie komentarzy i załączników do zadań | ✅ | ✅ | ✅ | ✅ |
+| Tworzenie sprintów | ❌ | ❌ | ✅ | ✅ |
+| Edycja sprintów | ❌ | ❌ | ✅ | ✅ |
+| Usuwanie sprintów | ❌ | ❌ | ✅ | ✅ |
+| Dodawanie członków do projektu | ❌ | ❌ | ✅¹ | ✅ |
+| Usuwanie członków z projektu | ❌ | ❌ | ✅² | ✅ |
+| Edycja ról członków projektu | ❌ | ❌ | ✅³ | ✅ |
+| Edycja danych projektu (nazwa, opis) | ❌ | ❌ | ❌ | ✅ |
+| Usuwanie/archiwizacja projektu | ❌ | ❌ | ❌ | ✅ |
+
+> **Uwagi:**
+> 1. Scrum Master nie może dodać członka z rolą Project Owner.
+> 2. Scrum Master nie może usunąć Project Ownera ani innego Scrum Mastera.
+> 3. Tylko Project Owner może nadawać lub odbierać rolę Project Owner. Scrum Master może edytować pozostałe role, ale nie może odebrać sobie samemu roli Scrum Master, jeśli jest jedynym Scrum Masterem w projekcie.
+> 4. Definiowana w kodzie rola **Maintainer** nie jest obecnie używana w żadnej logice biznesowej.
 
 ## 3. Sposób użycia - Funkcjonalności
 
@@ -74,7 +181,7 @@ Poniżej znajdziesz zestawienie widoków we frontendzie.
 - Umożliwia uwierzytelnienie się za pomocą adresu e-mail i hasła.
 - Po pomyślnym zalogowaniu następuje przekierowanie do strony głównej.
 - Można też przejść do ekranu rejestracji lub zapomnianego hasła, jeśli nie masz jeszcze konta lub potrzebujesz zresetować hasło.
-- Dostępna jest również opcja logowanie przez Google lub GitHub (OAuth2) - po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu następuje powrót do aplikacji z zalogowanym użytkownikiem. Oczywiście, aby skorzystać z tej funkcji, administrator musi wcześniej skonfigurować odpowiednie dane uwierzytelniające za pomocą zmiennych środowiskowych.
+- Dostępna jest również opcja logowania przez Google lub GitHub (OAuth2) — po kliknięciu następuje przekierowanie do odpowiedniego dostawcy, a po udanym uwierzytelnieniu powrót do aplikacji z zalogowanym użytkownikiem. Przyciski OAuth są widoczne tylko dla tych dostawców, których administrator wcześniej skonfigurował — zob. sekcję „Konfiguracja logowania przez Google / GitHub (OAuth2)” wyżej.
 
 ### Rejestracja (`/register`)
 
@@ -176,8 +283,11 @@ Widok ten jest podzielony na wiele sekcji, które udokumentowano poniżej.
 
 ![Zrzut ekranu strony profilu użytkownika](assets/profile.png)
 
-- Wyświetlanie aktualnych informacji na swój temat.
-- Możliwość edycji danych osobowych, takich jak imię, nazwisko i adres URL awatara.
+- Wyświetlanie aktualnych informacji na swój temat (imię, nazwisko, adres e-mail, rola, status).
+- Możliwość edycji podstawowych danych osobowych, takich jak imię, nazwisko i adres URL awatara.
+- Możliwość zmiany adresu e-mail przypisanego do konta.
+- Możliwość zmiany aktualnego hasła (ze względów bezpieczeństwa operacja ta wymaga podania dotychczasowego hasła).
+- **Strefa niebezpieczna:** Możliwość trwałego i bezpowrotnego usunięcia własnego konta z systemu.
 
 ### Panel Administratora (`/admin`)
 

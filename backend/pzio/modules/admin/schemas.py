@@ -17,7 +17,7 @@ class TaskTypeCreate(BaseModel):
 
 
 class TaskTypeRead(BaseModel):
-    """Public dictionary entry returned by /api/task-types and /api/admin/task-types."""
+    """Public dictionary entry returned by GET and POST /api/admin/task-types."""
 
     task_type_id: int = Field(serialization_alias="taskTypeId")
     name: str

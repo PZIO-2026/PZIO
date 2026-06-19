@@ -11,6 +11,30 @@ from pzio.modules.auth.security import create_access_token, hash_password
 from pzio.modules.communication import service
 from pzio.modules.communication.models import Attachment, Comment
 from pzio.modules.communication.schemas import CommentCreate
+from pzio.modules.tasks.models import WorkItem
+
+
+@pytest.fixture
+def task_factory(db_session: Session) -> Callable[..., WorkItem]:
+    def _create_task(
+        *,
+        title: str = "Fix login bug",
+        assignee_id: int | None = None,
+        project_id: int = 1,
+    ) -> WorkItem:
+        task = WorkItem(
+            project_id=project_id,
+            title=title,
+            type="Task",
+            priority="Medium",
+            assignee_id=assignee_id,
+        )
+        db_session.add(task)
+        db_session.commit()
+        db_session.refresh(task)
+        return task
+
+    return _create_task
 
 
 @pytest.fixture
@@ -23,6 +47,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
         last_name: str = "Lovelace",
         avatar: str | None = None,
         role: UserRole = UserRole.TEAM_MEMBER,
+        is_active: bool = True,
     ) -> User:
         user = User(
             email=email,
@@ -31,7 +56,7 @@ def user_factory(db_session: Session) -> Callable[..., User]:
             last_name=last_name,
             avatar=avatar,
             role=role,
-            is_active=True,
+            is_active=is_active,
         )
         db_session.add(user)
         db_session.commit()

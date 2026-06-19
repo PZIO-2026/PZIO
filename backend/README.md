@@ -127,7 +127,16 @@ Settings come from environment variables (or a local `.env` file — see `.env.e
 | `JWT_ALGORITHM`        | `HS256`                              |                                             |
 | `JWT_EXPIRES_MIN`      | `60`                                 | Access token lifetime in minutes.           |
 | `CORS_ORIGINS`         | `http://localhost:5173`              | Comma-separated list of allowed origins.    |
+| `FRONTEND_URL`         | `http://localhost:5173`              | Base URL for links in outbound emails.      |
+| `BACKUP_DIR`           | `./backups`                          | Directory for forced DB backups.            |
 | `UPLOAD_DIR`           | `./uploads`                          | Directory for uploaded task attachments.    |
+| `SMTP_HOST`            |                                      | SMTP server (Gmail: `smtp.gmail.com`).      |
+| `SMTP_PORT`            | `587`                                | SMTP port (587 STARTTLS, 465 SSL).          |
+| `SMTP_USER`            |                                      | When set, sends real email via SMTP.        |
+| `SMTP_PASSWORD`        |                                      | SMTP password (Gmail: App Password).        |
+| `SMTP_USE_TLS`         | `true`                               | STARTTLS before login (typical for 587).    |
+| `SMTP_USE_SSL`         | `false`                              | Implicit SSL (typical for port 465).        |
+| `SMTP_TIMEOUT`         | `30`                                 | SMTP connection timeout in seconds.         |
 | `GOOGLE_CLIENT_ID`     |                                      | Google OAuth Client ID.                     |
 | `GOOGLE_CLIENT_SECRET` |                                      | Google OAuth Client Secret.                 |
 | `GITHUB_CLIENT_ID`     |                                      | GitHub OAuth Client ID.                     |

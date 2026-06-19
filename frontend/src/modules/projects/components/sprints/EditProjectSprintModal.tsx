@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useForm } from "react-hook-form";
 
@@ -16,6 +16,7 @@ import SprintFormFields from "./SprintFormFields";
 
 import {
   sprintFormSchema,
+  todayLocalISO,
   type SprintFormInput,
 } from "../../schemas";
 
@@ -43,10 +44,17 @@ export default function EditProjectSprintModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SprintFormInput>({
     resolver: zodResolver(sprintFormSchema),
-
+    values: sprint ? {
+      name: sprint.name,
+      startDate: sprint.startDate.split("T")[0],
+      endDate: sprint.endDate.split("T")[0],
+      goal: sprint.goal ?? "",
+      status: sprint.status,
+    } : undefined,
     defaultValues: {
       name: "",
       startDate: "",
@@ -57,17 +65,29 @@ export default function EditProjectSprintModal({
   });
 
   useEffect(() => {
-    if (!sprint) return;
+    if (!isOpen) {
+      setSubmitError(null);
+      reset();
+    }
+  }, [isOpen, reset]);
 
-    reset({
-      name: sprint.name,
-      // for proper formatting
-      startDate: sprint.startDate.split("T")[0],
-      endDate: sprint.endDate.split("T")[0],
-      goal: sprint.goal ?? "",
-      status: sprint.status,
-    });
-  }, [sprint, reset]);
+  const startDate = watch("startDate");
+
+  const minEndDate = useMemo(() => {
+    const today = todayLocalISO();
+
+    if (!startDate) return today;
+
+    const [year, month, day] = startDate.split("-").map(Number);
+    const nextDay = new Date(year, month - 1, day);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    const nextDayStr = `${nextDay.getFullYear()}-${String(
+      nextDay.getMonth() + 1,
+    ).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+
+    return nextDayStr > today ? nextDayStr : today;
+  }, [startDate]);
 
   async function onSubmit(
     values: SprintFormInput,
@@ -134,6 +154,7 @@ export default function EditProjectSprintModal({
           register={register}
           errors={errors}
           showStatus
+          minEndDate={minEndDate}
         />
 
         {submitError && (
