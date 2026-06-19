@@ -215,6 +215,14 @@ class TestCreateProject:
         res = client.post("/api/projects", json={"name": ""})
         assert res.status_code == 422
 
+    def test_whitespace_only_name_returns_422(self, client: TestClient):
+        res = client.post("/api/projects", json={"name": "   "})
+        assert res.status_code == 422
+
+    def test_name_is_stripped(self, client: TestClient):
+        data = _create_project(client, name="  Projekt z marginesem  ")
+        assert data["name"] == "Projekt z marginesem"
+
 
 class TestListProjects:
     def test_returns_empty_page_when_no_projects(self, client: TestClient):

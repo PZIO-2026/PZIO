@@ -13,6 +13,7 @@ class CommentCreate(BaseModel):
     content: str = Field(min_length=1, max_length=COMMENT_CONTENT_MAX_LENGTH)
 
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "content": "Pushed the fix to the feature branch — please review when you get a chance.",
@@ -27,6 +28,7 @@ class CommentUpdate(BaseModel):
     content: str = Field(min_length=1, max_length=COMMENT_CONTENT_MAX_LENGTH)
 
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "content": "Edited: pushed the fix and rebased onto master.",

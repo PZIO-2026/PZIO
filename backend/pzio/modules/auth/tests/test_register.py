@@ -112,3 +112,21 @@ def test_register_rejects_missing_field_with_400(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert isinstance(response.json()["detail"], str)
+
+
+def test_register_rejects_whitespace_only_name_with_400(client: TestClient) -> None:
+    payload = {**VALID_PAYLOAD, "firstName": "   "}
+    response = client.post("/api/auth/register", json=payload)
+
+    assert response.status_code == 400
+    assert isinstance(response.json()["detail"], str)
+
+
+def test_register_strips_whitespace_around_names(client: TestClient) -> None:
+    payload = {**VALID_PAYLOAD, "firstName": "  Ada ", "lastName": " Lovelace  "}
+    response = client.post("/api/auth/register", json=payload)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["firstName"] == "Ada"
+    assert body["lastName"] == "Lovelace"
